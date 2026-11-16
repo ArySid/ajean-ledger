@@ -140,3 +140,9 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - **Free-plan impact:** bundle 12.6 MiB raw / 2.8 MiB gzip (limit 64 MiB uncompressed on Workers Free per current docs; also under the historical 3 MiB gzip limit), startup 14 ms. Static files are served by the Worker, so each page view costs a few extra requests out of the 100,000/day: negligible for a demo.
 - **Secrets:** `SERVICE_PAY_TO_ADDRESS` and `AGENT_PRIVATE_KEY` are set with `wrangler secret put` (piped from `.env.local`, never printed). Storage: free KV namespace `AJEAN_KV` bound.
 - **Rejected:** asking the user to deploy from their own machine (slower loop); Netlify (not needed); Cloudflare Workers Builds via the GitHub integration (needs a dashboard step from the user; possible later for automatic deploys on push).
+
+## ADR-021 — Demo SME renamed "Atelier Lumenor SAS (fictional)"; SIRENs from the unallocated 000 range
+- **Status:** accepted (safety rule §4 overrides ADR-015's name)
+- **Context:** The Phase 1 independent review found that six "fictional" SIRENs belonged to real registered entities (including two individuals), and five fictional company names (among them "Atelier Lumen") exactly matched real register entries.
+- **Decision:** All identifiers now use valid-checksum SIRENs from the unallocated `000…` range (000001008 → 000001073, VAT keys recomputed); a test enforces the prefix. Names matching real entries were altered and keep the "(fictional)" suffix: Atelier Lumen → **Atelier Lumenor**, Buro Express → Buro Velours, Formacompta → Formacomète, Numeria Solutions → Numeria Pixelune, Cabinet Vasseur → Cabinet Vasquelin.
+- **Why:** "No real client data, ever" (§4) — a real company name or SIREN on a public demo page is exactly what the rule forbids.
