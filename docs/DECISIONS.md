@@ -76,6 +76,7 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - **Context:** Prompt #02 asks for a new private repo `ajean-ledger` on the user's account. The account was identified as `ArySid` (`gh api user`). This cloud session's GitHub credential is scoped to configured repositories only: the repo-creation API path is blocked (HTTP 403) and `add_repo` cannot attach a repo that does not exist.
 - **Decision:** The user creates the empty private repo `ArySid/ajean-ledger` once (Action required). The session then attaches it with push access and pushes the full local history; every later step is pushed. Until then, commits are kept locally.
 - **Rejected:** Pushing to another existing repo (forbidden: never touch existing assets).
+- **Outcome (2026-11-16):** the user created `ArySid/ajean-ledger`; it was attached with push access and the local history was pushed to `main`.
 
 ## ADR-010 — Storage: optional, Neon → Upstash → memory (no Supabase)
 - **Status:** accepted (prompt #02)
@@ -95,6 +96,7 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 ## ADR-013 — Anthropic key optional; scripted mode first
 - **Status:** accepted (prompt #02)
 - **Decision:** Everything is built and tested without an LLM (structured inputs, scripted demo agent). The key is requested once via the secure form; when present, `createAnthropicAdapter()` enables LLM extraction/classification and the agent's LLM reasoning. Default model `claude-sonnet-5-5` (env `ANTHROPIC_MODEL`).
+- **Outcome:** the session's secure credential form refuses Anthropic hosts (they are authenticated by the session itself), so the key cannot be collected that way. The key is therefore added by the user directly as the `ANTHROPIC_API_KEY` environment variable of the Vercel project (sensitive). Until then the deployed service runs in scripted / rules-only mode, which is the designed default.
 
 ## ADR-014 — Fixture 9: the lawyer is the BNC client whose books we keep
 - **Status:** accepted (prompt #02)
