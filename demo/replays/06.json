@@ -6,7 +6,7 @@
   "recorded_from": "simulated",
   "recorded_at": "2026-11-16T10:41:28.251Z",
   "agent": {
-    "name": "Atelier Lumen purchasing agent",
+    "name": "Atelier Lumenor purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
     "policy": {
       "max_per_call_usdc": "0.20",
@@ -18,12 +18,12 @@
     {
       "t_ms": 0,
       "kind": "reasoning",
-      "title": "New invoice BE-2026-0412 from Buro Express SARL (fictional)",
-      "detail": "I am the purchasing agent of Atelier Lumen SAS (fictional). I received invoice BE-2026-0412 for 168.00 EUR incl. VAT (\"Ramettes papier A4 80 g (carton de 5)\", \"Stylos bille bleus (boîte de 50)\", \"Classeurs à levier dos 80 mm\") by email. I must book it in our ERP. It looks routine, but I still need the right PCG account, the VAT treatment and a check of the mandatory e-invoicing mentions before anything goes into our books. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
+      "title": "New invoice BE-2026-0412 from Buro Velours SARL (fictional)",
+      "detail": "I am the purchasing agent of Atelier Lumenor SAS (fictional). I received invoice BE-2026-0412 for 168.00 EUR incl. VAT (\"Ramettes papier A4 80 g (carton de 5)\", \"Stylos bille bleus (boîte de 50)\", \"Classeurs à levier dos 80 mm\") by email. I must book it in our ERP. It looks routine, but I still need the right PCG account, the VAT treatment and a check of the mandatory e-invoicing mentions before anything goes into our books. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
       "data": {
-        "inbox_file": "inbox/06-buro-express-resent.json",
+        "inbox_file": "inbox/06-buro-velours-resent.json",
         "task": "entry",
-        "from": "relances@buro-express.example (fictional)",
+        "from": "relances@buro-velours.example (fictional)",
         "subject": "RAPPEL - Facture BE-2026-0412",
         "fixtures": [
           "fixtures/06.json"
@@ -129,16 +129,16 @@
                       "due_date": "2026-11-04",
                       "currency": "EUR",
                       "supplier": {
-                        "name": "Buro Express SARL (fictional)",
-                        "siren": "903182640",
-                        "vat_id": "FR81903182640",
+                        "name": "Buro Velours SARL (fictional)",
+                        "siren": "000001016",
+                        "vat_id": "FR53000001016",
                         "country": "FR",
                         "address": "48 boulevard Voltaire, 75011 Paris"
                       },
                       "customer": {
-                        "name": "Atelier Lumen SAS (fictional)",
-                        "siren": "902417351",
-                        "vat_id": "FR10902417351",
+                        "name": "Atelier Lumenor SAS (fictional)",
+                        "siren": "000001008",
+                        "vat_id": "FR29000001008",
                         "country": "FR",
                         "address": "12 rue des Ateliers, 69002 Lyon"
                       },
@@ -215,16 +215,16 @@
                       "due_date": "2026-11-04",
                       "currency": "EUR",
                       "supplier": {
-                        "name": "Buro Express SARL (fictional)",
-                        "siren": "903182640",
-                        "vat_id": "FR81903182640",
+                        "name": "Buro Velours SARL (fictional)",
+                        "siren": "000001016",
+                        "vat_id": "FR53000001016",
                         "country": "FR",
                         "address": "48 boulevard Voltaire, 75011 Paris"
                       },
                       "customer": {
-                        "name": "Atelier Lumen SAS (fictional)",
-                        "siren": "902417351",
-                        "vat_id": "FR10902417351",
+                        "name": "Atelier Lumenor SAS (fictional)",
+                        "siren": "000001008",
+                        "vat_id": "FR29000001008",
                         "country": "FR",
                         "address": "12 rue des Ateliers, 69002 Lyon"
                       },
@@ -295,16 +295,16 @@
                         "due_date": "2026-11-04",
                         "currency": "EUR",
                         "supplier": {
-                          "name": "Buro Express SARL (fictional)",
-                          "siren": "903182640",
-                          "vat_id": "FR81903182640",
+                          "name": "Buro Velours SARL (fictional)",
+                          "siren": "000001016",
+                          "vat_id": "FR53000001016",
                           "country": "FR",
                           "address": "48 boulevard Voltaire, 75011 Paris"
                         },
                         "customer": {
-                          "name": "Atelier Lumen SAS (fictional)",
-                          "siren": "902417351",
-                          "vat_id": "FR10902417351",
+                          "name": "Atelier Lumenor SAS (fictional)",
+                          "siren": "000001008",
+                          "vat_id": "FR29000001008",
                           "country": "FR",
                           "address": "12 rue des Ateliers, 69002 Lyon"
                         },
@@ -486,16 +486,16 @@
               "due_date": "2026-11-04",
               "currency": "EUR",
               "supplier": {
-                "name": "Buro Express SARL (fictional)",
-                "siren": "903182640",
-                "vat_id": "FR81903182640",
+                "name": "Buro Velours SARL (fictional)",
+                "siren": "000001016",
+                "vat_id": "FR53000001016",
                 "country": "FR",
                 "address": "48 boulevard Voltaire, 75011 Paris"
               },
               "customer": {
-                "name": "Atelier Lumen SAS (fictional)",
-                "siren": "902417351",
-                "vat_id": "FR10902417351",
+                "name": "Atelier Lumenor SAS (fictional)",
+                "siren": "000001008",
+                "vat_id": "FR29000001008",
                 "country": "FR",
                 "address": "12 rue des Ateliers, 69002 Lyon"
               },
@@ -538,8 +538,8 @@
             }
           },
           "profile": {
-            "name": "Atelier Lumen SAS (fictional)",
-            "siren": "902417351",
+            "name": "Atelier Lumenor SAS (fictional)",
+            "siren": "000001008",
             "legal_form": "SAS",
             "activity": "commercial",
             "accounting_basis": "accrual",
@@ -548,14 +548,14 @@
           },
           "history": [
             {
-              "supplier_key": "SIREN:903182640",
+              "supplier_key": "SIREN:000001016",
               "number": "BE-2026-0412",
               "issue_date": "2026-10-05",
               "total_incl_vat": 168,
               "document_type": "invoice"
             },
             {
-              "supplier_key": "SIREN:904521978",
+              "supplier_key": "SIREN:000001024",
               "number": "LBL-2026-1187",
               "issue_date": "2026-10-08",
               "total_incl_vat": 175.2,
@@ -716,16 +716,16 @@
               "due_date": "2026-11-04",
               "currency": "EUR",
               "supplier": {
-                "name": "Buro Express SARL (fictional)",
-                "siren": "903182640",
-                "vat_id": "FR81903182640",
+                "name": "Buro Velours SARL (fictional)",
+                "siren": "000001016",
+                "vat_id": "FR53000001016",
                 "country": "FR",
                 "address": "48 boulevard Voltaire, 75011 Paris"
               },
               "customer": {
-                "name": "Atelier Lumen SAS (fictional)",
-                "siren": "902417351",
-                "vat_id": "FR10902417351",
+                "name": "Atelier Lumenor SAS (fictional)",
+                "siren": "000001008",
+                "vat_id": "FR29000001008",
                 "country": "FR",
                 "address": "12 rue des Ateliers, 69002 Lyon"
               },
@@ -768,8 +768,8 @@
             }
           },
           "profile": {
-            "name": "Atelier Lumen SAS (fictional)",
-            "siren": "902417351",
+            "name": "Atelier Lumenor SAS (fictional)",
+            "siren": "000001008",
             "legal_form": "SAS",
             "activity": "commercial",
             "accounting_basis": "accrual",
@@ -778,14 +778,14 @@
           },
           "history": [
             {
-              "supplier_key": "SIREN:903182640",
+              "supplier_key": "SIREN:000001016",
               "number": "BE-2026-0412",
               "issue_date": "2026-10-05",
               "total_incl_vat": 168,
               "document_type": "invoice"
             },
             {
-              "supplier_key": "SIREN:904521978",
+              "supplier_key": "SIREN:000001024",
               "number": "LBL-2026-1187",
               "issue_date": "2026-10-08",
               "total_incl_vat": 175.2,
@@ -878,16 +878,16 @@
             "number": "BE-2026-0412",
             "date": "2026-10-05",
             "supplier": {
-              "name": "Buro Express SARL (fictional)",
-              "siren": "903182640",
-              "vat_id": "FR81903182640",
+              "name": "Buro Velours SARL (fictional)",
+              "siren": "000001016",
+              "vat_id": "FR53000001016",
               "country": "FR",
               "address": "48 boulevard Voltaire, 75011 Paris"
             },
             "customer": {
-              "name": "Atelier Lumen SAS (fictional)",
-              "siren": "902417351",
-              "vat_id": "FR10902417351",
+              "name": "Atelier Lumenor SAS (fictional)",
+              "siren": "000001008",
+              "vat_id": "FR29000001008",
               "country": "FR",
               "address": "12 rue des Ateliers, 69002 Lyon"
             },
@@ -1083,7 +1083,7 @@
               },
               {
                 "account": "401BURO",
-                "label": "Fournisseur Buro Express SARL (fictional)",
+                "label": "Fournisseur Buro Velours SARL (fictional)",
                 "debit": 0,
                 "credit": 168
               }
@@ -1116,7 +1116,7 @@
           "review_reasons": [
             "DUPLICATE_SUSPECTED"
           ],
-          "explanation": "Purchase invoice BE-2026-0412 from Buro Express SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Invoice BE-2026-0412 from this supplier was already processed (issued 2026-10-05, 168.00 EUR). Human review required (DUPLICATE_SUSPECTED); confidence 0.92.",
+          "explanation": "Purchase invoice BE-2026-0412 from Buro Velours SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Invoice BE-2026-0412 from this supplier was already processed (issued 2026-10-05, 168.00 EUR). Human review required (DUPLICATE_SUSPECTED); confidence 0.92.",
           "engine": {
             "version": "0.1.0",
             "rules_applied": [
@@ -1211,7 +1211,7 @@
           },
           {
             "account": "401BURO",
-            "label": "Fournisseur Buro Express SARL (fictional)",
+            "label": "Fournisseur Buro Velours SARL (fictional)",
             "debit": 0,
             "credit": 168
           }
@@ -1225,13 +1225,13 @@
       "t_ms": 28,
       "kind": "review",
       "title": "Human review requested: DUPLICATE_SUSPECTED",
-      "detail": "Message to the bookkeeper: 'Buro Express SARL invoice BE-2026-0412 (168.00 EUR) looks like a duplicate of an invoice already booked in our ERP. I kept it as a draft: please confirm before anything is posted or paid twice.'",
+      "detail": "Message to the bookkeeper: 'Buro Velours SARL invoice BE-2026-0412 (168.00 EUR) looks like a duplicate of an invoice already booked in our ERP. I kept it as a draft: please confirm before anything is posted or paid twice.'",
       "data": {
         "review_reasons": [
           "DUPLICATE_SUSPECTED"
         ],
         "messages": [
-          "Buro Express SARL invoice BE-2026-0412 (168.00 EUR) looks like a duplicate of an invoice already booked in our ERP. I kept it as a draft: please confirm before anything is posted or paid twice."
+          "Buro Velours SARL invoice BE-2026-0412 (168.00 EUR) looks like a duplicate of an invoice already booked in our ERP. I kept it as a draft: please confirm before anything is posted or paid twice."
         ],
         "anomalies": [
           {
@@ -1247,7 +1247,7 @@
       "t_ms": 28,
       "kind": "reasoning",
       "title": "Done: entry prepared, a human must confirm",
-      "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.60 / 2.00 USDC. Service explanation relayed to my operator: \"Purchase invoice BE-2026-0412 from Buro Express SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Invoice BE-2026-0412 from this supplier was already processed (issued 2026-10-05, 168.00 EUR). Human review required (DUPLICATE_SUSPECTED); confidence 0.92.\"",
+      "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.60 / 2.00 USDC. Service explanation relayed to my operator: \"Purchase invoice BE-2026-0412 from Buro Velours SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Invoice BE-2026-0412 from this supplier was already processed (issued 2026-10-05, 168.00 EUR). Human review required (DUPLICATE_SUSPECTED); confidence 0.92.\"",
       "data": {
         "outcome": "posted_with_review",
         "spent_today_usdc": "0.60",
@@ -1277,16 +1277,16 @@
       "number": "BE-2026-0412",
       "date": "2026-10-05",
       "supplier": {
-        "name": "Buro Express SARL (fictional)",
-        "siren": "903182640",
-        "vat_id": "FR81903182640",
+        "name": "Buro Velours SARL (fictional)",
+        "siren": "000001016",
+        "vat_id": "FR53000001016",
         "country": "FR",
         "address": "48 boulevard Voltaire, 75011 Paris"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },
@@ -1482,7 +1482,7 @@
         },
         {
           "account": "401BURO",
-          "label": "Fournisseur Buro Express SARL (fictional)",
+          "label": "Fournisseur Buro Velours SARL (fictional)",
           "debit": 0,
           "credit": 168
         }
@@ -1515,7 +1515,7 @@
     "review_reasons": [
       "DUPLICATE_SUSPECTED"
     ],
-    "explanation": "Purchase invoice BE-2026-0412 from Buro Express SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Invoice BE-2026-0412 from this supplier was already processed (issued 2026-10-05, 168.00 EUR). Human review required (DUPLICATE_SUSPECTED); confidence 0.92.",
+    "explanation": "Purchase invoice BE-2026-0412 from Buro Velours SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Invoice BE-2026-0412 from this supplier was already processed (issued 2026-10-05, 168.00 EUR). Human review required (DUPLICATE_SUSPECTED); confidence 0.92.",
     "engine": {
       "version": "0.1.0",
       "rules_applied": [

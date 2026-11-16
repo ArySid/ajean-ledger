@@ -22,18 +22,18 @@
         <cac:Country><cbc:IdentificationCode>FR</cbc:IdentificationCode></cac:Country>
       </cac:PostalAddress>
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>FR39909461824</cbc:CompanyID>
+        <cbc:CompanyID>FR30000001073</cbc:CompanyID>
         <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
       </cac:PartyTaxScheme>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>Copilab Services SARL (fictional)</cbc:RegistrationName>
-        <cbc:CompanyID schemeID="0002">909461824</cbc:CompanyID>
+        <cbc:CompanyID schemeID="0002">000001073</cbc:CompanyID>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
   <cac:AccountingCustomerParty>
     <cac:Party>
-      <cac:PartyName><cbc:Name>Atelier Lumen SAS (fictional)</cbc:Name></cac:PartyName>
+      <cac:PartyName><cbc:Name>Atelier Lumenor SAS (fictional)</cbc:Name></cac:PartyName>
       <cac:PostalAddress>
         <cbc:StreetName>12 rue des Ateliers</cbc:StreetName>
         <cbc:CityName>Lyon</cbc:CityName>
@@ -41,12 +41,12 @@
         <cac:Country><cbc:IdentificationCode>FR</cbc:IdentificationCode></cac:Country>
       </cac:PostalAddress>
       <cac:PartyTaxScheme>
-        <cbc:CompanyID>FR10902417351</cbc:CompanyID>
+        <cbc:CompanyID>FR29000001008</cbc:CompanyID>
         <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
       </cac:PartyTaxScheme>
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName>Atelier Lumen SAS (fictional)</cbc:RegistrationName>
-        <cbc:CompanyID schemeID="0002">902417351</cbc:CompanyID>
+        <cbc:RegistrationName>Atelier Lumenor SAS (fictional)</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0002">000001008</cbc:CompanyID>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>

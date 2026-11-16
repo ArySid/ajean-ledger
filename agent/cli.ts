@@ -1,5 +1,5 @@
 /**
- * npm run agent: the "SME purchasing agent" of Atelier Lumen SAS (fictional) processes its inbox.
+ * npm run agent: the "SME purchasing agent" of Atelier Lumenor SAS (fictional) processes its inbox.
  *
  *   npm run agent                          # every inbox/*.json once, sorted, against AJEAN_LEDGER_URL
  *   npm run agent -- --only 03             # one item (comma-separated ids)
@@ -166,7 +166,7 @@ async function main() {
   const ledger = new FileSpendLedger();
   if (flag("reset-budget")) ledger.reset();
 
-  console.log(bold(`\nAtelier Lumen purchasing agent (fictional SME)  ->  Ajean Ledger`));
+  console.log(bold(`\nAtelier Lumenor purchasing agent (fictional SME)  ->  Ajean Ledger`));
   console.log(
     dim(
       `service ${url}  mode ${mode === "testnet" ? "TESTNET" : "SIMULATED"}  wallet ${wallet.address}${walletNote ? " (ephemeral)" : ""}\n` +

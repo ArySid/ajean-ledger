@@ -197,10 +197,10 @@ async function exerciseStore(store: Store) {
   expect(stats.revenue_per_endpoint.invoice_check.calls).toBe(0);
   expect(stats.by_mode.simulated.calls).toBe(2);
   expect(stats.recent_transactions[0].request_id).toBe("req_2");
-  const fp = { supplier_key: "123456789", number: "F-1", issue_date: "2026-11-01", total_incl_vat: 120 };
-  await store.saveFingerprint("999999999", fp);
-  await store.saveFingerprint("999999999", fp);
-  expect(await store.history("999999999")).toEqual([fp]);
+  const fp = { supplier_key: "000001016", number: "F-1", issue_date: "2026-11-01", total_incl_vat: 120 };
+  await store.saveFingerprint("000001008", fp);
+  await store.saveFingerprint("000001008", fp);
+  expect(await store.history("000001008")).toEqual([fp]);
   expect(await store.history("other")).toEqual([]);
 }
 

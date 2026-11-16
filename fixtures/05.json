@@ -9,16 +9,16 @@
       "due_date": "2026-11-19",
       "currency": "EUR",
       "supplier": {
-        "name": "Formacompta Institut SAS (fictional)",
-        "siren": "905736187",
-        "vat_id": "FR50905736187",
+        "name": "Formacomète Institut SAS (fictional)",
+        "siren": "000001032",
+        "vat_id": "FR04000001032",
         "country": "FR",
         "address": "21 quai Saint-Antoine, 69002 Lyon"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

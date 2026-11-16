@@ -57,7 +57,7 @@ export function intakeReasoning(item: InboxItem): { title: string; detail: strin
     const n = item.audit_items?.length ?? 0;
     return {
       title: `Request from the CFO: batch audit of ${n} October purchase invoices`,
-      detail: `I am the purchasing agent of Atelier Lumen SAS (fictional). ${item.from ? `${item.from} asks: "${item.subject ?? "audit"}". ` : ""}A batch audit (duplicates, VAT inconsistencies, statutory-auditor and tax-inspector viewpoints) is beyond what I can do myself, so I will look for a paid service — within my spending policy.`,
+      detail: `I am the purchasing agent of Atelier Lumenor SAS (fictional). ${item.from ? `${item.from} asks: "${item.subject ?? "audit"}". ` : ""}A batch audit (duplicates, VAT inconsistencies, statutory-auditor and tax-inspector viewpoints) is beyond what I can do myself, so I will look for a paid service — within my spending policy.`,
     };
   }
   const f = docFacts(item);
@@ -66,7 +66,7 @@ export function intakeReasoning(item: InboxItem): { title: string; detail: strin
   return {
     title: `New ${what} ${f.number ?? ""} from ${f.supplier ?? "a supplier"}`.replace(/\s+/g, " ").trim(),
     detail:
-      `I am the purchasing agent of Atelier Lumen SAS (fictional). I received ${what} ${f.number ?? "?"} for ${eur(f.totalInclVat)} ${f.currency} incl. VAT${lines}` +
+      `I am the purchasing agent of Atelier Lumenor SAS (fictional). I received ${what} ${f.number ?? "?"} for ${eur(f.totalInclVat)} ${f.currency} incl. VAT${lines}` +
       `${item.channel ? ` by ${item.channel}` : ""}. I must book it in our ERP. ${doubts(f)} ` +
       "I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
   };

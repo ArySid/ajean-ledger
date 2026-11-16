@@ -10,15 +10,15 @@
       "currency": "EUR",
       "supplier": {
         "name": "Copilab Services SARL (fictional)",
-        "siren": "909461824",
-        "vat_id": "FR39909461824",
+        "siren": "000001073",
+        "vat_id": "FR30000001073",
         "country": "FR",
         "address": "9 rue de la République, 69001 Lyon"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

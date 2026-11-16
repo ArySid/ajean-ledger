@@ -1,5 +1,5 @@
 /**
- * Mock ERP of Atelier Lumen SAS (fictional): where the agent posts the entries it bought.
+ * Mock ERP of Atelier Lumenor SAS (fictional): where the agent posts the entries it bought.
  * CLI: data/erp.local.json (gitignored). Serverless route: memory.
  * The ERP also gives the agent its history (fingerprints of invoices already booked),
  * which it sends to Ajean Ledger so the service can spot duplicates.
@@ -9,7 +9,7 @@ import path from "node:path";
 import type { InvoiceFingerprint } from "../engine/types";
 import type { Erp, ErpRecord } from "./types";
 
-export const ERP_COMPANY = "Atelier Lumen SAS (fictional)";
+export const ERP_COMPANY = "Atelier Lumenor SAS (fictional)";
 
 function fpKey(fp: InvoiceFingerprint): string {
   return `${fp.supplier_key}|${fp.number}|${fp.issue_date}`;

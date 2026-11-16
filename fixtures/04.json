@@ -15,9 +15,9 @@
         "address": "Lindenstraße 14, 10969 Berlin"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

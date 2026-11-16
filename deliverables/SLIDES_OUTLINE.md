@@ -66,7 +66,7 @@
 ## Slide 4 — Live demo
 
 **Bullets** (on the slide, minimal; the screen does the talking)
-- Atelier Lumen SAS (fictional): its purchasing agent receives a restaurant invoice.
+- Atelier Lumenor SAS (fictional): its purchasing agent receives a restaurant invoice.
 - Discover → check budget → 402 → pay 0.15 USDC → entry + warning.
 - Modes: TESTNET · SIMULATED · REPLAY.
 

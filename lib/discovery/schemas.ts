@@ -37,6 +37,12 @@ export const PartySchema = named(
       country: z.string().regex(/^[A-Za-z]{2}$/).describe("ISO 3166-1 alpha-2 country code, e.g. FR, DE"),
       address: z.string().optional(),
       account_code: z.string().optional().describe("Auxiliary account code suggested by the caller"),
+      company_size: z
+        .enum(["large", "mid", "sme", "micro"])
+        .optional()
+        .describe(
+          "Supplier size (large = GE, mid = ETI, sme = PME, micro). Drives the e-invoicing reform timeline: new mentions are errors from 2026-09-01 for large/mid issuers and from 2027-09-01 for everyone; warnings in between.",
+        ),
     })
     .describe("Supplier or customer."),
 );
@@ -108,7 +114,7 @@ export const ClientProfileSchema = named(
       vat_regime: z.enum(["standard", "franchise"]),
       vat_on_debits: z.boolean().optional(),
     })
-    .describe('Entity whose books are kept. Default: the fictional demo SME "Atelier Lumen SAS (fictional)".'),
+    .describe('Entity whose books are kept. Default: the fictional demo SME "Atelier Lumenor SAS (fictional)".'),
 );
 
 export const InvoiceFingerprintSchema = named(
@@ -264,7 +270,7 @@ export const ComplianceSchema = named(
 export const VatTreatmentSchema = named(
   "VatTreatment",
   z.looseObject({
-    regime: z.enum(["standard", "reduced", "reverse_charge_intra_eu", "exempt", "out_of_scope", "mixed_rates"]),
+    regime: z.enum(["standard", "reduced", "reverse_charge_intra_eu", "reverse_charge_non_eu", "exempt", "out_of_scope", "mixed_rates"]),
     rate: z.number().describe("Main rate (highest-weight rate for multi-rate invoices)"),
     deductible: z.boolean(),
     breakdown: z.array(z.looseObject({ rate: z.number(), base: money, vat: money })),

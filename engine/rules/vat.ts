@@ -79,6 +79,8 @@ export interface RegimeDecision {
 /**
  * Regime detection from the invoice alone.
  * - EU supplier (not FR) with no VAT charged -> reverse_charge_intra_eu
+ * - non-EU supplier, services only, no VAT -> reverse_charge_non_eu (no self-assessed lines proposed; review)
+ * - non-EU supplier with goods, no VAT -> out_of_scope (import VAT via customs; review)
  * - all lines at 0% from a French supplier -> exempt (training / franchise / other exemption)
  * - one positive rate -> standard (20%) or reduced (10/5.5/2.1)
  * - several positive rates -> mixed_rates
@@ -104,10 +106,22 @@ export function decideRegime(inv: InvoiceInput, lineKinds: ("goods" | "services"
     };
   }
   if (loc === "NON_EU" && positiveRates.length === 0) {
+    const hasGoods = lineKinds.includes("goods");
+    if (!hasGoods && lineKinds.length > 0) {
+      // B2B services from a supplier established outside the EU: taxable in France,
+      // VAT self-assessed by the buyer. 4452 is reserved for intra-EU operations, so
+      // the engine proposes no self-assessed VAT lines; they are added after review.
+      return {
+        regime: "reverse_charge_non_eu",
+        self_assessed: false,
+        legal_basis_id: "LB-VAT-REVERSE-CHARGE-SERVICES",
+        note: "B2B services from a supplier established outside the EU: VAT is self-assessed by the buyer (autoliquidation), due and deductible on the same return. No self-assessed VAT line is proposed: add it after review (VAT due on self-assessed services / deductible VAT).",
+      };
+    }
     return {
       regime: "out_of_scope",
       self_assessed: false,
-      note: "Supplier established outside the EU: imports of goods / reverse charge on services need a manual review (customs or self-assessment).",
+      note: "Goods from a supplier established outside the EU: import VAT is handled through the customs declaration / VAT return, not on this invoice; to be reviewed manually.",
     };
   }
   if (positiveRates.length === 0) {

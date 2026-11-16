@@ -23,7 +23,7 @@ const engine = vi.hoisted(() => {
     }
   }
   const entryResult = {
-    invoice: { document_type: "invoice", number: "F-2026-001", date: "2026-11-02", supplier: { name: "Bureau Plus (fictional)", siren: "123456789", country: "FR" }, customer: { name: "Atelier Lumen SAS (fictional)", siren: "987654321", country: "FR" }, totals: { total_excl_vat: 100, total_vat: 20, total_incl_vat: 120 } },
+    invoice: { document_type: "invoice", number: "F-2026-001", date: "2026-11-02", supplier: { name: "Bureau Plus (fictional)", siren: "000001016", country: "FR" }, customer: { name: "Atelier Lumenor SAS (fictional)", siren: "000001008", country: "FR" }, totals: { total_excl_vat: 100, total_vat: 20, total_incl_vat: 120 } },
     compliance: { status: "compliant", checks: [] },
     entry: { journal: "HA", date: "2026-11-02", reference: "F-2026-001", lines: [{ account: "6064", label: "Fournitures administratives", debit: 100, credit: 0 }, { account: "44566", label: "TVA déductible sur ABS", debit: 20, credit: 0 }, { account: "401BURO", label: "Bureau Plus", debit: 0, credit: 120 }], balanced: true },
     vat: { regime: "standard", rate: 0.2, deductible: true, breakdown: [] },
@@ -57,7 +57,7 @@ vi.mock("@/engine", () => ({
   createEntry: engine.createEntry,
   checkInvoice: engine.checkInvoice,
   auditEntries: engine.auditEntries,
-  DEMO_PROFILE: { name: "Atelier Lumen SAS (fictional)", siren: "987654321", activity: "commercial", accounting_basis: "accrual", vat_regime: "standard" },
+  DEMO_PROFILE: { name: "Atelier Lumenor SAS (fictional)", siren: "000001008", activity: "commercial", accounting_basis: "accrual", vat_regime: "standard" },
 }));
 
 import { POST as entryPOST } from "@/app/api/v1/entry/route";

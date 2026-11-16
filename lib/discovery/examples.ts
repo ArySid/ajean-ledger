@@ -51,7 +51,7 @@ export const EXAMPLE_ENTRY_RESPONSE = {
     lines: [
       { account: "6064", label: "Fournitures administratives", debit: 140, credit: 0 },
       { account: "44566", label: "TVA déductible sur autres biens et services", debit: 28, credit: 0 },
-      { account: "401BURO", label: "Fournisseur Buro Express SARL (fictional)", debit: 0, credit: 168 },
+      { account: "401BURO", label: "Fournisseur Buro Velours SARL (fictional)", debit: 0, credit: 168 },
     ],
     balanced: true,
   },
@@ -61,7 +61,7 @@ export const EXAMPLE_ENTRY_RESPONSE = {
   human_review_required: false,
   review_reasons: [],
   explanation:
-    "Purchase invoice BE-2026-0412 from Buro Express SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. …",
+    "Purchase invoice BE-2026-0412 from Buro Velours SARL (fictional) (168.00 EUR incl. VAT) is booked in journal HA: debit 6064 140.00, debit 44566 28.00, credit 401BURO 168.00. …",
   engine: { version: "0.1.0", rules_applied: ["PCG-MAP-6064", "VAT-REGIME-STANDARD", "…"], llm_used: false, extraction_method: "structured_json" },
   disclaimer: DISCLAIMER,
 };

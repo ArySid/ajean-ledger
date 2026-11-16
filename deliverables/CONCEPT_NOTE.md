@@ -14,7 +14,7 @@ The French e-invoicing reform raises the stakes. Since 1 September 2026 every co
 
 ## 2. AI-agent use case
 
-The direct user is an agent. In our demo, the purchasing agent of *Atelier Lumen SAS (fictional)* watches an inbox of supplier invoices. For each invoice it:
+The direct user is an agent. In our demo, the purchasing agent of *Atelier Lumenor SAS (fictional)* watches an inbox of supplier invoices. For each invoice it:
 
 1. discovers Ajean Ledger through free machine-readable files (`/api/v1/catalog`, `llms.txt`, OpenAPI, MCP);
 2. checks the price (0.15 USDC) against its operator's spending policy (`max_per_call`, `daily_budget`);

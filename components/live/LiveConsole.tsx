@@ -196,7 +196,7 @@ export function LiveConsole() {
             <div className="empty" data-testid="empty-state">
               <h3>Watch an AI agent buy an accounting entry</h3>
               <p>
-                The purchasing agent of <b>Atelier Lumen SAS (fictional)</b> receives a supplier invoice. It does not know French VAT or e-invoicing rules, so it
+                The purchasing agent of <b>Atelier Lumenor SAS (fictional)</b> receives a supplier invoice. It does not know French VAT or e-invoicing rules, so it
                 discovers Ajean Ledger, checks its budget, pays in USDC over HTTP 402 and books the result. No human clicks anything below.
               </p>
               <ol>

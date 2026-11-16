@@ -1,7 +1,7 @@
 # Demo client agent (Phase 4)
 
 The demo agent is the **client** that the jury watches: the autonomous purchasing agent of
-**Atelier Lumen SAS (fictional)**. It gets a French supplier invoice, does not know the French
+**Atelier Lumenor SAS (fictional)**. It gets a French supplier invoice, does not know the French
 rules, finds Ajean Ledger, checks its spending policy, pays **0.15 USDC in one HTTP request** (x402 v2),
 receives a validated entry, posts it to a mock ERP and flags what a human must check.
 

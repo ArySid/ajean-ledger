@@ -1,5 +1,5 @@
 /**
- * runAgent(): the autonomous "SME purchasing agent" of Atelier Lumen SAS (fictional).
+ * runAgent(): the autonomous "SME purchasing agent" of Atelier Lumenor SAS (fictional).
  *
  * One run = one inbox item = one AgentTrace (lib/trace/types.ts), the format rendered by the
  * /live console and stored as replays. Steps:
@@ -35,13 +35,13 @@ import { discoveryDetail, docFacts, intakeReasoning, reviewMessage } from "./nar
 import { evaluatePolicy, type PolicyDecision } from "./policy";
 import type { AgentTask, AgentTrace, ErpRecord, ErpStatus, RunAgentOptions } from "./types";
 
-export const AGENT_NAME = "Atelier Lumen purchasing agent";
+export const AGENT_NAME = "Atelier Lumenor purchasing agent";
 export const DEFAULT_RUN_TIMEOUT_MS = 40_000;
 
 /** Who the agent books for (= engine DEMO_PROFILE; sent explicitly, as a real client would). */
 export const AGENT_COMPANY_PROFILE: ClientProfile = {
-  name: "Atelier Lumen SAS (fictional)",
-  siren: "902417351",
+  name: "Atelier Lumenor SAS (fictional)",
+  siren: "000001008",
   legal_form: "SAS",
   activity: "commercial",
   accounting_basis: "accrual",

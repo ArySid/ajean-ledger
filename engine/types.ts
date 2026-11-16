@@ -23,6 +23,13 @@ export interface Party {
   address?: string;
   /** Auxiliary account code suggested by the caller (optional). */
   account_code?: string;
+  /**
+   * Company size of the party (optional; used for the supplier). Drives the
+   * e-invoicing reform timeline: issuance is mandatory for large and mid-size
+   * companies from 1 Sept 2026, for SMEs and micro-businesses from 1 Sept 2027
+   * (ADR-019). "large" = GE, "mid" = ETI, "sme" = PME, "micro" = micro-entreprise.
+   */
+  company_size?: "large" | "mid" | "sme" | "micro";
 }
 
 export type OperationNature = "goods" | "services" | "mixed";
@@ -84,7 +91,7 @@ export interface BankTransactionInput {
 
 /**
  * Profile of the entity whose books are kept (the agent's operator's client).
- * Defaults to the fictional demo SME "Atelier Lumen SAS (fictional)".
+ * Defaults to the fictional demo SME "Atelier Lumenor SAS (fictional)".
  */
 export interface ClientProfile {
   name: string;
@@ -173,6 +180,8 @@ export type VatRegime =
   | "standard"
   | "reduced"
   | "reverse_charge_intra_eu"
+  /** Services bought from a supplier established outside the EU: VAT self-assessed by the buyer (to be booked after review). */
+  | "reverse_charge_non_eu"
   | "exempt"
   | "out_of_scope"
   | "mixed_rates";

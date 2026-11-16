@@ -32,6 +32,8 @@ export const LEGAL_BASES: readonly LegalBasis[] = [
   { id: "LB-VAT-RATE-5-5", label: "Reduced VAT rate 5.5%", reference: "CGI art. 278-0 bis", to_verify: false, reviewed_by: "" },
   { id: "LB-VAT-RATE-2-1", label: "Super-reduced VAT rate 2.1% (press, certain medicines)", reference: "CGI art. 281 quater to 281 sexies and art. 298 septies — TO VERIFY", to_verify: true, reviewed_by: "" },
   { id: "LB-VAT-INVOICED-VAT-DUE", label: "VAT shown on an invoice is due by the issuer; the buyer may only deduct the VAT legally due", reference: "CGI art. 283-3 (deduction limit: case law — TO VERIFY reference)", to_verify: true, reviewed_by: "" },
+  { id: "LB-VAT-DEDUCTION-LEGALLY-DUE", label: "Only the VAT legally due on the transaction is deductible; VAT invoiced in excess (e.g. at a wrong rate) is not deductible by the buyer", reference: "CGI art. 271 (deduction limited to the VAT legally due: case law and BOFiP — TO VERIFY references)", to_verify: true, reviewed_by: "" },
+  { id: "LB-INV-COMMERCIAL-IDENTIFICATION", label: "Supplier identification on invoices and commercial documents (SIREN / RCS)", reference: "Code de commerce art. R123-237 — TO VERIFY", to_verify: true, reviewed_by: "" },
   { id: "LB-VAT-REVERSE-CHARGE-SERVICES", label: "Reverse charge on B2B services supplied by a non-established supplier", reference: "CGI art. 283-2 (place of supply: CGI art. 259)", to_verify: false, reviewed_by: "" },
   { id: "LB-VAT-ICA-GOODS", label: "Intra-community acquisition of goods (VAT self-assessed by the buyer)", reference: "CGI art. 256 bis", to_verify: false, reviewed_by: "" },
   { id: "LB-VAT-EXEMPT-TRAINING", label: "VAT exemption for vocational training", reference: "CGI art. 261-4-4° a", to_verify: false, reviewed_by: "" },
@@ -42,7 +44,7 @@ export const LEGAL_BASES: readonly LegalBasis[] = [
   { id: "LB-VAT-GIFTS-THRESHOLD", label: "Gifts of low value: VAT deductible up to EUR 73 incl. VAT per beneficiary per year", reference: "CGI annexe IV art. 28-00 A — TO VERIFY", to_verify: true, reviewed_by: "" },
   { id: "LB-VAT-SERVICES-EXIGIBILITY", label: "VAT on services becomes chargeable on payment unless the supplier opted for VAT on debits", reference: "CGI art. 269-2-c", to_verify: false, reviewed_by: "" },
   { id: "LB-VAT-CREDIT-NOTE", label: "VAT adjustment on cancelled or reduced transactions (credit notes)", reference: "CGI art. 272-1 — TO VERIFY", to_verify: true, reviewed_by: "" },
-  { id: "LB-ASSET-LOW-VALUE", label: "Administrative tolerance: low-value assets (< EUR 500 excl. VAT) may be expensed", reference: "BOI-BIC-CHG-20-30-10 (paragraph — TO VERIFY)", to_verify: true, reviewed_by: "" },
+  { id: "LB-ASSET-LOW-VALUE", label: "Administrative tolerance: low-value assets (unit value not exceeding EUR 500 excl. VAT) may be expensed", reference: "BOI-BIC-CHG-20-30-10 (paragraph — TO VERIFY)", to_verify: true, reviewed_by: "" },
   { id: "LB-PCG", label: "French chart of accounts (Plan comptable général)", reference: "ANC Regulation No. 2014-03 as amended by ANC Regulation No. 2022-06", to_verify: false, reviewed_by: "" },
   { id: "LB-BNC-CASH-BASIS", label: "BNC profits computed on a receipts-expenses (cash) basis; receipts-expenses ledger", reference: "CGI art. 93 (bookkeeping: CGI art. 99 — TO VERIFY)", to_verify: true, reviewed_by: "" },
 ];

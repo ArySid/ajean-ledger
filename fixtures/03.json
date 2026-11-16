@@ -10,15 +10,15 @@
       "currency": "EUR",
       "supplier": {
         "name": "Le Bouchon Lumière SARL (fictional)",
-        "siren": "904521978",
-        "vat_id": "FR64904521978",
+        "siren": "000001024",
+        "vat_id": "FR77000001024",
         "country": "FR",
         "address": "5 rue Mercière, 69002 Lyon"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

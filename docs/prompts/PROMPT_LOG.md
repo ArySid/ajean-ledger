@@ -40,7 +40,7 @@ Times are UTC.
 > 4. Clé Anthropic : ne bloque pas dessus. Construis tout en mode scripté sans LLM. Demande-moi la clé une seule fois, via le formulaire sécurisé, dans la section « Action requise » de ton prochain rapport, et continue sans attendre. Quand je la fournis, active le mode LLM. Le modèle par défaut est OK.
 > 5. Défauts comptables (ADR-008) : tous acceptés (immobilisation à partir de 500 € HT → 2183 + 44562, 401 + code auxiliaire, journaux HA/BQ, restaurant à 20 % → revue humaine, citations légales seulement après ma validation). Les citations à valider vont dans `docs/LEGAL_REVIEW.md`, que je relirai à la fin. Elles ne bloquent pas l'avancement.
 > 6. Fixture 9 : option (b), l'avocat est le client BNC dont on tient les comptes.
-> 7. PME fictive : « Atelier Lumen SAS (fictional) », OK.
+> 7. PME fictive : « Atelier Lumenor SAS (fictional) », OK.
 > 8. Langue des livrables : anglais pour la note de concept, les slides, le script de démo et la préparation Q&R, car le cours est en anglais. Date de la session 10 : inconnue pour l'instant, donc fais les bonus (crédits prépayés, EURC) seulement une fois les phases 1 à 7 terminées et vérifiées.
 >
 > 2. Mode autonome : règles

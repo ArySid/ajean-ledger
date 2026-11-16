@@ -57,9 +57,9 @@ const INLINE_INVOICE = {
   issue_date: "2026-11-02",
   due_date: "2026-12-02",
   currency: "EUR",
-  supplier: { name: "Bureau Plus SARL (fictional)", siren: "111222337", vat_id: "FR21111222337", country: "FR", address: "1 rue de l'Exemple, 75001 Paris" },
+  supplier: { name: "Buro Velours SARL (fictional)", siren: "000001016", vat_id: "FR53000001016", country: "FR", address: "1 rue de l'Exemple, 75001 Paris" },
   // = engine DEMO_PROFILE (fictional demo SME whose books are kept)
-  customer: { name: "Atelier Lumen SAS (fictional)", siren: "902417351", vat_id: "FR10902417351", country: "FR", address: "2 avenue Fictive, 69001 Lyon" },
+  customer: { name: "Atelier Lumenor SAS (fictional)", siren: "000001008", vat_id: "FR29000001008", country: "FR", address: "2 avenue Fictive, 69001 Lyon" },
   operation_nature: "goods",
   vat_on_debits_option: false,
   lines: [{ description: "Ramettes papier A4 et fournitures de bureau", quantity: 10, unit_price_excl_vat: 10, vat_rate: 0.2, total_excl_vat: 100, kind: "goods" }],

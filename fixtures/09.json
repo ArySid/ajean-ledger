@@ -9,16 +9,16 @@
       "due_date": "2026-11-26",
       "currency": "EUR",
       "supplier": {
-        "name": "Cabinet Vasseur Avocats SELARL (fictional)",
-        "siren": "908152739",
-        "vat_id": "FR23908152739",
+        "name": "Cabinet Vasquelin Avocats SELARL (fictional)",
+        "siren": "000001065",
+        "vat_id": "FR06000001065",
         "country": "FR",
         "address": "30 cours Lafayette, 69003 Lyon"
       },
       "customer": {
         "name": "Maître Claire Ardent, avocate (fictional)",
-        "siren": "907843262",
-        "vat_id": "FR76907843262",
+        "siren": "000001057",
+        "vat_id": "FR79000001057",
         "country": "FR",
         "address": "7 place Bellecour, 69002 Lyon"
       },
@@ -47,7 +47,7 @@
   "context": {
     "profile": {
       "name": "Maître Claire Ardent, avocate (fictional)",
-      "siren": "907843262",
+      "siren": "000001057",
       "legal_form": "Entreprise individuelle (profession libérale)",
       "activity": "bnc",
       "accounting_basis": "cash",

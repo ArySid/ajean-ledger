@@ -9,16 +9,16 @@
       "due_date": "2026-11-21",
       "currency": "EUR",
       "supplier": {
-        "name": "Numeria Solutions SAS (fictional)",
-        "siren": "906294517",
-        "vat_id": "FR44906294517",
+        "name": "Numeria Pixelune SAS (fictional)",
+        "siren": "000001040",
+        "vat_id": "FR28000001040",
         "country": "FR",
         "address": "3 avenue de l'Europe, 38000 Grenoble"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

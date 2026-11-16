@@ -42,7 +42,7 @@ function errorTrace(scenario: string, label: string, mode: AgentTrace["mode"], s
     scenario_label: label,
     mode,
     recorded_at: new Date().toISOString(),
-    agent: { name: "Atelier Lumen purchasing agent", wallet: "", policy: policyFromEnv() },
+    agent: { name: "Atelier Lumenor purchasing agent", wallet: "", policy: policyFromEnv() },
     service_url: serviceUrl,
     steps: [{ t_ms: 0, kind: "error", title, detail }],
     duration_ms: 0,

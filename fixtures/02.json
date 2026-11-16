@@ -9,15 +9,15 @@
       "due_date": "2026-11-11",
       "currency": "EUR",
       "supplier": {
-        "name": "Buro Express SARL (fictional)",
-        "siren": "903182640",
-        "vat_id": "FR81903182640",
+        "name": "Buro Velours SARL (fictional)",
+        "siren": "000001016",
+        "vat_id": "FR53000001016",
         "country": "FR",
         "address": "48 boulevard Voltaire, 75011 Paris"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

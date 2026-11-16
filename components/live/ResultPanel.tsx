@@ -14,6 +14,7 @@ const REGIME_LABEL: Record<string, string> = {
   standard: "Standard rate",
   reduced: "Reduced rate",
   reverse_charge_intra_eu: "Intra-EU reverse charge (autoliquidation)",
+  reverse_charge_non_eu: "Non-EU services, reverse charge (autoliquidation, to review)",
   exempt: "Exempt",
   out_of_scope: "Out of scope",
   mixed_rates: "Mixed rates",

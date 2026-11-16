@@ -5,7 +5,7 @@
 
 ## The one story
 
-*Atelier Lumen SAS (fictional)* uses a purchasing agent. A supplier restaurant invoice lands in its inbox. The agent does not know French VAT rules, so it pays Ajean Ledger **0.15 USDC in one HTTP exchange** and gets back a correct, balanced entry **plus a warning a human would probably have missed**: the meal was billed at 20% VAT instead of 10%.
+*Atelier Lumenor SAS (fictional)* uses a purchasing agent. A supplier restaurant invoice lands in its inbox. The agent does not know French VAT rules, so it pays Ajean Ledger **0.15 USDC in one HTTP exchange** and gets back a correct, balanced entry **plus a warning a human would probably have missed**: the meal was billed at 20% VAT instead of 10%.
 
 No detours: one invoice, one payment, one result. Fixture: **03, restaurant invoice billed at 20% instead of 10%**.
 

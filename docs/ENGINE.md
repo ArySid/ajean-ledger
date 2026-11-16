@@ -14,7 +14,7 @@ Framework-free TypeScript in `engine/`. Same functions are used by the paid API,
 | `auditEntries(items, ctx?) → AuditResult` | `POST /api/v1/audit`: up to 50 items, two expert viewpoints |
 | `parseInput(input, ctx?)` | Parsed `{ invoice? , transaction?, candidate_invoices?, method, confidence }` |
 | `fingerprint(invoice)` | `InvoiceFingerprint` to store in history for duplicate detection |
-| `ENGINE_VERSION` (`"0.1.0"`), `DEMO_PROFILE` | Version; default client "Atelier Lumen SAS (fictional)", SIREN 902417351 (fictional, Luhn-valid) |
+| `ENGINE_VERSION` (`"0.1.0"`), `DEMO_PROFILE` | Version; default client "Atelier Lumenor SAS (fictional)", SIREN 000001008 (fictional, Luhn-valid) |
 | `EngineError {code, message, details}`, `ENGINE_ERROR_CODES` | Machine-readable errors (see §8) |
 | `EXPENSE_CATEGORIES`, `CATEGORY_IDS`, `classifyLine` | Category list and deterministic classifier |
 | `LEGAL_BASES`, `publicLegalBasis(id)` | Curated legal-basis table (references hidden until reviewed) |
@@ -165,7 +165,7 @@ Viewpoints: `statutory_auditor` (existence/accuracy: duplicates, unbalanced, sus
 ## 10. Fixture 9 — lawyer client (BNC, cash basis): reasoning
 
 Team decision: the **lawyer is the client whose books we keep** (`activity: "bnc"`, `accounting_basis: "cash"`, standard VAT). She receives a fee invoice from a fellow lawyer (postulation fees, 800.00 + 20% VAT).
-- Under BNC, profit is computed on a receipts-expenses basis: the expense is recognised when **paid**, in the receipts-expenses ledger (livre-journal), not when the invoice is received. The engine still proposes the purchase view (6226 Honoraires 800.00 / 44566 160.00 / 401VASSEUR 960.00), because an agent needs a structured result. It flags `human_review_required` with `CASH_BASIS_CLIENT` and explains that the entry is recorded at the payment date (the bank transaction, fixture-12 style, is then the recognition event).
+- Under BNC, profit is computed on a receipts-expenses basis: the expense is recognised when **paid**, in the receipts-expenses ledger (livre-journal), not when the invoice is received. The engine still proposes the purchase view (6226 Honoraires 800.00 / 44566 160.00 / 401VASQUELI 960.00), because an agent needs a structured result. It flags `human_review_required` with `CASH_BASIS_CLIENT` and explains that the entry is recorded at the payment date (the bank transaction, fixture-12 style, is then the recognition event).
 - VAT: these are services and the supplier has not opted for VAT on debits, so the VAT is deductible when the invoice is paid (`vat.note`).
 - 6226 is used because a fee for a mandate performed for the client firm is an operating expense. If the amount is a *rétrocession d'honoraires* or a *débours* re-billed to the end client, the 2035 presentation differs (see open point 5).
 
@@ -181,7 +181,7 @@ Team decision: the **lawyer is the client whose books we keep** (`activity: "bnc
 | 06 | Duplicate of #1 (history) | DUPLICATE_SUSPECTED, review |
 | 07 | Partial credit note on #1 | 401BURO 54.00 / 6064 (45.00) / 44566 (9.00) |
 | 08 | Laptop 1,450 + mouse 29 | 2183 1450.00 / 6063 29.00 / 44562 290.00 / 44566 5.80 / 401NUMERIA (1774.80) |
-| 09 | Lawyer client, colleague's fees | 6226 800.00 / 44566 160.00 / 401VASSEUR (960.00), CASH_BASIS_CLIENT review |
+| 09 | Lawyer client, colleague's fees | 6226 800.00 / 44566 160.00 / 401VASQUELI (960.00), CASH_BASIS_CLIENT review |
 | 10 | Mixed goods + services | 6064 190.00 / 6156 210.00 / 44566 80.00 / 401COPILAB (480.00), nature mixed |
 | 11 | Factur-X PDF of #1 | identical to #1, `facturx_cii` |
 | 12 | Bank payment of #1 | BQ 401BURO 168.00 / 512000 (168.00), match score 1 |

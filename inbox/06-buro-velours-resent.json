@@ -3,7 +3,7 @@
   "kind": "supplier_invoice",
   "received_at": "2026-10-21T07:55:00Z",
   "channel": "email",
-  "from": "relances@buro-express.example (fictional)",
+  "from": "relances@buro-velours.example (fictional)",
   "subject": "RAPPEL - Facture BE-2026-0412",
   "task": "entry",
   "fixture": "06",

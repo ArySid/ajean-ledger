@@ -3,7 +3,7 @@
   "kind": "audit_request",
   "received_at": "2026-10-31T17:00:00Z",
   "channel": "internal ticket",
-  "from": "cfo@atelier-lumen.example (fictional)",
+  "from": "cfo@atelier-lumenor.example (fictional)",
   "subject": "Can the agent run a batch audit of October purchases before closing?",
   "task": "audit",
   "audit_fixtures": ["01", "03", "04"],

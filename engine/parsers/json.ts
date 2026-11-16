@@ -16,6 +16,7 @@ export const PartySchema = z.object({
   country: z.string().regex(/^[A-Za-z]{2}$/, "ISO 3166-1 alpha-2 code").transform((s) => s.toUpperCase()),
   address: z.string().optional(),
   account_code: z.string().optional(),
+  company_size: z.enum(["large", "mid", "sme", "micro"]).optional(),
 });
 
 export const InvoiceLineSchema = z.object({

@@ -6,7 +6,7 @@
   "recorded_from": "simulated",
   "recorded_at": "2026-11-16T10:41:28.184Z",
   "agent": {
-    "name": "Atelier Lumen purchasing agent",
+    "name": "Atelier Lumenor purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
     "policy": {
       "max_per_call_usdc": "0.20",
@@ -19,7 +19,7 @@
       "t_ms": 0,
       "kind": "reasoning",
       "title": "New invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional)",
-      "detail": "I am the purchasing agent of Atelier Lumen SAS (fictional). I received invoice LBL-2026-1187 for 175.20 EUR incl. VAT (\"Déjeuner d'affaires — menu du jour\", \"Cafés\") by email. I must book it in our ERP. It is a restaurant bill. French VAT rates and deductibility rules for meals are a classic trap, and I have no reliable way to check that the rate charged is the right one. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
+      "detail": "I am the purchasing agent of Atelier Lumenor SAS (fictional). I received invoice LBL-2026-1187 for 175.20 EUR incl. VAT (\"Déjeuner d'affaires — menu du jour\", \"Cafés\") by email. I must book it in our ERP. It is a restaurant bill. French VAT rates and deductibility rules for meals are a classic trap, and I have no reliable way to check that the rate charged is the right one. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
       "data": {
         "inbox_file": "inbox/03-le-bouchon-lumiere-restaurant.json",
         "task": "entry",
@@ -129,16 +129,16 @@
                       "due_date": "2026-11-04",
                       "currency": "EUR",
                       "supplier": {
-                        "name": "Buro Express SARL (fictional)",
-                        "siren": "903182640",
-                        "vat_id": "FR81903182640",
+                        "name": "Buro Velours SARL (fictional)",
+                        "siren": "000001016",
+                        "vat_id": "FR53000001016",
                         "country": "FR",
                         "address": "48 boulevard Voltaire, 75011 Paris"
                       },
                       "customer": {
-                        "name": "Atelier Lumen SAS (fictional)",
-                        "siren": "902417351",
-                        "vat_id": "FR10902417351",
+                        "name": "Atelier Lumenor SAS (fictional)",
+                        "siren": "000001008",
+                        "vat_id": "FR29000001008",
                         "country": "FR",
                         "address": "12 rue des Ateliers, 69002 Lyon"
                       },
@@ -215,16 +215,16 @@
                       "due_date": "2026-11-04",
                       "currency": "EUR",
                       "supplier": {
-                        "name": "Buro Express SARL (fictional)",
-                        "siren": "903182640",
-                        "vat_id": "FR81903182640",
+                        "name": "Buro Velours SARL (fictional)",
+                        "siren": "000001016",
+                        "vat_id": "FR53000001016",
                         "country": "FR",
                         "address": "48 boulevard Voltaire, 75011 Paris"
                       },
                       "customer": {
-                        "name": "Atelier Lumen SAS (fictional)",
-                        "siren": "902417351",
-                        "vat_id": "FR10902417351",
+                        "name": "Atelier Lumenor SAS (fictional)",
+                        "siren": "000001008",
+                        "vat_id": "FR29000001008",
                         "country": "FR",
                         "address": "12 rue des Ateliers, 69002 Lyon"
                       },
@@ -295,16 +295,16 @@
                         "due_date": "2026-11-04",
                         "currency": "EUR",
                         "supplier": {
-                          "name": "Buro Express SARL (fictional)",
-                          "siren": "903182640",
-                          "vat_id": "FR81903182640",
+                          "name": "Buro Velours SARL (fictional)",
+                          "siren": "000001016",
+                          "vat_id": "FR53000001016",
                           "country": "FR",
                           "address": "48 boulevard Voltaire, 75011 Paris"
                         },
                         "customer": {
-                          "name": "Atelier Lumen SAS (fictional)",
-                          "siren": "902417351",
-                          "vat_id": "FR10902417351",
+                          "name": "Atelier Lumenor SAS (fictional)",
+                          "siren": "000001008",
+                          "vat_id": "FR29000001008",
                           "country": "FR",
                           "address": "12 rue des Ateliers, 69002 Lyon"
                         },
@@ -487,15 +487,15 @@
               "currency": "EUR",
               "supplier": {
                 "name": "Le Bouchon Lumière SARL (fictional)",
-                "siren": "904521978",
-                "vat_id": "FR64904521978",
+                "siren": "000001024",
+                "vat_id": "FR77000001024",
                 "country": "FR",
                 "address": "5 rue Mercière, 69002 Lyon"
               },
               "customer": {
-                "name": "Atelier Lumen SAS (fictional)",
-                "siren": "902417351",
-                "vat_id": "FR10902417351",
+                "name": "Atelier Lumenor SAS (fictional)",
+                "siren": "000001008",
+                "vat_id": "FR29000001008",
                 "country": "FR",
                 "address": "12 rue des Ateliers, 69002 Lyon"
               },
@@ -530,8 +530,8 @@
             }
           },
           "profile": {
-            "name": "Atelier Lumen SAS (fictional)",
-            "siren": "902417351",
+            "name": "Atelier Lumenor SAS (fictional)",
+            "siren": "000001008",
             "legal_form": "SAS",
             "activity": "commercial",
             "accounting_basis": "accrual",
@@ -540,7 +540,7 @@
           },
           "history": [
             {
-              "supplier_key": "SIREN:903182640",
+              "supplier_key": "SIREN:000001016",
               "number": "BE-2026-0412",
               "issue_date": "2026-10-05",
               "total_incl_vat": 168,
@@ -695,15 +695,15 @@
               "currency": "EUR",
               "supplier": {
                 "name": "Le Bouchon Lumière SARL (fictional)",
-                "siren": "904521978",
-                "vat_id": "FR64904521978",
+                "siren": "000001024",
+                "vat_id": "FR77000001024",
                 "country": "FR",
                 "address": "5 rue Mercière, 69002 Lyon"
               },
               "customer": {
-                "name": "Atelier Lumen SAS (fictional)",
-                "siren": "902417351",
-                "vat_id": "FR10902417351",
+                "name": "Atelier Lumenor SAS (fictional)",
+                "siren": "000001008",
+                "vat_id": "FR29000001008",
                 "country": "FR",
                 "address": "12 rue des Ateliers, 69002 Lyon"
               },
@@ -738,8 +738,8 @@
             }
           },
           "profile": {
-            "name": "Atelier Lumen SAS (fictional)",
-            "siren": "902417351",
+            "name": "Atelier Lumenor SAS (fictional)",
+            "siren": "000001008",
             "legal_form": "SAS",
             "activity": "commercial",
             "accounting_basis": "accrual",
@@ -748,7 +748,7 @@
           },
           "history": [
             {
-              "supplier_key": "SIREN:903182640",
+              "supplier_key": "SIREN:000001016",
               "number": "BE-2026-0412",
               "issue_date": "2026-10-05",
               "total_incl_vat": 168,
@@ -835,15 +835,15 @@
             "date": "2026-10-08",
             "supplier": {
               "name": "Le Bouchon Lumière SARL (fictional)",
-              "siren": "904521978",
-              "vat_id": "FR64904521978",
+              "siren": "000001024",
+              "vat_id": "FR77000001024",
               "country": "FR",
               "address": "5 rue Mercière, 69002 Lyon"
             },
             "customer": {
-              "name": "Atelier Lumen SAS (fictional)",
-              "siren": "902417351",
-              "vat_id": "FR10902417351",
+              "name": "Atelier Lumenor SAS (fictional)",
+              "siren": "000001008",
+              "vat_id": "FR29000001008",
               "country": "FR",
               "address": "12 rue des Ateliers, 69002 Lyon"
             },
@@ -1247,15 +1247,15 @@
       "date": "2026-10-08",
       "supplier": {
         "name": "Le Bouchon Lumière SARL (fictional)",
-        "siren": "904521978",
-        "vat_id": "FR64904521978",
+        "siren": "000001024",
+        "vat_id": "FR77000001024",
         "country": "FR",
         "address": "5 rue Mercière, 69002 Lyon"
       },
       "customer": {
-        "name": "Atelier Lumen SAS (fictional)",
-        "siren": "902417351",
-        "vat_id": "FR10902417351",
+        "name": "Atelier Lumenor SAS (fictional)",
+        "siren": "000001008",
+        "vat_id": "FR29000001008",
         "country": "FR",
         "address": "12 rue des Ateliers, 69002 Lyon"
       },

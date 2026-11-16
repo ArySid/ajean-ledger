@@ -1,5 +1,5 @@
 /**
- * Types of the demo client agent ("SME purchasing agent" of Atelier Lumen SAS, fictional).
+ * Types of the demo client agent ("SME purchasing agent" of Atelier Lumenor SAS, fictional).
  * The agent is a CLIENT of Ajean Ledger: it only talks to the service over HTTP + x402.
  */
 import type { PrivateKeyAccount } from "viem/accounts";

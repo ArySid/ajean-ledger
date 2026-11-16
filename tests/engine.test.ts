@@ -96,7 +96,7 @@ describe("mandatory mentions", () => {
     ["FR-INV-NUMBER", (i) => (i.number = "")],
     ["FR-INV-SUPPLIER-ADDRESS", (i) => delete i.supplier.address],
     ["FR-INV-CUSTOMER-ADDRESS", (i) => delete i.customer.address],
-    ["FR-INV-SUPPLIER-SIREN", (i) => (i.supplier.siren = "903182641")],
+    ["FR-INV-SUPPLIER-SIREN", (i) => (i.supplier.siren = "000001017")],
     ["FR-INV-SUPPLIER-VATID", (i) => delete i.supplier.vat_id],
     ["FR-INV-LINE-DESCRIPTION", (i) => (i.lines[1].description = " ")],
     ["FR-INV-LINE-QUANTITY", (i) => (i.lines[0].quantity = 0)],
@@ -265,7 +265,7 @@ describe("classification, VAT deductibility and accounts", () => {
 
   it("invoice addressed to another company -> CUSTOMER_MISMATCH", async () => {
     const i = inv1();
-    i.customer.siren = "903182640";
+    i.customer.siren = "000001016";
     const r = await entry(i);
     expect(codes(r)).toContain("CUSTOMER_MISMATCH");
   });
@@ -281,10 +281,10 @@ describe("classification, VAT deductibility and accounts", () => {
   });
 
   it("derives supplier auxiliary accounts", () => {
-    expect(auxiliaryCode("Buro Express SARL (fictional)")).toBe("BURO");
+    expect(auxiliaryCode("Buro Velours SARL (fictional)")).toBe("BURO");
     expect(auxiliaryCode("Le Bouchon Lumière SARL")).toBe("BOUCHON");
-    expect(auxiliaryCode("Cabinet Vasseur Avocats SELARL")).toBe("VASSEUR");
-    expect(auxiliaryCode("Formacompta Institut SAS")).toBe("FORMACOM");
+    expect(auxiliaryCode("Cabinet Vasquelin Avocats SELARL")).toBe("VASQUELI");
+    expect(auxiliaryCode("Formacomète Institut SAS")).toBe("FORMACOM");
     expect(auxiliaryCode("A B C X Y")).toBe("ABCX");
   });
 
@@ -297,8 +297,8 @@ describe("classification, VAT deductibility and accounts", () => {
 
   it("validates SIRENs with the Luhn key", () => {
     expect(isValidSiren(DEMO_PROFILE.siren)).toBe(true);
-    expect(isValidSiren("903182640")).toBe(true);
-    expect(isValidSiren("903182641")).toBe(false);
+    expect(isValidSiren("000001016")).toBe(true);
+    expect(isValidSiren("000001017")).toBe(false);
     expect(isValidSiren("12345")).toBe(false);
   });
 });
@@ -433,7 +433,7 @@ describe("bank transactions", () => {
     const cn = structuredClone((FX("07").input as { invoice: InvoiceInput }).invoice);
     const r = await createEntry({
       format: "bank_transaction",
-      transaction: { date: "2026-10-20", label: "VIR BURO EXPRESS AVOIR BE-AV-2026-0031", amount: 54, currency: "EUR" },
+      transaction: { date: "2026-10-20", label: "VIR BURO VELOURS AVOIR BE-AV-2026-0031", amount: 54, currency: "EUR" },
       candidate_invoices: [inv1(), cn],
     });
     expect(r.match?.matched_invoice_number).toBe("BE-AV-2026-0031");
