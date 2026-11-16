@@ -21,6 +21,7 @@ import {
   isSimulatedTxHash,
   resetSimulatedFacilitator,
   simulatedTxHash,
+  verifiedCacheSize,
 } from "@/lib/payments/simulated-facilitator";
 import { buildReceipt } from "@/lib/payments/receipt";
 import { MemoryStore, ResilientStore } from "@/lib/store";
@@ -146,6 +147,26 @@ describe("simulated facilitator", () => {
     const tampered = { ...payload, payload: { ...payload.payload, authorization: { ...auth, validBefore: String(Number(auth.validBefore) + 1) } } };
     expect((await fac.verify(tampered, req)).invalidReason).toBe("invalid_exact_evm_signature");
     expect((await fac.verify({ ...payload, payload: {} }, req)).invalidReason).toBe("invalid_exact_evm_payload");
+  });
+
+  it("settle() reuses the verified signature (no second ecrecover) but never trusts the cache for other values", async () => {
+    const req = requirements();
+    const { payload } = await signPayment(req);
+    expect((await fac.verify(payload, req)).isValid).toBe(true);
+    expect(verifiedCacheSize()).toBe(1);
+    // A payload reusing the verified signature with different signed values is re-verified (and fails).
+    const auth = (payload.payload as { authorization: Record<string, string> }).authorization;
+    const tampered = { ...payload, payload: { ...payload.payload, authorization: { ...auth, validBefore: String(Number(auth.validBefore) + 1) } } };
+    const t = await fac.settle(tampered, req);
+    expect(t.success).toBe(false);
+    expect(t.errorReason).toBe("invalid_exact_evm_signature");
+    // Cheap checks still run on a cache hit.
+    expect((await fac.settle(payload, requirements("50000"))).errorReason).toBe("invalid_exact_evm_payload_authorization_value_mismatch");
+    expect((await fac.settle(payload, req)).success).toBe(true);
+    expect(verifiedCacheSize()).toBe(0);
+    // Settling without a prior verify still works (full verification).
+    const second = await signPayment(req);
+    expect((await fac.settle(second.payload, req)).success).toBe(true);
   });
 });
 

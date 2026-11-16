@@ -91,7 +91,7 @@ export function reviewMessage(code: string, ctx: { supplier?: string; number?: s
       const charged = /invoiced at (\d+(?:[.,]\d+)?%)/i.exec(d)?.[1] ?? "a higher rate";
       const expected = /expected rate[^.]*? is (\d+(?:[.,]\d+)?%)/i.exec(d)?.[1] ?? "a lower rate";
       const excess = /excess VAT:\s*([\d.,]+)\s*EUR/i.exec(d)?.[1];
-      return `${who} applies ${charged} VAT where ${expected} is expected for this expense${excess ? ` (${excess} EUR of VAT too much)` : ""}. Please ask the supplier for a corrected invoice: only the VAT legally due is deductible.`;
+      return `${who} applies ${charged} VAT where ${expected} is expected for this expense${excess ? ` (${excess} EUR of VAT too much)` : ""}. Only the VAT legally due was deducted and the excess sits in the expense: please ask the supplier for a corrected invoice to recover it.`;
     }
     case "DUPLICATE_SUSPECTED":
       return `${who} (${eur(ctx.total)} EUR) looks like a duplicate of an invoice already booked in our ERP. I kept it as a draft: please confirm before anything is posted or paid twice.`;

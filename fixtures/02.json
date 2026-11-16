@@ -1,5 +1,5 @@
 {
-  "description": "Same office-supplies invoice but the buyer SIREN is missing (e-invoicing reform mention) -> non_compliant.",
+  "description": "Same office-supplies invoice but the buyer SIREN is missing (e-invoicing reform mention). The supplier is a mid-size company (ETI, company_size \"mid\"), already in scope of e-invoicing issuance since 2026-09-01 -> non_compliant (ADR-019).",
   "input": {
     "format": "json",
     "invoice": {
@@ -10,6 +10,7 @@
       "currency": "EUR",
       "supplier": {
         "name": "Buro Velours SARL (fictional)",
+        "company_size": "mid",
         "siren": "000001016",
         "vat_id": "FR53000001016",
         "country": "FR",

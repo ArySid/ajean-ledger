@@ -162,7 +162,7 @@ export function buildLlmsTxt(baseUrl: string): string {
   L.push("");
   L.push("## Limits");
   L.push("");
-  L.push(`- Body ≤ ${MAX_BODY_BYTES / 1_000_000} MB; audit batches 1..${AUDIT_MAX_ITEMS} items; EUR invoices only; French rules (PCG, CGI VAT) only.`);
+  L.push(`- Body ≤ ${MAX_BODY_BYTES / 1_000_000} MB; audit batches 1..${AUDIT_MAX_ITEMS} items; EUR invoices only; French accounting and VAT rules (PCG, French VAT) only.`);
   L.push("- Rate limit per client IP and minute (429 + `Retry-After`).");
   L.push("- pdf/image inputs need the optional LLM layer (else 503 `LLM_UNAVAILABLE`, not charged); LLM output is always validated by the rules engine (`extraction_method: \"llm\"` + confidence).");
   L.push("- Receipts may be kept in memory on some deployments (lookups can 404 after a restart).");

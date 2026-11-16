@@ -1,5 +1,5 @@
 {
-  "note": "Laptop 1,450.00 >= 500 -> 2183 + 44562; mouse 29.00 -> 6063 + 44566.",
+  "note": "Laptop 1,450.00 > 500 -> 2183 + 44562; mouse 29.00 -> 6063 + 44566.",
   "compliance_status": "compliant",
   "failing_rule_ids": [],
   "entry": {

@@ -10,6 +10,7 @@
       "currency": "EUR",
       "supplier": {
         "name": "Buro Velours SARL (fictional)",
+        "company_size": "mid",
         "siren": "000001016",
         "vat_id": "FR53000001016",
         "country": "FR",

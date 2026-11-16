@@ -15,7 +15,7 @@ works from 1280×720 down to mobile.
 | `/office` | `app/office/page.tsx` | Small CSS-only nod to Ajean's virtual office (agents arrive, pay, leave with a document). No JS. |
 
 ### `/live` controls
-- **Scenario**: 01 compliant office supplies, 03 restaurant VAT 20% instead of 10%, 04 intra-EU SaaS (reverse charge), 06 duplicate of 01 (`lib/console/scenarios.ts`).
+- **Scenario**: 01 compliant office supplies, 03 restaurant VAT 20% instead of 10%, 04 intra-EU consulting services (reverse charge), 06 duplicate of 01 (`lib/console/scenarios.ts`).
 - **TESTNET / SIMULATED**: payment mode requested from the live agent.
 - **Run scenario**: live run through the demo agent (with automatic fallback, see below).
 - **Replay recorded run**: plays a stored trace directly.

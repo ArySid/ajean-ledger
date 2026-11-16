@@ -49,15 +49,42 @@ interface Authorization {
   nonce: string;
 }
 
-type Global = typeof globalThis & { __ajeanSimulatedNonces?: Set<string> };
+type Global = typeof globalThis & { __ajeanSimulatedNonces?: Set<string>; __ajeanVerifiedSignatures?: Map<string, string> };
 function usedNonces(): Set<string> {
   const g = globalThis as Global;
   return (g.__ajeanSimulatedNonces ??= new Set<string>());
 }
 
+/**
+ * Small LRU of payloads whose EIP-712 signature already verified (verify() runs
+ * just before settle() on every paid call). The key is the signature itself and
+ * the value is every signed field (authorization + EIP-712 domain), so a hit
+ * means "this exact signature was verified for these exact values"; anything
+ * else falls back to a full ecrecover. Saves one signature recovery (~2 ms CPU)
+ * per paid call on the Cloudflare free plan. All the cheap checks (recipient,
+ * amount, validity window, nonce reuse) still run on every settle().
+ */
+export const VERIFIED_CACHE_MAX = 256;
+function verifiedSignatures(): Map<string, string> {
+  const g = globalThis as Global;
+  return (g.__ajeanVerifiedSignatures ??= new Map<string, string>());
+}
+function rememberVerified(signature: string, signed: string): void {
+  const m = verifiedSignatures();
+  m.delete(signature);
+  m.set(signature, signed);
+  while (m.size > VERIFIED_CACHE_MAX) m.delete(m.keys().next().value as string);
+}
+
 /** Test helper. */
 export function resetSimulatedFacilitator(): void {
   usedNonces().clear();
+  verifiedSignatures().clear();
+}
+
+/** Test helper: number of cached verified signatures. */
+export function verifiedCacheSize(): number {
+  return verifiedSignatures().size;
 }
 
 /** Deterministic, obviously fake tx hash: 0x5151 + 60 hex chars of keccak256(canonical payload). */
@@ -104,6 +131,11 @@ export class SimulatedFacilitatorClient implements FacilitatorClient {
   }
 
   async verify(paymentPayload: PaymentPayload, requirements: PaymentRequirements): Promise<VerifyResponse> {
+    return this.check(paymentPayload, requirements, false);
+  }
+
+  /** Full verification; with `useCache`, a signature already verified for the same signed values skips ecrecover. */
+  private async check(paymentPayload: PaymentPayload, requirements: PaymentRequirements, useCache: boolean): Promise<VerifyResponse> {
     if (paymentPayload.x402Version !== X402_VERSION) {
       return invalid("invalid_x402_version", `Only x402 v${X402_VERSION} is supported`);
     }
@@ -141,11 +173,15 @@ export class SimulatedFacilitatorClient implements FacilitatorClient {
     if (typeof name !== "string" || typeof version !== "string") {
       return invalid("invalid_exact_evm_payload", "Missing EIP-712 token domain (name, version)", payer);
     }
+    const verifyingContract = getAddress(requirements.asset);
+    const signed = [payer, getAddress(auth.to), auth.value, auth.validAfter, auth.validBefore, auth.nonce.toLowerCase(), name, version, CHAIN_ID, verifyingContract].join("|");
+    const sigKey = signature.toLowerCase();
+    if (useCache && verifiedSignatures().get(sigKey) === signed) return { isValid: true, payer };
     let ok = false;
     try {
       ok = await verifyTypedData({
         address: payer,
-        domain: { name, version, chainId: CHAIN_ID, verifyingContract: getAddress(requirements.asset) },
+        domain: { name, version, chainId: CHAIN_ID, verifyingContract },
         types: authorizationTypes,
         primaryType: "TransferWithAuthorization",
         message: {
@@ -162,11 +198,12 @@ export class SimulatedFacilitatorClient implements FacilitatorClient {
       ok = false;
     }
     if (!ok) return invalid("invalid_exact_evm_signature", "EIP-712 signature does not match the payer", payer);
+    rememberVerified(sigKey, signed);
     return { isValid: true, payer };
   }
 
   async settle(paymentPayload: PaymentPayload, requirements: PaymentRequirements): Promise<SettleResponse> {
-    const check = await this.verify(paymentPayload, requirements);
+    const check = await this.check(paymentPayload, requirements, true);
     if (!check.isValid) {
       return {
         success: false,
@@ -179,6 +216,7 @@ export class SimulatedFacilitatorClient implements FacilitatorClient {
     }
     const parsed = readAuthorization(paymentPayload)!;
     usedNonces().add(parsed.auth.nonce.toLowerCase());
+    verifiedSignatures().delete(parsed.signature.toLowerCase());
     return {
       success: true,
       payer: check.payer,

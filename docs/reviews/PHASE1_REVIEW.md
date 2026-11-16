@@ -62,18 +62,18 @@ Notation: `D` = debit, `C` = credit, amounts in EUR.
 
 ### B2. "Fictional" SIRENs belong to real registered entities (BLOCKING for a public demo)
 
-**Public-register lookup** (recherche-entreprises.api.gouv.fr, 2026-11-16):
+**Public-register lookup** (recherche-entreprises.api.gouv.fr, 2026-11-16). *The original SIRENs are masked below (first three digits kept) so this report does not republish real identifiers.*
 
 | SIREN | Used for | Register |
 |---|---|---|
-| 902417351 | Demo client "Atelier Lumen SAS" (`engine/profile.ts`, all fixtures) | **Real company (ceased)** |
-| 903182640 | Buro Express (01, 02, 06, 07, 11, 12) | **Real company (ceased)** |
-| 904521978 | Le Bouchon Lumière (03) | **Real company (active)** |
-| 907843262 | Lawyer client (09) | **Real sole trader, a natural person (active)** |
-| 908152739 | Cabinet Vasseur (09) | **Real sole trader, a natural person (active)** |
-| 909461824 | Copilab (10, 13) | **Real accounting firm (active)** |
-| 905736187, 906294517 | Formacompta (05), Numeria (08) | Not found |
-| 999000116 / 999000124 / 999000132 | `demo/replays/*` | Not found, **but not Luhn-valid**. Neighbouring 999000xxx numbers are allocated. |
+| 902XXXXXX | Demo client "Atelier Lumen SAS" (`engine/profile.ts`, all fixtures) | **Real company (ceased)** |
+| 903XXXXXX | Buro Express (01, 02, 06, 07, 11, 12) | **Real company (ceased)** |
+| 904XXXXXX | Le Bouchon Lumière (03) | **Real company (active)** |
+| 907XXXXXX | Lawyer client (09) | **Real sole trader, a natural person (active)** |
+| 908XXXXXX | Cabinet Vasseur (09) | **Real sole trader, a natural person (active)** |
+| 909XXXXXX | Copilab (10, 13) | **Real accounting firm (active)** |
+| 905XXXXXX, 906XXXXXX | Formacompta (05), Numeria (08) | Not found |
+| 999000XXX (three numbers) | `demo/replays/*` | Not found, **but not Luhn-valid**. Neighbouring 999000xxx numbers are allocated. |
 
 **Why it matters.**
 - ADR-015 and `ENGINE.md` state "fictional SIREN", and the brief requires clearly synthetic data.
@@ -165,3 +165,30 @@ Add a test that every SIREN in `fixtures/` starts with `000`.
 | Synthetic data clearly labelled | Names carry "(fictional)", but **6 SIRENs are real** (B2) |
 | §5.4 contract | Matches `engine/types.ts`: `request_id` and `receipt` are added by the API layer; `review_reasons`, `disclaimer`, `match` and `vat.breakdown` are additive. Amounts have 2 decimals and entries balance. |
 | Tests and typecheck | 118/118 green; `tsc` clean. After B1 and M1, update `fixtures/expected/03` and the leak test. |
+
+## Resolution (fix workstream, 2026-11-16)
+
+Applied by the fix workstream (not by the reviewer). Tests after the fixes: **8 files, 200 tests passed**; `npx tsc --noEmit` clean.
+
+| Finding | Status | What changed |
+|---|---|---|
+| **B1** fixture 03 VAT deduction | **Applied** (ADR-018) | `core.ts`: for an FR supplier, a line invoiced above the lowest expected rate deducts `min(VAT at the expected rate on the base, invoiced VAT)`; the excess is added to the expense line. Supplier still credited with the invoiced total, `vat.breakdown` unchanged, `VAT_RATE_MISMATCH` + review kept. New unreviewed basis `LB-VAT-DEDUCTION-LEGALLY-DUE` used as `vat.legal_basis_id`; `vat.note` and explanation ("invoiced at 20%, only 10% legally due and deductible; excess 14.60 EUR booked to expense pending a corrected invoice"). Fixture 03: **D 6257 160.60 / D 44566 14.60 / C 401BOUCHON 175.20** (excess 13.60 on the meal line 136.00 + 1.00 on the coffees line 10.00). Anomaly text and the tax-inspector recommendation updated. `ENGINE.md` open point 2 closed. |
+| **B2** real SIRENs | **Applied** | Every SIREN / VAT id replaced with the reviewer's `000…` range (000001008 Atelier Lumenor … 000001073 Copilab, FR keys recomputed) in fixtures, `13.ubl.xml`, `11.pdf` (regenerated with `scripts/make-facturx.ts`), expected files, `engine/profile.ts`, `agent/core.ts`, `scripts/pay-common.ts`, `scripts/warmup.ts` (its Luhn-valid `111222337` placeholder too), `lib/discovery/llms.ts`, tests, docs, replays. Names that matched register entries exactly were renamed (Atelier Lumen → Atelier Lumenor, Buro Express → Buro Velours, Formacompta → Formacomète, Numeria Solutions → Numeria Pixelune, Cabinet Vasseur → Cabinet Vasquelin; inbox files renamed); all keep "(fictional)"; auxiliary codes unchanged except `401VASQUELI`. The original SIRENs are masked in §B2 of this report. Test added: every SIREN / FR VAT id in `fixtures/` starts with `000`. Note: the old identifiers remain in the git history. |
+| **M1** article numbers in a fix_hint | **Applied** | The exemption hint now points to `LB-VAT-EXEMPT-TRAINING` / `LB-VAT-FRANCHISE`; llms.txt no longer says "CGI". Leak regex broadened to `/\bart(icle)?\.?\s*\d|\bCGI\b|L\d{3}-\d+|BOI-/i` and run on all fixtures and ~40 failing / mutated invoices (incl. 05 without its exemption mention), through `createEntry`, `checkInvoice`, bank, Factur-X and `auditEntries`, plus llms.txt / openapi.json / catalog / agent card. |
+| **M2** reform-mention timing | **Applied** (ADR-019, open question for Ary in `LEGAL_REVIEW.md`) | Optional `supplier.company_size` (`large` / `mid` / `sme` / `micro`) in `engine/types.ts`, the engine zod schema and `lib/discovery/schemas.ts`. `FR-EINV-*`: `info` before 2026-09-01; `error` from 2027-09-01 or from 2026-09-01 for large/mid suppliers; `warning` otherwise, with the timeline in the `fix_hint`. Fixture 02's supplier (Buro Velours) is declared `mid` (ETI) and stays `non_compliant`. |
+| m1 fixed-asset threshold | Applied | Capitalised only when unit price **> 500**; 500.00 is expensed (test added). |
+| m2 L441 checks on credit notes | Applied | Due date / penalties / EUR 40 checks skipped on credit notes (test added). |
+| m3 VAT-on-debits on exempt invoices | Applied | `FR-EINV-VAT-ON-DEBITS` only when services carry VAT. |
+| m4 extra classic mentions | Not applied | Needs new input fields (legal form, capital, RCS, supply date, discount terms); left for a later phase. |
+| m5 anomalies without rule_id | Applied | `TOTALS-CHECK`, `PCG-CLASSIFY`, `CUSTOMER-CHECK`, `VAT-FOREIGN`, `VAT-NON-EU`, `BNC-CASH-BASIS` (bank), and audit ids (`BALANCE-CHECK`, `SUSPENSE-ACCOUNT`, `JET-WEEKEND`, `JET-ROUND-AMOUNT`, `AUDIT-VAT-RATIO`, `AUDIT-VAT-ACCOUNT`, `AUDIT-REVERSE-CHARGE`, `COMPLIANCE-MENTIONS`, `VAT-DEDUCTIBILITY`). Test: every anomaly has a rule_id. |
+| m6 non-EU supplier regime | Partly applied | Services only, no VAT → new regime `reverse_charge_non_eu` (legal basis `LB-VAT-REVERSE-CHARGE-SERVICES`), no 4452 line, `NON_EU_SUPPLIER` warning + review; the self-assessed lines are left to the reviewer (account choice asked to Ary). Goods from outside the EU stay `out_of_scope` (import VAT via customs). |
+| m7 bank entry for a cash-basis client | Not applied | Changes the ADR-014 behaviour; kept as `ENGINE.md` open point 5 for Ary. |
+| m8 always-passing reform checks | Applied | Labels now say "not verifiable from the data". |
+| m9 SaaS / hosting | Applied | SaaS → **6511**; web hosting → 6156. |
+| m10 discounts to 609x | Not applied | Needs a `credit_reason` input; open point 7. |
+| m11 VAT pending payment sub-account | Not applied | Open point 4 (firm's choice of sub-account). |
+| m12 "is booked" wording | Applied | Explanations say "proposed entry … not to be posted until the suspected duplicate is cleared" (06), "proposed purchase view … to be recorded at the payment date" (09), "pending review" for other reviewed cases. `DUPLICATE_SUSPECTED` kept as `warning` (the demo agent already keeps it as a draft). |
+| m13 SIREN basis | Applied | `FR-INV-SUPPLIER-SIREN` cites the new unreviewed `LB-INV-COMMERCIAL-IDENTIFICATION`. |
+| m14 stale replays | Applied | `demo/replays/*.json` re-recorded from real runs (simulated server); `scripts/record-replays.ts --public-url` rewrites the local base URL (incl. base64 x402 headers) to the public URL. `tests/console.test.ts` now compares the replays with the engine output for each fixture instead of hand-written samples. |
+| Fixture 12 `vat.regime: out_of_scope` | Not applied | Would add a contract enum value used by the console/replays; harmless as is. |
+| Fixture 04 optional e-reporting info / 445662 | Not applied | Optional. |

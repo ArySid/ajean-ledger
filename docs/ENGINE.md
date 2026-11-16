@@ -14,7 +14,7 @@ Framework-free TypeScript in `engine/`. Same functions are used by the paid API,
 | `auditEntries(items, ctx?) → AuditResult` | `POST /api/v1/audit`: up to 50 items, two expert viewpoints |
 | `parseInput(input, ctx?)` | Parsed `{ invoice? , transaction?, candidate_invoices?, method, confidence }` |
 | `fingerprint(invoice)` | `InvoiceFingerprint` to store in history for duplicate detection |
-| `ENGINE_VERSION` (`"0.1.0"`), `DEMO_PROFILE` | Version; default client "Atelier Lumenor SAS (fictional)", SIREN 000001008 (fictional, Luhn-valid) |
+| `ENGINE_VERSION` (`"0.1.0"`), `DEMO_PROFILE` | Version; default client "Atelier Lumenor SAS (fictional)", SIREN 000001008 (synthetic: unallocated `000` prefix, Luhn-valid) |
 | `EngineError {code, message, details}`, `ENGINE_ERROR_CODES` | Machine-readable errors (see §8) |
 | `EXPENSE_CATEGORIES`, `CATEGORY_IDS`, `classifyLine` | Category list and deterministic classifier |
 | `LEGAL_BASES`, `publicLegalBasis(id)` | Curated legal-basis table (references hidden until reviewed) |
@@ -48,7 +48,7 @@ Money: all amounts are integer cents internally (`engine/money.ts`). Outputs are
 |---|---|---|---|---|
 | office_supplies | 6064 | Fournitures administratives | 20% | yes |
 | small_equipment | 6063 | Fournitures d'entretien et de petit équipement | 20% | yes |
-| it_equipment | **2183** if unit price ≥ 500 excl. VAT, else **6063** | Matériel de bureau et matériel informatique | 20% | yes (44562 on 2183) |
+| it_equipment | **2183** if unit price > 500 excl. VAT, else **6063** (an item at exactly 500 is expensed) | Matériel de bureau et matériel informatique | 20% | yes (44562 on 2183) |
 | professional_fees | 6226 | Honoraires | 20% | yes |
 | legal_costs | 6227 | Frais d'actes et de contentieux | 20/0% | yes |
 | training | **6228** | Divers — frais de formation externe | 20% or exempt | yes |
@@ -60,8 +60,8 @@ Money: all amounts are integer cents internally (`engine/money.ts`). Outputs are
 | rent_premises | 6132 | Locations immobilières | 20/0% | yes |
 | rent_equipment | 6135 | Locations mobilières | 20% | yes |
 | vehicle_rental | 6135 | Locations mobilières — véhicule de tourisme | 20% | **no** |
-| software_subscription | **651** | Redevances pour … solutions informatiques | 20% | yes |
-| maintenance | 6156 | Maintenance | 20% | yes |
+| software_subscription | **6511** | Redevances pour … solutions informatiques | 20% | yes |
+| maintenance | 6156 | Maintenance (incl. web hosting) | 20% | yes |
 | repairs | 615 | Entretien et réparation | 20/10% | yes |
 | documentation | 6181 | Documentation générale | 20/5.5/2.1% | yes |
 | telecom | 626 | Frais postaux et de télécommunications | 20/0% | yes |
@@ -76,7 +76,7 @@ Other accounts: `44566` TVA déductible sur autres biens et services, `44562` TV
 
 **Why these choices.**
 - *Training → 6228.* The PCG has no dedicated account for external training purchased from a training body. 6228 ("Divers" under rémunérations d'intermédiaires et honoraires) is the most common practice. 6333 is the employer's *contribution* to vocational training (a tax), not a purchase. 6185 is kept for attendance at conferences and seminars.
-- *SaaS → 651.* Since ANC 2022-06, the label of 651 explicitly covers "solutions informatiques", so it fits software licences and SaaS better than 6135.
+- *SaaS → 6511.* Since ANC 2022-06, the label of 651 explicitly covers "solutions informatiques", so it fits software licences and SaaS better than 6135; the engine uses the 4-digit sub-account 6511 (Phase 1 review m9). Web hosting is a service, not a licence fee: "hébergement web" / "hosting" go to 6156.
 - *Supplier auxiliary code.* `401` + the first significant word of the supplier name (legal forms, articles and "Cabinet/Maître" removed), extended with the next word while shorter than 4 characters, A–Z0–9, at most 8 characters: `401BURO`, `401BOUCHON`, `401FORMACOM`. A caller-supplied `supplier.account_code` takes precedence.
 - *Classifier.* Accent-folded keyword and phrase matching. Phrases count double. A category hint (`category_hint` = category id) gives 0.95, a single matched category 0.9, a clear winner 0.8, ties 0.55, no match 0.3. Below **0.75** the line is "uncertain": with `ctx.llm` the engine asks `classifyExpense`; without it, the line is flagged (`CLASSIFICATION_UNCERTAIN`, human review).
 
@@ -91,10 +91,11 @@ Regime detection (`engine/rules/vat.ts`):
 | several positive rates | `mixed_rates` | same, VAT split per line |
 | EU supplier, no VAT charged | `reverse_charge_intra_eu` | expense HT / 44566 (44562 for assets) **debit** self-assessed VAT / 4452 **credit** same amount / 401 HT. The self-assessment rate is the category's French rate (20% by default). Services: CGI 283-2; goods: intra-community acquisition (256 bis). |
 | FR supplier, all lines 0% | `exempt` | no VAT line. Legal basis: training (261-4-4° a), franchise (293 B) or generic exemption. |
-| non-EU supplier, no VAT | `out_of_scope` | + `NON_EU_SUPPLIER` warning (import VAT / reverse charge to be reviewed) |
+| non-EU supplier, services only, no VAT | `reverse_charge_non_eu` | expense HT / 401 HT; **no** self-assessed VAT lines proposed (4452 is intra-EU only) + `NON_EU_SUPPLIER` warning: the buyer self-assesses the VAT (due and deductible), lines added after review. Legal basis `LB-VAT-REVERSE-CHARGE-SERVICES`. |
+| non-EU supplier with goods, no VAT | `out_of_scope` | + `NON_EU_SUPPLIER` warning (import VAT via the customs declaration / VAT return, to be reviewed) |
 | bank transaction | `out_of_scope` | no VAT on the payment entry |
 
-- **Expected rate per category.** The engine compares each line's rate with the category's expected rates (exceptions: alcohol in a restaurant may be 20%). A mismatch raises `VAT_RATE_MISMATCH` (warning, human review) and states the excess VAT. **The VAT is booked as invoiced, never silently corrected** (ADR-008). Only the VAT legally due is deductible, so the tax-inspector viewpoint recommends reversing the excess or obtaining a corrected invoice.
+- **Expected rate per category.** The engine compares each line's rate with the category's expected rates (exceptions: alcohol in a restaurant may be 20%). A mismatch raises `VAT_RATE_MISMATCH` (warning, human review) and states the excess VAT. **The invoice is never silently corrected** (ADR-008): the supplier is credited with the invoiced total and `vat.breakdown` shows the invoiced VAT. But **only the VAT legally due is deducted** (ADR-018): when the invoiced rate is above the lowest expected rate, 44566 receives `min(VAT at the expected rate on the line base, invoiced VAT)` and the excess is added to the expense line. `vat.legal_basis_id` is then `LB-VAT-DEDUCTION-LEGALLY-DUE`, `vat.note` states the excess, and the explanation says "invoiced at X%, only Y% legally due and deductible; excess Z booked to expense pending a corrected invoice".
 - **Non-deductible VAT** (staff accommodation, passenger transport, passenger vehicles, gifts above EUR 73, client under franchise, foreign VAT charged by an EU supplier) is added to the expense line, not to 44566.
 - **Services.** When a French supplier invoices services and has not opted for VAT on debits, `vat.note` reminds the agent that the VAT becomes deductible when the invoice is paid (CGI 269-2-c). The entry still uses 44566 (see open point 4).
 - **Totals.** Line total = qty × unit price (±0.01). Sum of lines = total excl. VAT (±0.01). Recomputed VAT per rate = invoiced VAT (±0.01 per rate). HT + VAT = TTC (±0.01).
@@ -107,7 +108,7 @@ Severity `error` → `non_compliant`, only `warning` → `warning`, else `compli
 |---|---|---|
 | FR-INV-NUMBER, FR-INV-DATE | number, issue date | all |
 | FR-INV-SUPPLIER-NAME/-ADDRESS, FR-INV-CUSTOMER-NAME/-ADDRESS | parties | all |
-| FR-INV-SUPPLIER-SIREN | valid SIREN (Luhn) | FR supplier |
+| FR-INV-SUPPLIER-SIREN | valid SIREN (Luhn); legal basis `LB-INV-COMMERCIAL-IDENTIFICATION` | FR supplier |
 | FR-INV-SUPPLIER-VATID | supplier VAT id (error if VAT charged or intra-EU, warning otherwise) | FR/EU supplier, not franchise |
 | FR-INV-CUSTOMER-VATID | customer VAT id | intra-EU reverse charge |
 | FR-INV-LINES-PRESENT, FR-INV-LINE-DESCRIPTION, FR-INV-LINE-QUANTITY, FR-INV-LINE-UNIT-PRICE | three distinct line mentions | all |
@@ -116,15 +117,26 @@ Severity `error` → `non_compliant`, only `warning` → `warning`, else `compli
 | FR-INV-VAT-EXEMPTION-MENTION | exemption / franchise mention when no VAT | FR supplier, VAT = 0 |
 | FR-INV-REVERSE-CHARGE-MENTION | "Autoliquidation" / "Reverse charge" | intra-EU reverse charge |
 | FR-INV-CREDIT-NOTE-REFERENCE | original invoice number | credit notes |
-| FR-INV-PAYMENT-DUE-DATE, FR-INV-LATE-PENALTIES, FR-INV-RECOVERY-INDEMNITY | C. com. L441-9 / L441-10 (B2B) | FR supplier |
+| FR-INV-PAYMENT-DUE-DATE, FR-INV-LATE-PENALTIES, FR-INV-RECOVERY-INDEMNITY | commercial-code payment mentions (B2B) | FR supplier, invoices only (not credit notes) |
 | FR-EINV-SIREN-BUYER | buyer SIREN | domestic B2B |
 | FR-EINV-OPERATION-NATURE | goods / services / mixed declared and consistent with line kinds (derived "mixed" when lines have both kinds) | domestic B2B |
 | FR-EINV-DELIVERY-ADDRESS | info only (cannot verify "different from billing address") | domestic, goods |
-| FR-EINV-VAT-ON-DEBITS | info only (absence = no option) | domestic, services |
+| FR-EINV-VAT-ON-DEBITS | info only (absence = no option) | domestic, services, VAT charged |
 
-`FR-EINV-*` are `error` for invoices issued **on or after 2026-09-01** and `info` before (open point 1).
+`FR-EINV-*` severity follows the issuer's e-invoicing timeline (ADR-019, optional `supplier.company_size`: `large` | `mid` | `sme` | `micro`):
+- issued before 2026-09-01: `info`;
+- issued from 2027-09-01, or from 2026-09-01 by a `large` / `mid` supplier: `error`;
+- otherwise (SME / micro / size not declared, 2026-09-01 to 2027-08-31): `warning`, with a `fix_hint` explaining the timeline (reception mandatory for all since 1 Sept 2026; issuance mandatory for large and mid-size companies from 1 Sept 2026, SMEs and micro-businesses from 1 Sept 2027).
+
+Fixture 02's supplier is declared `mid` (ETI), so it stays `non_compliant`.
+
+Fix hints and anomaly details never cite article numbers: they point to the `legal_basis_id` only (Phase 1 review M1). `tests/engine.test.ts` checks every output (green fixtures, ~40 failing / mutated invoices, `checkInvoice`, bank, audit) and `tests/discovery.test.ts` checks llms.txt / openapi.json / catalog / agent card against `/\bart(icle)?\.?\s*\d|\bCGI\b|L\d{3}-\d+|BOI-/i`.
 
 ## 6. Anomalies, review and confidence
+
+Every anomaly carries a stable `rule_id` (e.g. `TOTALS-CHECK`, `PCG-CLASSIFY`, `CUSTOMER-CHECK`, `VAT-FOREIGN`, `VAT-NON-EU`, `BNC-CASH-BASIS`, and for the audit `BALANCE-CHECK`, `SUSPENSE-ACCOUNT`, `JET-WEEKEND`, `JET-ROUND-AMOUNT`, `AUDIT-VAT-RATIO`, `AUDIT-VAT-ACCOUNT`, `AUDIT-REVERSE-CHARGE`, `COMPLIANCE-MENTIONS`, `VAT-DEDUCTIBILITY`).
+
+Explanations call the entry **proposed** (not "booked") whenever human review is required: "not to be posted until the suspected duplicate is cleared" (duplicate), "proposed purchase view … to be recorded at the payment date" (cash-basis client), "pending review" otherwise.
 
 Anomaly codes: `VAT_RATE_MISMATCH`, `VAT_RATE_INVALID`, `TOTALS_INCONSISTENT`, `SUPPLIER_TOTAL_MISMATCH`, `CLASSIFICATION_UNCERTAIN`, `DUPLICATE_SUSPECTED`, `CUSTOMER_MISMATCH`, `FOREIGN_VAT_CHARGED`, `NON_EU_SUPPLIER`, `GIFT_VAT_THRESHOLD` (warning/error); `FIXED_ASSET_CAPITALISED`, `VAT_NOT_DEDUCTIBLE`, `REVERSE_CHARGE_SELF_ASSESSED`, `CASH_BASIS_CLIENT` (info); bank: `UNMATCHED_TRANSACTION`, `PARTIAL_MATCH`.
 
@@ -174,14 +186,14 @@ Team decision: the **lawyer is the client whose books we keep** (`activity: "bnc
 | # | Scenario | Key result |
 |---|---|---|
 | 01 | Office supplies 20% | 6064 140.00 / 44566 28.00 / 401BURO 168.00, compliant |
-| 02 | #1 without buyer SIREN | non_compliant (FR-EINV-SIREN-BUYER), review |
-| 03 | Restaurant at 20% instead of 10% | 6257 146.00 / 44566 29.20 / 401BOUCHON 175.20, VAT_RATE_MISMATCH (excess 14.60), review |
+| 02 | #1 without buyer SIREN, supplier declared `mid` (ETI) | non_compliant (FR-EINV-SIREN-BUYER), review |
+| 03 | Restaurant at 20% instead of 10% | 6257 160.60 (146.00 + 14.60 excess VAT) / 44566 14.60 / 401BOUCHON 175.20, VAT_RATE_MISMATCH (excess 13.60 + 1.00), review, `LB-VAT-DEDUCTION-LEGALLY-DUE` (ADR-018) |
 | 04 | German consulting services, reverse charge | 6226 2200.00 / 44566 440.00 / 4452 (440.00) / 401KRANICH (2200.00) |
 | 05 | Exempt training | 6228 1200.00 / 401FORMACOM (1200.00), regime exempt |
 | 06 | Duplicate of #1 (history) | DUPLICATE_SUSPECTED, review |
 | 07 | Partial credit note on #1 | 401BURO 54.00 / 6064 (45.00) / 44566 (9.00) |
 | 08 | Laptop 1,450 + mouse 29 | 2183 1450.00 / 6063 29.00 / 44562 290.00 / 44566 5.80 / 401NUMERIA (1774.80) |
-| 09 | Lawyer client, colleague's fees | 6226 800.00 / 44566 160.00 / 401VASQUELI (960.00), CASH_BASIS_CLIENT review |
+| 09 | Lawyer client, colleague's fees | proposed: 6226 800.00 / 44566 160.00 / 401VASQUELI (960.00), CASH_BASIS_CLIENT review |
 | 10 | Mixed goods + services | 6064 190.00 / 6156 210.00 / 44566 80.00 / 401COPILAB (480.00), nature mixed |
 | 11 | Factur-X PDF of #1 | identical to #1, `facturx_cii` |
 | 12 | Bank payment of #1 | BQ 401BURO 168.00 / 512000 (168.00), match score 1 |
@@ -203,15 +215,15 @@ A fixture's `context` (profile, history) is applied. `--no-llm` disables the LLM
 
 ## 13. Open points for Ary
 
-1. **Reform mentions: start date.** `FR-EINV-*` (buyer SIREN, operation category, delivery address, VAT-on-debits option) are `error` from 2026-09-01 for all domestic B2B invoices. Please confirm whether they apply from 1 Sept 2026 to every issuer or only once the issuer is in scope of e-invoicing (1 Sept 2027 for SMEs/micro). If the latter, they should be `warning` for SME issuers until then.
-2. **Wrong-rate restaurant invoice (fixture 03).** We book the invoiced VAT (29.20) in 44566 and flag it, without correcting it (ADR-008). Strictly, only 14.60 is deductible. Should the engine instead propose 44566 14.60 + 6257 160.60 and still flag?
+1. **Reform mentions: start date.** Implemented per issuer size (ADR-019): `error` from 2026-09-01 for large/mid issuers and from 2027-09-01 for all, `warning` in between for SME/micro or undeclared size. Please confirm this reading against the decree and the DGFiP FAQ (see `docs/LEGAL_REVIEW.md`, open questions).
+2. ~~**Wrong-rate restaurant invoice (fixture 03).**~~ **Closed (Phase 1 review B1, ADR-018):** the engine deducts only the VAT legally due (44566 14.60), adds the 14.60 excess to 6257 (160.60), still credits the supplier with 175.20 and keeps the `VAT_RATE_MISMATCH` flag and the review.
 3. **Training account.** 6228 vs 6185 / 618x for external training: confirm the firm's preferred account.
 4. **VAT on services not yet paid.** Accrual entries use 44566 directly. Some firms use a "TVA déductible en attente" sub-account (e.g. 44568x) until payment. Should a sub-account be added for services from suppliers taxed on receipts?
 5. **Fixture 09 (BNC).** Confirm the treatment of fees invoiced by a fellow lawyer: operating expense (6226 / 2035 "honoraires") vs *rétrocession* deducted from receipts, or *débours*. Also confirm that proposing an accrual-style entry with review is the right output for a cash-basis client, rather than waiting for the payment.
 6. **Factur-X / UBL codes.** BT-23 framework codes (B1/S1/M1) for the operation category, and CII `DueDateTypeCode` 5/72 for the VAT-on-debits option: to verify against the final French external specifications.
 7. **Credit notes.** Returns and cancellations credit the original expense account (6064). Should commercial discounts (rabais/remises) go to 609x instead? The engine cannot tell them apart today.
 8. **Gifts.** The EUR 73 threshold is applied per unit, not per beneficiary per year (the engine cannot know the beneficiary).
-9. **SaaS.** 651 (new PCG label) vs 6135 / 6156: confirm.
+9. **SaaS.** 6511 (sub-account of 651, new PCG label) vs 6135 / 6156: confirm. Web hosting → 6156.
 10. **Self-assessment rate (reverse charge).** The engine uses the category's French rate (20% by default). Reduced-rate services from EU suppliers would need a hint.
 11. **Materiality.** Fixed EUR 5,000 (override per call). Confirm the default for the demo SME.
 12. Every legal reference is listed in `docs/LEGAL_REVIEW.md`. None is exposed until `reviewed_by` is filled.

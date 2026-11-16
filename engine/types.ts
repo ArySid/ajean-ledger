@@ -17,7 +17,7 @@ export interface Party {
   name: string;
   /** French SIREN (9 digits). Fictional in all fixtures. */
   siren?: string;
-  /** Intra-EU VAT id, e.g. "FR12345678901". */
+  /** Intra-EU VAT id, e.g. "FR29000001008". */
   vat_id?: string;
   country: Iso2;
   address?: string;

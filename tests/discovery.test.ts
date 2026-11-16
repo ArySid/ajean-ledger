@@ -231,3 +231,13 @@ describe("route handlers", () => {
     expect(baseUrlFromRequest(req("/x", { "x-forwarded-host": "evil.example/<script>" }))).toBe("http://localhost:3000");
   });
 });
+
+describe("discovery documents expose no unreviewed legal reference (Phase 1 review, M1)", () => {
+  it("llms.txt, openapi.json, catalog and agent card carry legal_basis_id only", () => {
+    const LEAK = /\bart(icle)?\.?\s*\d|\bCGI\b|L\d{3}-\d+|BOI-/i;
+    expect(buildLlmsTxt(BASE)).not.toMatch(LEAK);
+    expect(JSON.stringify(buildOpenApi(BASE))).not.toMatch(LEAK);
+    expect(JSON.stringify(buildCatalog(BASE))).not.toMatch(LEAK);
+    expect(JSON.stringify(buildAgentCard(BASE))).not.toMatch(LEAK);
+  });
+});

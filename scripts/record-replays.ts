@@ -9,6 +9,10 @@
  *   PAYMENT_MODE=simulated npx next start -p 3500   (or npm run dev)
  *   AJEAN_LEDGER_URL=http://localhost:3500 npm run record:replays
  *   flags: --url <base>  --dry-run (print a summary, write nothing)
+ *          --public-url [base]  rewrite the recorded base URL (e.g. http://localhost:3600) to the public
+ *                               service URL in every string of the traces, including base64 x402 headers.
+ *                               Value: the flag argument, else env PUBLIC_URL, else DEFAULT_PUBLIC_URL.
+ *                               Also applied when PUBLIC_URL is set without the flag.
  */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
@@ -30,6 +34,44 @@ const argVal = (n: string) => {
   const i = argv.indexOf(`--${n}`);
   return i >= 0 ? argv[i + 1] : undefined;
 };
+
+export const DEFAULT_PUBLIC_URL = "https://ajean-ledger.ary-sidoun.workers.dev";
+
+/** Public URL to show in the replays, or null to keep the recorded one. */
+function publicUrlOption(): string | null {
+  const i = argv.indexOf("--public-url");
+  if (i >= 0) {
+    const v = argv[i + 1];
+    return (v && !v.startsWith("--") ? v : process.env.PUBLIC_URL?.trim() || DEFAULT_PUBLIC_URL).replace(/\/$/, "");
+  }
+  return process.env.PUBLIC_URL?.trim() ? process.env.PUBLIC_URL.trim().replace(/\/$/, "") : null;
+}
+
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/** Replace `from` by `to` in every string of a JSON value, including base64-encoded JSON (x402 headers). */
+export function rewriteBaseUrl<T>(value: T, from: string, to: string): T {
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") {
+      if (v.includes(from)) return v.split(from).join(to);
+      if (v.length >= 24 && v.length % 4 === 0 && B64.test(v)) {
+        try {
+          const decoded = Buffer.from(v, "base64").toString("utf8");
+          if (decoded.includes(from) && Buffer.from(decoded, "utf8").toString("base64") === v) {
+            return Buffer.from(decoded.split(from).join(to), "utf8").toString("base64");
+          }
+        } catch {
+          /* not base64 text */
+        }
+      }
+      return v;
+    }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return walk(value) as T;
+}
 
 const EXPECTED: Record<DemoScenarioId, AgentTrace["outcome"]> = {
   "01": "posted",
@@ -96,8 +138,11 @@ async function main() {
     return;
   }
   mkdirSync("demo/replays", { recursive: true });
+  const publicUrl = publicUrlOption();
+  if (publicUrl && publicUrl !== url) console.log(`  rewriting ${url} -> ${publicUrl} in the traces`);
   for (const t of traces) {
-    const out: AgentTrace = { ...t, mode: "REPLAY", recorded_from: mode, recorded_at: t.recorded_at };
+    const rec: AgentTrace = { ...t, mode: "REPLAY", recorded_from: mode, recorded_at: t.recorded_at };
+    const out = publicUrl && publicUrl !== url ? rewriteBaseUrl(rec, url, publicUrl) : rec;
     writeFileSync(`demo/replays/${t.scenario}.json`, JSON.stringify(out, null, 2) + "\n");
     console.log(`  wrote demo/replays/${t.scenario}.json`);
   }

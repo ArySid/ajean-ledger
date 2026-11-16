@@ -66,7 +66,7 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - Low-value fixed-asset threshold: **€500 excl. VAT** (French administrative tolerance). Above it, IT equipment → `2183` + VAT on fixed assets `44562`; below → expense `6063`/`6064`.
 - Supplier accounts: general account `401` + auxiliary code, e.g. `401BURO` (shown as `401XXXX` in §5.4).
 - Purchase journal code `HA`; bank journal `BQ`.
-- Restaurant: on-site meals are 10%, alcohol 20%. A restaurant invoice at 20% on food → `VAT_RATE_MISMATCH` warning + `human_review_required: true`. The engine **never** silently corrects the VAT amount: it books what was invoiced and flags it.
+- Restaurant: on-site meals are 10%, alcohol 20%. A restaurant invoice at 20% on food → `VAT_RATE_MISMATCH` warning + `human_review_required: true`. The engine **never** silently corrects the VAT amount: it books what was invoiced and flags it. *(Amended by ADR-018: the supplier is still credited with the invoiced total, but only the VAT legally due is deducted; the excess goes to the expense.)*
 - Legal bases: only from a curated table in `engine/rules/legal-basis.ts`, each entry with `id`, `label`, `reference` and a `reviewed_by` field (empty until Ary signs it off). No article number is shown to an agent until it is reviewed.
 
 ---
@@ -104,7 +104,7 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 
 ## ADR-015 — Fictional demo SME and language
 - **Status:** accepted (prompt #02)
-- **Decision:** Demo client "Atelier Lumenor SAS (fictional)", fictional SIREN. Course deliverables (concept note, slides, demo script, Q&A) in English. Bonuses (credit packs, EURC) only after Phases 1–7 are complete and verified.
+- **Decision:** Demo client "Atelier Lumenor SAS (fictional)", fictional SIREN. *(Phase 1 review B2: every SIREN / VAT id in fixtures, replays, scripts and docs now uses the unallocated, Luhn-valid `000…` range — 000001008 to 000001073 — because the earlier "fictional" SIRENs belonged to registered entities, two of them natural persons. Party names that matched real register entries exactly were also changed: Atelier Lumen → Atelier Lumenor, Buro Express → Buro Velours, Formacompta → Formacomète, Numeria Solutions → Numeria Pixelune, Cabinet Vasseur → Cabinet Vasquelin. All keep the "(fictional)" suffix.)* Course deliverables (concept note, slides, demo script, Q&A) in English. Bonuses (credit packs, EURC) only after Phases 1–7 are complete and verified.
 
 ## ADR-016 — Autonomous orchestrator mode
 - **Status:** accepted (prompt #02)
@@ -117,6 +117,20 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - **Mitigations for the free limits:** heavy steps that could exceed 10 ms CPU (Factur-X PDF parsing, large audits) are measured; if needed they move client-side or the demo uses precomputed results, clearly labelled. Details and measurements: `docs/HOSTING.md`.
 - **Pitch argument (if Cloudflare is kept):** x402 was co-created by Coinbase and Cloudflare, so hosting the agent-payment service on Cloudflare is coherent with the protocol's ecosystem.
 - **Rejected:** Vercel (paused, forbidden by the user); paid plans of any host.
+
+## ADR-018 — Excess VAT invoiced at a wrong rate is not deducted
+- **Status:** accepted (Phase 1 review, finding B1) — amends ADR-008
+- **Context:** Fixture 03: a restaurant invoices a business lunch and coffees (on-site consumption, 10%) at 20%. The engine booked the full invoiced VAT (29.20) in 44566 while its own anomaly said "only the VAT legally due is deductible". The independent reviewer flagged the contradiction as blocking: VAT shown on an invoice is due by the issuer, but the buyer may deduct only the VAT legally due on the transaction.
+- **Decision:** For a French supplier, when a line's invoiced rate is above the lowest rate expected for its expense category, the engine deducts `min(VAT at the expected rate on the line base, invoiced VAT)` in 44566 (44562 for fixed assets) and adds the excess to the expense line. The supplier is still credited with the invoiced total; `vat.breakdown` still shows the invoiced VAT; `VAT_RATE_MISMATCH` and `human_review_required` are kept; `vat.legal_basis_id` = `LB-VAT-DEDUCTION-LEGALLY-DUE` (unreviewed); the explanation reads "invoiced at 20%, only 10% legally due and deductible; excess 14.60 EUR booked to expense pending a corrected invoice". Fixture 03: D 6257 160.60 / D 44566 14.60 / C 401BOUCHON 175.20 (excess 13.60 on the meal + 1.00 on the coffees).
+- **Why:** It is the deduction a tax inspector would accept, and it keeps ADR-008's principle (the invoice amount is never silently corrected: the payable equals the invoice and the anomaly is visible). When the supplier issues a corrected invoice (or a credit note for the excess VAT), the excess is cleared from the expense.
+- **Rejected:** (a) booking the full invoiced VAT and only flagging it (contradicts the right to deduct; the demo agent posts the entry); (b) booking the excess on a separate "TVA non récupérable" 6257 line (equivalent, but two lines on the same account add noise for an agent; possible later via a sub-account); (c) crediting the supplier with the corrected amount (silent correction of a third-party document, against ADR-008); (d) parking the excess in 4458x / 471 pending the corrected invoice (a suspense balance an SME would forget to clear).
+
+## ADR-019 — E-invoicing reform mentions follow the issuer's timeline
+- **Status:** accepted for the PoC (Phase 1 review, finding M2) — **to verify with Ary** (`docs/LEGAL_REVIEW.md`, open questions)
+- **Context:** The new mentions (buyer SIREN, operation category, delivery address, VAT-on-debits option) were `error` for every domestic B2B invoice from 2026-09-01. The reviewer's reading: reception is mandatory for every company from 1 Sept 2026, but issuance — and with it the new mentions — is mandatory for large companies (GE) and mid-size companies (ETI) from 1 Sept 2026 and for SMEs (PME) and micro-businesses from 1 Sept 2027.
+- **Decision:** Optional `supplier.company_size` (`large` | `mid` | `sme` | `micro`) on `Party` (additive contract change, also in the discovery zod schema). `FR-EINV-*` checks: `info` before 2026-09-01; `error` from 2027-09-01, or from 2026-09-01 when the supplier is `large` / `mid`; `warning` otherwise, with a `fix_hint` stating the timeline. Fixture 02's supplier is declared `mid` (ETI) so it stays `non_compliant`, as the brief requires.
+- **Why:** An SME issuer that omits the buyer SIREN in October 2026 is not (yet) in breach; calling its invoice non-compliant would push agents to reject valid invoices. Unknown size defaults to the lenient reading (warning) but still triggers a review.
+- **Rejected:** `error` for every issuer from 2026-09-01 (over-strict for SMEs); `info` until 2027-09-01 for everyone (hides a real breach by GE/ETI issuers); inferring the size from the legal form or the SIREN (unreliable, no register call in a deterministic engine).
 
 ## ADR-020 — Cloudflare retained; static assets embedded in the Worker for deploys from the cloud session
 - **Status:** accepted

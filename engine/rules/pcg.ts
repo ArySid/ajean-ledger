@@ -29,7 +29,7 @@ export interface ExpenseCategory {
   tax_risk?: "receptions" | "gifts" | "non_deductible_vat" | "passenger_vehicle";
 }
 
-/** Low-value fixed-asset tolerance, per unit, excl. VAT (ADR-008, LB-ASSET-LOW-VALUE). */
+/** Low-value fixed-asset tolerance, per unit, excl. VAT (ADR-008, LB-ASSET-LOW-VALUE): capitalised only when strictly above. */
 export const FIXED_ASSET_THRESHOLD = 500;
 export const FIXED_ASSET_ACCOUNT = { account: "2183", label: "Matériel de bureau et matériel informatique" };
 export const LOW_VALUE_EQUIPMENT_ACCOUNT = { account: "6063", label: "Fournitures d'entretien et de petit équipement" };
@@ -49,7 +49,7 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   },
   {
     id: "it_equipment", account: FIXED_ASSET_ACCOUNT.account, account_label: FIXED_ASSET_ACCOUNT.label,
-    description: "IT and office equipment (capitalised at or above EUR 500 excl. VAT per unit, else 6063)", kind: "goods",
+    description: "IT and office equipment (capitalised above EUR 500 excl. VAT per unit, else 6063)", kind: "goods",
     keywords: ["ordinateur", "ordinateurs", "portable", "laptop", "macbook", "pc", "serveur", "server", "imprimante", "printer", "ecran", "moniteur", "monitor", "tablette", "tablet", "smartphone", "photocopieur", "nas", "station de travail", "workstation"],
     expected_vat_rates: [0.2], vat_deductibility: "full",
   },
@@ -122,15 +122,15 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
     expected_vat_rates: [0.2], vat_deductibility: "none", deductibility_basis: "LB-VAT-DEDUCTION-EXCLUSIONS", tax_risk: "passenger_vehicle",
   },
   {
-    id: "software_subscription", account: "651", account_label: "Redevances pour concessions, brevets, licences, marques, procédés, solutions informatiques",
+    id: "software_subscription", account: "6511", account_label: "Redevances pour concessions, brevets, licences, marques, procédés, solutions informatiques",
     description: "Software licences and SaaS subscriptions", kind: "services",
-    keywords: ["logiciel", "licence", "licences", "saas", "abonnement logiciel", "software", "subscription", "cloud", "hebergement web", "hosting"],
+    keywords: ["logiciel", "licence", "licences", "saas", "abonnement logiciel", "software", "subscription", "cloud"],
     expected_vat_rates: [0.2], vat_deductibility: "full",
   },
   {
     id: "maintenance", account: "6156", account_label: "Maintenance",
-    description: "Maintenance contracts", kind: "services",
-    keywords: ["maintenance", "contrat de maintenance", "support technique", "infogerance"],
+    description: "Maintenance contracts and IT services such as web hosting", kind: "services",
+    keywords: ["maintenance", "contrat de maintenance", "support technique", "infogerance", "hebergement web", "hebergement site", "hosting", "web hosting"],
     expected_vat_rates: [0.2], vat_deductibility: "full",
   },
   {

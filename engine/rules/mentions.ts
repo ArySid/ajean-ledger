@@ -159,13 +159,13 @@ export function checkMentions(inv: InvoiceInput, ctx: MentionContext): MentionRe
 
     const goods = (declared ?? derived) === "goods" || (declared ?? derived) === "mixed";
     if (goods) {
-      add("FR-EINV-DELIVERY-ADDRESS", "Delivery address when different from the billing address (e-invoicing reform)", true, "info",
+      add("FR-EINV-DELIVERY-ADDRESS", "Delivery address when different from the billing address (e-invoicing reform; not verifiable from the data)", true, "info",
         "", "LB-EINV-REFORM-MENTIONS");
     } else skipped.push("FR-EINV-DELIVERY-ADDRESS");
 
     const services = (declared ?? derived) === "services" || (declared ?? derived) === "mixed";
     if (services && vatCharged) {
-      add("FR-EINV-VAT-ON-DEBITS", "VAT-on-debits option stated when the supplier opted (e-invoicing reform)", true, "info", "", "LB-EINV-REFORM-MENTIONS");
+      add("FR-EINV-VAT-ON-DEBITS", "VAT-on-debits option stated when the supplier opted (e-invoicing reform; not verifiable from the data)", true, "info", "", "LB-EINV-REFORM-MENTIONS");
     } else skipped.push("FR-EINV-VAT-ON-DEBITS");
   } else skipped.push("FR-EINV-SIREN-BUYER", "FR-EINV-OPERATION-NATURE", "FR-EINV-DELIVERY-ADDRESS", "FR-EINV-VAT-ON-DEBITS");
 

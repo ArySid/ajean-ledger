@@ -99,17 +99,48 @@ describe("fixtures", () => {
     expect(b.compliance.status).toBe(a.compliance.status);
   });
 
-  it("fixture 03 tells the agent the excess VAT and never corrects it silently", async () => {
+  it("fixture 03 deducts only the VAT legally due, charges the excess to the expense and flags it (ADR-018)", async () => {
     const r = await run("03");
     const mismatch = r.anomalies.filter((a) => a.code === "VAT_RATE_MISMATCH");
     expect(mismatch).toHaveLength(2);
     expect(mismatch[0].detail).toMatch(/13\.60 EUR/);
-    expect(r.entry.lines.find((l) => l.account === "44566")?.debit).toBe(29.2);
+    expect(mismatch[1].detail).toMatch(/1\.00 EUR/);
+    // 136.00 + 10.00 at 20% invoiced = 29.20; legally due at 10% = 13.60 + 1.00 = 14.60.
+    expect(r.entry.lines.find((l) => l.account === "44566")?.debit).toBe(14.6);
+    expect(r.entry.lines.find((l) => l.account === "6257")?.debit).toBe(160.6);
+    // The supplier is still credited with the invoiced total (never silently corrected).
+    expect(r.entry.lines.find((l) => l.account.startsWith("401"))?.credit).toBe(175.2);
+    expect(r.vat.breakdown).toEqual([{ rate: 0.2, base: 146, vat: 29.2 }]);
+    expect(r.vat.legal_basis_id).toBe("LB-VAT-DEDUCTION-LEGALLY-DUE");
+    expect(r.vat.note).toMatch(/14\.60 EUR of excess VAT/);
+    expect(r.explanation).toMatch(/invoiced at 20%, only 10% legally due and deductible; excess 14\.60 EUR booked to expense pending a corrected invoice/);
+    expect(r.explanation).not.toMatch(/standard 20% VAT/);
+    expect(r.human_review_required).toBe(true);
   });
 
-  it("fixture 09 explains the cash-basis treatment", async () => {
+  it("fixture 09 explains the cash-basis treatment and calls the entry a proposal", async () => {
     const r = await run("09");
     expect(r.explanation).toMatch(/cash-basis/);
+    expect(r.explanation).toMatch(/proposed purchase view/);
+    expect(r.explanation).not.toMatch(/is booked/);
     expect(r.vat.note).toMatch(/deductible when the invoice is paid/);
+  });
+
+  it("fixture 06 (suspected duplicate) is a proposed entry, not a booked one", async () => {
+    const r = await run("06");
+    expect(r.explanation).toMatch(/proposed entry .* not to be posted until the suspected duplicate is cleared/);
+    expect(r.explanation).not.toMatch(/is booked/);
+  });
+
+  it("every party SIREN / VAT id in the fixtures is synthetic (unallocated 000 prefix)", () => {
+    const files = readdirSync(DIR).filter((f) => /\.(json|xml)$/.test(f)).map((f) => path.join(DIR, f));
+    files.push(...readdirSync(EXPECTED).map((f) => path.join(EXPECTED, f)));
+    for (const f of files) {
+      const txt = readFileSync(f, "utf8");
+      for (const m of txt.matchAll(/"siren"\s*:\s*"(\d+)"|<cbc:CompanyID[^>]*>(?:FR\d{2})?(\d{9})<|"supplier_key"\s*:\s*"(\d{9})"/g)) {
+        expect(m[1] ?? m[2] ?? m[3], f).toMatch(/^000/);
+      }
+      for (const m of txt.matchAll(/\bFR\d{2}(\d{9})\b/g)) expect(m[1], f).toMatch(/^000/);
+    }
   });
 });

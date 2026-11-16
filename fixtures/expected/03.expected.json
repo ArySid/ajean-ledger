@@ -1,5 +1,5 @@
 {
-  "note": "Restaurant at 20% instead of 10%: VAT booked as invoiced (29.20), flagged; 6257 Réceptions.",
+  "note": "Restaurant invoiced at 20% instead of 10% (ADR-018): only the VAT legally due (10% = 14.60) is deducted in 44566; the 14.60 excess is added to 6257 Réceptions; supplier credited with the invoiced 175.20; VAT_RATE_MISMATCH flagged for review.",
   "compliance_status": "compliant",
   "failing_rule_ids": [],
   "entry": {
@@ -7,12 +7,12 @@
     "lines": [
       {
         "account": "6257",
-        "debit": 146.0,
+        "debit": 160.6,
         "credit": 0
       },
       {
         "account": "44566",
-        "debit": 29.2,
+        "debit": 14.6,
         "credit": 0
       },
       {
@@ -27,6 +27,7 @@
     "regime": "standard",
     "rate": 0.2
   },
+  "vat_legal_basis_id": "LB-VAT-DEDUCTION-LEGALLY-DUE",
   "anomaly_codes": [
     "VAT_RATE_MISMATCH"
   ],

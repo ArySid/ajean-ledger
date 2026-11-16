@@ -197,7 +197,7 @@ describe("classification, VAT deductibility and accounts", () => {
   it("classifies by keywords, hints and flags unknown lines", () => {
     expect(classifyLine("Ramettes papier A4").category.account).toBe("6064");
     expect(classifyLine("Nuitée hôtel Ibis Lyon").category.account).toBe("6256");
-    expect(classifyLine("Abonnement logiciel SaaS").category.account).toBe("651");
+    expect(classifyLine("Abonnement logiciel SaaS").category.account).toBe("6511");
     expect(classifyLine("xyz-42", "training").category.account).toBe("6228");
     expect(classifyLine("Prestation diverse xyz").confidence).toBeLessThan(0.75);
     expect(CATEGORY_IDS.length).toBeGreaterThan(15);
@@ -217,7 +217,7 @@ describe("classification, VAT deductibility and accounts", () => {
     i.lines = [{ description: "Prestation xyz", quantity: 1, unit_price_excl_vat: 140, vat_rate: 0.2, kind: "services" }];
     i.operation_nature = "services";
     const r = await entry(i, { llm: mockLlm() });
-    expect(r.entry.lines[0].account).toBe("651");
+    expect(r.entry.lines[0].account).toBe("6511");
     expect(r.engine.llm_used).toBe(true);
     expect(codes(r)).not.toContain("CLASSIFICATION_UNCERTAIN");
     expect(r.entry.lines.find((l) => l.account === "44566")?.debit).toBe(28);
@@ -506,12 +506,213 @@ describe("legal bases", () => {
 
   it("every legal_basis_id used by the engine exists in the curated table", async () => {
     const ids = new Set(LEGAL_BASES.map((b) => b.id));
-    for (const n of ["01", "02", "03", "04", "05", "07", "08", "09", "10"]) {
+    for (const n of ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "12"]) {
       const r = await createEntry(FX(n).input, FX(n).context ?? {});
       for (const c of r.compliance.checks) if (c.legal_basis_id) expect(ids.has(c.legal_basis_id)).toBe(true);
       if (r.vat.legal_basis_id) expect(ids.has(r.vat.legal_basis_id)).toBe(true);
-      // No article reference leaks into the agent-facing result.
-      expect(JSON.stringify(r)).not.toMatch(/CGI art\.|L441-|242 nonies/);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M1 (Phase 1 review): no unreviewed legal reference may reach an agent, on
+// green fixtures AND on failing / mutated invoices, through every operation.
+const LEAK = /\bart(icle)?\.?\s*\d|\bCGI\b|L\d{3}-\d+|BOI-/i;
+
+function mutatedInvoices(): { name: string; invoice: InvoiceInput; ctx?: object }[] {
+  const out: { name: string; invoice: InvoiceInput; ctx?: object }[] = [];
+  const fxInv = (n: string) => structuredClone((FX(n).input as { invoice: InvoiceInput }).invoice);
+  for (const n of ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]) out.push({ name: n, invoice: fxInv(n), ctx: FX(n).context });
+  const mutations: [string, (i: InvoiceInput) => void][] = [
+    ["no number", (i) => (i.number = "")],
+    ["bad date", (i) => (i.issue_date = "2026-13-45")],
+    ["no supplier address", (i) => delete i.supplier.address],
+    ["no customer address", (i) => delete i.customer.address],
+    ["bad supplier siren", (i) => (i.supplier.siren = "000001017")],
+    ["no supplier siren", (i) => delete i.supplier.siren],
+    ["no supplier vat id", (i) => delete i.supplier.vat_id],
+    ["blank description", (i) => (i.lines[0].description = " ")],
+    ["zero quantity", (i) => (i.lines[0].quantity = 0)],
+    ["invalid rate", (i) => (i.lines[0].vat_rate = 0.19)],
+    ["bad line total", (i) => (i.lines[0].total_excl_vat = 1)],
+    ["bad totals", (i) => { i.totals.total_vat += 3; i.totals.total_incl_vat += 7; }],
+    ["no payment terms", (i) => { delete i.due_date; delete i.payment_terms; }],
+    ["no penalties", (i) => delete i.late_payment_penalties],
+    ["no indemnity", (i) => (i.fixed_recovery_indemnity_mention = false)],
+    ["no buyer siren", (i) => delete i.customer.siren],
+    ["bad buyer siren", (i) => (i.customer.siren = "000001017")],
+    ["no operation nature", (i) => delete i.operation_nature],
+    ["wrong operation nature", (i) => (i.operation_nature = "services")],
+    ["sme supplier", (i) => { i.supplier.company_size = "sme"; delete i.customer.siren; delete i.operation_nature; }],
+    ["other customer", (i) => (i.customer.siren = "000001016")],
+    ["unclassifiable line", (i) => (i.lines = [{ description: "Prestation xyz", quantity: 1, unit_price_excl_vat: 140, vat_rate: 0.2, kind: "goods" }])],
+    ["non-EU services", (i) => { i.supplier.country = "US"; i.lines.forEach((l) => { l.vat_rate = 0; l.kind = "services"; }); i.totals.total_vat = 0; i.totals.total_incl_vat = i.totals.total_excl_vat; }],
+    ["non-EU goods", (i) => { i.supplier.country = "CN"; i.lines.forEach((l) => (l.vat_rate = 0)); i.totals.total_vat = 0; i.totals.total_incl_vat = i.totals.total_excl_vat; }],
+    ["EU supplier with VAT", (i) => (i.supplier.country = "DE")],
+  ];
+  for (const [name, mutate] of mutations) {
+    const i = inv1();
+    mutate(i);
+    out.push({ name, invoice: i });
+  }
+  // Exempt invoice without its exemption mention (the original M1 leak), and franchise / training variants.
+  const ex = fxInv("05");
+  ex.legal_mentions = [];
+  out.push({ name: "05 without exemption mention", invoice: ex });
+  const fr = fxInv("05");
+  fr.legal_mentions = ["TVA non applicable (franchise en base)"];
+  out.push({ name: "05 franchise", invoice: fr });
+  const rc = inv4();
+  rc.legal_mentions = [];
+  delete rc.customer.vat_id;
+  out.push({ name: "04 without reverse-charge mention", invoice: rc });
+  const cn = fxInv("07");
+  delete cn.original_invoice_number;
+  out.push({ name: "07 without reference", invoice: cn });
+  const gift = inv1();
+  gift.lines = [{ description: "Coffret cadeau clients", quantity: 2, unit_price_excl_vat: 80, vat_rate: 0.2, kind: "goods" }];
+  gift.totals = { total_excl_vat: 160, total_vat: 32, total_incl_vat: 192 };
+  out.push({ name: "gift", invoice: gift });
+  const hotel = inv1();
+  hotel.operation_nature = "services";
+  hotel.lines = [{ description: "Nuitée hôtel — mission client", quantity: 2, unit_price_excl_vat: 100, vat_rate: 0.1, kind: "services" }];
+  hotel.totals = { total_excl_vat: 200, total_vat: 20, total_incl_vat: 220 };
+  out.push({ name: "hotel", invoice: hotel });
+  return out;
+}
+
+describe("no unreviewed legal reference reaches an agent (M1)", () => {
+  it("createEntry and checkInvoice outputs, green and failing invoices", async () => {
+    for (const m of mutatedInvoices()) {
+      const ctx = (m.ctx ?? {}) as Parameters<typeof createEntry>[1];
+      const e = await entry(m.invoice, ctx);
+      expect(JSON.stringify(e), m.name).not.toMatch(LEAK);
+      const c = await checkInvoice({ format: "json", invoice: m.invoice }, ctx);
+      expect(JSON.stringify(c), m.name).not.toMatch(LEAK);
+    }
+  });
+
+  it("bank, Factur-X, UBL and audit outputs", async () => {
+    for (const n of ["11", "12"]) {
+      const fx = loadFixture(path.resolve(__dirname, `../fixtures/${n}.json`));
+      expect(JSON.stringify(await createEntry(fx.input, fx.context ?? {}))).not.toMatch(LEAK);
+    }
+    const all = mutatedInvoices().map((m) => ({ invoice: m.invoice }));
+    for (let i = 0; i < all.length; i += 50) {
+      const r = await auditEntries(all.slice(i, i + 50));
+      expect(JSON.stringify(r)).not.toMatch(LEAK);
+    }
+  });
+
+  it("every anomaly carries a stable rule_id (m5)", async () => {
+    for (const m of mutatedInvoices()) {
+      const e = await entry(m.invoice, (m.ctx ?? {}) as Parameters<typeof createEntry>[1]);
+      for (const a of e.anomalies) expect(a.rule_id, `${m.name}: ${a.code}`).toBeTruthy();
+    }
+    const fx12 = loadFixture(path.resolve(__dirname, "../fixtures/12.json"));
+    const cashProfile = { ...DEMO_PROFILE, accounting_basis: "cash" as const };
+    const b = await createEntry(fx12.input, { profile: cashProfile });
+    for (const a of b.anomalies) expect(a.rule_id, a.code).toBeTruthy();
+    const audit = await auditEntries([
+      { entry: { journal: "OD", date: "2026-11-14", reference: "OD-1", balanced: false, lines: [{ account: "471", label: "x", debit: 2000, credit: 0 }, { account: "512000", label: "y", debit: 0, credit: 1000 }] } },
+      ...mutatedInvoices().slice(0, 20).map((m) => ({ invoice: m.invoice })),
+    ]);
+    for (const a of audit.anomalies) expect(a.rule_id, a.code).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("Phase 1 review fixes", () => {
+  it("M2: reform mentions are warnings for an SME issuer before 2027-09-01, errors for large/mid issuers", async () => {
+    const sme = inv1();
+    sme.supplier.company_size = "sme";
+    delete sme.customer.siren;
+    const r1 = await checkInvoice({ format: "json", invoice: sme });
+    const c1 = r1.compliance.checks.find((c) => c.rule_id === "FR-EINV-SIREN-BUYER")!;
+    expect(c1.severity).toBe("warning");
+    expect(c1.fix_hint).toMatch(/1 Sept 2027/);
+    expect(c1.fix_hint).toMatch(/reception is mandatory for all companies since 1 Sept 2026/);
+    expect(r1.compliance.status).toBe("warning");
+
+    const unknown = structuredClone(sme);
+    delete unknown.supplier.company_size;
+    expect((await checkInvoice({ format: "json", invoice: unknown })).compliance.checks.find((c) => c.rule_id === "FR-EINV-SIREN-BUYER")!.severity).toBe("warning");
+
+    const later = structuredClone(sme);
+    later.issue_date = "2027-09-01";
+    later.due_date = "2027-10-01";
+    const r2 = await checkInvoice({ format: "json", invoice: later });
+    expect(r2.compliance.checks.find((c) => c.rule_id === "FR-EINV-SIREN-BUYER")!.severity).toBe("error");
+    expect(r2.compliance.status).toBe("non_compliant");
+
+    for (const size of ["large", "mid"] as const) {
+      const big = structuredClone(sme);
+      big.supplier.company_size = size;
+      const r3 = await checkInvoice({ format: "json", invoice: big });
+      expect(r3.compliance.checks.find((c) => c.rule_id === "FR-EINV-SIREN-BUYER")!.severity).toBe("error");
+    }
+
+    const op = inv1();
+    op.supplier.company_size = "micro";
+    delete op.operation_nature;
+    const r4 = await checkInvoice({ format: "json", invoice: op });
+    const c4 = r4.compliance.checks.find((c) => c.rule_id === "FR-EINV-OPERATION-NATURE")!;
+    expect(c4.severity).toBe("warning");
+    expect(c4.fix_hint).toMatch(/goods/);
+    expect(c4.fix_hint).toMatch(/1 Sept 2027/);
+  });
+
+  it("m1: an item at exactly EUR 500 excl. VAT is expensed; above 500 it is capitalised", async () => {
+    const i = structuredClone((FX("08").input as { invoice: InvoiceInput }).invoice);
+    i.lines = [{ description: "Écran 32 pouces", quantity: 1, unit_price_excl_vat: 500, vat_rate: 0.2, kind: "goods" }];
+    i.totals = { total_excl_vat: 500, total_vat: 100, total_incl_vat: 600 };
+    expect((await entry(i)).entry.lines.map((l) => l.account)).toEqual(["6063", "44566", "401NUMERIA"]);
+    i.lines[0].unit_price_excl_vat = 500.01;
+    i.totals = { total_excl_vat: 500.01, total_vat: 100, total_incl_vat: 600.01 };
+    expect((await entry(i)).entry.lines.map((l) => l.account)).toEqual(["2183", "44562", "401NUMERIA"]);
+  });
+
+  it("m2: a credit note does not need late-payment penalty / EUR 40 / due-date mentions", async () => {
+    const cn = structuredClone((FX("07").input as { invoice: InvoiceInput }).invoice);
+    delete cn.late_payment_penalties;
+    cn.fixed_recovery_indemnity_mention = false;
+    delete cn.due_date;
+    delete cn.payment_terms;
+    const r = await checkInvoice({ format: "json", invoice: cn });
+    expect(r.compliance.status).toBe("compliant");
+    const ids = r.compliance.checks.map((c) => c.rule_id);
+    for (const id of ["FR-INV-LATE-PENALTIES", "FR-INV-RECOVERY-INDEMNITY", "FR-INV-PAYMENT-DUE-DATE"]) expect(ids).not.toContain(id);
+  });
+
+  it("m3: no VAT-on-debits check on an invoice that charges no VAT", async () => {
+    const r = await createEntry(FX("05").input);
+    expect(r.compliance.checks.map((c) => c.rule_id)).not.toContain("FR-EINV-VAT-ON-DEBITS");
+  });
+
+  it("m6: B2B services from a non-EU supplier -> reverse_charge_non_eu, no 4452 line, review", async () => {
+    const i = inv1();
+    i.supplier = { name: "Cloudberry Inc. (fictional)", country: "US", address: "1 Example Street, Austin TX" };
+    i.operation_nature = "services";
+    i.lines = [{ description: "Abonnement logiciel SaaS — novembre", quantity: 1, unit_price_excl_vat: 300, vat_rate: 0, kind: "services" }];
+    i.totals = { total_excl_vat: 300, total_vat: 0, total_incl_vat: 300 };
+    const r = await entry(i);
+    expect(r.vat.regime).toBe("reverse_charge_non_eu");
+    expect(r.vat.legal_basis_id).toBe("LB-VAT-REVERSE-CHARGE-SERVICES");
+    expect(r.entry.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([["6511", 300, 0], ["401CLOUDBER", 0, 300]]);
+    expect(r.entry.lines.some((l) => l.account === "4452")).toBe(false);
+    expect(codes(r)).toContain("NON_EU_SUPPLIER");
+    expect(r.human_review_required).toBe(true);
+    // Goods from outside the EU stay out_of_scope (import VAT via customs).
+    const g = inv1();
+    g.supplier.country = "CN";
+    g.lines.forEach((l) => (l.vat_rate = 0));
+    g.totals.total_vat = 0;
+    g.totals.total_incl_vat = g.totals.total_excl_vat;
+    expect((await entry(g)).vat.regime).toBe("out_of_scope");
+  });
+
+  it("m9: SaaS goes to 6511, web hosting to 6156", () => {
+    expect(classifyLine("Abonnement SaaS de comptabilité").category.account).toBe("6511");
+    expect(classifyLine("Hébergement web annuel").category.account).toBe("6156");
   });
 });

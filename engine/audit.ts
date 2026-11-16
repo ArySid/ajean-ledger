@@ -86,7 +86,7 @@ export async function auditEntries(items: AuditEntryInput[], ctx: EngineContext 
     }
     if (a.result && a.result.compliance.status === "non_compliant") {
       const failed = a.result.compliance.checks.filter((c) => !c.passed && c.severity === "error").map((c) => c.rule_id);
-      anomalies.push({ code: "NON_COMPLIANT_INVOICE", severity: "warning", entry_ref: a.ref, detail: `Missing or incorrect mandatory mentions: ${failed.join(", ")}.` });
+      anomalies.push({ code: "NON_COMPLIANT_INVOICE", severity: "warning", rule_id: "COMPLIANCE-MENTIONS", entry_ref: a.ref, detail: `Missing or incorrect mandatory mentions: ${failed.join(", ")}.` });
     }
   }
 
@@ -111,15 +111,15 @@ export async function auditEntries(items: AuditEntryInput[], ctx: EngineContext 
     const e = a.entry;
     const d = e.lines.reduce((s, l) => s + toCents(l.debit), 0);
     const c = e.lines.reduce((s, l) => s + toCents(l.credit), 0);
-    if (d !== c) anomalies.push({ code: "UNBALANCED_ENTRY", severity: "error", entry_ref: a.ref, detail: `Debits ${fromCents(d).toFixed(2)} != credits ${fromCents(c).toFixed(2)}.` });
+    if (d !== c) anomalies.push({ code: "UNBALANCED_ENTRY", severity: "error", rule_id: "BALANCE-CHECK", entry_ref: a.ref, detail: `Debits ${fromCents(d).toFixed(2)} != credits ${fromCents(c).toFixed(2)}.` });
     if (e.lines.some((l) => l.account.startsWith("471"))) {
-      anomalies.push({ code: "SUSPENSE_ACCOUNT_USED", severity: "warning", entry_ref: a.ref, detail: "Suspense account 471 used: the entry must be cleared to its final account before closing." });
+      anomalies.push({ code: "SUSPENSE_ACCOUNT_USED", severity: "warning", rule_id: "SUSPENSE-ACCOUNT", entry_ref: a.ref, detail: "Suspense account 471 used: the entry must be cleared to its final account before closing." });
     }
     if (/^\d{4}-\d{2}-\d{2}$/.test(e.date) && [0, 6].includes(dayOfWeek(e.date))) {
-      anomalies.push({ code: "WEEKEND_DATE", severity: "info", entry_ref: a.ref, detail: `Entry dated on a weekend (${e.date}).` });
+      anomalies.push({ code: "WEEKEND_DATE", severity: "info", rule_id: "JET-WEEKEND", entry_ref: a.ref, detail: `Entry dated on a weekend (${e.date}).` });
     }
     if (d >= 100_000 && d % 10_000 === 0) {
-      anomalies.push({ code: "ROUND_AMOUNT", severity: "info", entry_ref: a.ref, detail: `Round amount (${fromCents(d).toFixed(2)} EUR): check the supporting document.` });
+      anomalies.push({ code: "ROUND_AMOUNT", severity: "info", rule_id: "JET-ROUND-AMOUNT", entry_ref: a.ref, detail: `Round amount (${fromCents(d).toFixed(2)} EUR): check the supporting document.` });
     }
     // VAT checks on raw entries (engine-built entries are already checked).
     if (!a.result) {
@@ -129,16 +129,16 @@ export async function auditEntries(items: AuditEntryInput[], ctx: EngineContext 
       if (vat !== 0 && base !== 0) {
         const ratio = vat / base;
         const ok = due !== 0 || VALID_RATES.some((r) => Math.abs(ratio - r) <= Math.max(0.002, 2 / Math.abs(base)));
-        if (!ok) anomalies.push({ code: "VAT_RATIO_UNUSUAL", severity: "warning", entry_ref: a.ref, detail: `Deductible VAT is ${(ratio * 100).toFixed(2)}% of the base, which matches no French VAT rate.` });
+        if (!ok) anomalies.push({ code: "VAT_RATIO_UNUSUAL", severity: "warning", rule_id: "AUDIT-VAT-RATIO", entry_ref: a.ref, detail: `Deductible VAT is ${(ratio * 100).toFixed(2)}% of the base, which matches no French VAT rate.` });
       }
       if (e.lines.some((l) => l.account.startsWith("2") && toCents(l.debit) > 0) && e.lines.some((l) => l.account === "44566" && toCents(l.debit) > 0) && !e.lines.some((l) => l.account.startsWith("44562"))) {
-        anomalies.push({ code: "VAT_ACCOUNT_MISMATCH", severity: "warning", entry_ref: a.ref, detail: "VAT on a fixed asset is booked in 44566 instead of 44562." });
+        anomalies.push({ code: "VAT_ACCOUNT_MISMATCH", severity: "warning", rule_id: "AUDIT-VAT-ACCOUNT", entry_ref: a.ref, detail: "VAT on a fixed asset is booked in 44566 instead of 44562." });
       }
       if (due !== 0 && due !== vat) {
-        anomalies.push({ code: "REVERSE_CHARGE_UNBALANCED", severity: "warning", entry_ref: a.ref, detail: `Self-assessed VAT due (4452: ${fromCents(due).toFixed(2)}) differs from the VAT deducted (${fromCents(vat).toFixed(2)}).` });
+        anomalies.push({ code: "REVERSE_CHARGE_UNBALANCED", severity: "warning", rule_id: "AUDIT-REVERSE-CHARGE", entry_ref: a.ref, detail: `Self-assessed VAT due (4452: ${fromCents(due).toFixed(2)}) differs from the VAT deducted (${fromCents(vat).toFixed(2)}).` });
       }
       if (vat > 0 && e.lines.some((l) => NON_DEDUCTIBLE_PREFIXES.some((p) => l.account.startsWith(p)) && toCents(l.debit) > 0)) {
-        anomalies.push({ code: "VAT_DEDUCTED_ON_EXCLUDED_EXPENSE", severity: "warning", entry_ref: a.ref, detail: "VAT deducted on passenger transport or staff accommodation, which is excluded from the right to deduct." });
+        anomalies.push({ code: "VAT_DEDUCTED_ON_EXCLUDED_EXPENSE", severity: "warning", rule_id: "VAT-DEDUCTIBILITY", entry_ref: a.ref, detail: "VAT deducted on passenger transport or staff accommodation, which is excluded from the right to deduct." });
       }
     }
   }
@@ -196,7 +196,9 @@ export async function auditEntries(items: AuditEntryInput[], ctx: EngineContext 
       switch (x.code) {
         case "VAT_RATE_MISMATCH":
           ti.push({ code: x.code, entry_ref: a.ref, risk: "medium", detail: x.detail,
-            recommendation: "Deduct only the VAT legally due (reverse the excess from 44566) or obtain a corrected invoice from the supplier." });
+            recommendation: x.detail.includes("Only the VAT legally due is deducted")
+              ? "No excess deduction: the engine deducts only the VAT legally due and charges the excess to the expense. Obtain a corrected invoice to recover the excess."
+              : "Deduct only the VAT legally due (reverse any excess from 44566) or obtain a corrected invoice from the supplier." });
           break;
         case "NON_COMPLIANT_INVOICE":
           ti.push({ code: "VAT_DEDUCTION_AT_RISK", entry_ref: a.ref, risk: "medium", detail: `${x.detail} The right to deduct VAT requires an invoice bearing the mandatory mentions.`, recommendation: "Obtain a compliant invoice before deducting the VAT on the return." });
@@ -268,7 +270,7 @@ export async function auditEntries(items: AuditEntryInput[], ctx: EngineContext 
     explanation: `Audited ${audited.length} entries: debits ${fromCents(td).toFixed(2)} EUR, credits ${fromCents(tc).toFixed(2)} EUR (${td === tc ? "balanced" : "NOT balanced"}). ` +
       (codes.length ? `Issues found: ${codes.join(", ")}. ` : "No significant issue found. ") +
       `Statutory auditor risk: ${saRisk}; tax inspector risk: ${tiRisk}.` + (human ? " Human review required." : ""),
-    engine: { version: ENGINE_VERSION, rules_applied: ["AUDIT-BATCH", "DUPLICATE-CHECK", "BALANCE-CHECK", "SUSPENSE-ACCOUNT", "MATERIALITY", "VAT-DEDUCTIBILITY"], llm_used: false, extraction_method: "structured_json" },
+    engine: { version: ENGINE_VERSION, rules_applied: ["AUDIT-BATCH", "DUPLICATE-CHECK", "BALANCE-CHECK", "SUSPENSE-ACCOUNT", "JET-WEEKEND", "JET-ROUND-AMOUNT", "AUDIT-VAT-RATIO", "AUDIT-VAT-ACCOUNT", "AUDIT-REVERSE-CHARGE", "COMPLIANCE-MENTIONS", "MATERIALITY", "VAT-DEDUCTIBILITY"], llm_used: false, extraction_method: "structured_json" },
     disclaimer: DISCLAIMER,
   };
 }

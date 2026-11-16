@@ -33,7 +33,7 @@ export const PartySchema = named(
     .object({
       name: z.string().min(1),
       siren: z.string().regex(/^\d{9}$/).optional().describe("French SIREN (9 digits). Fictional in all examples."),
-      vat_id: z.string().optional().describe('Intra-EU VAT id, e.g. "FR12345678901"'),
+      vat_id: z.string().optional().describe('Intra-EU VAT id, e.g. "FR29000001008"'),
       country: z.string().regex(/^[A-Za-z]{2}$/).describe("ISO 3166-1 alpha-2 country code, e.g. FR, DE"),
       address: z.string().optional(),
       account_code: z.string().optional().describe("Auxiliary account code suggested by the caller"),

@@ -1,5 +1,5 @@
 {
-  "note": "Buyer SIREN missing (reform mention) -> non_compliant; entry still proposed.",
+  "note": "Buyer SIREN missing (reform mention); supplier is a mid-size company (ETI) in scope since 2026-09-01 (ADR-019) -> non_compliant; entry still proposed.",
   "compliance_status": "non_compliant",
   "failing_rule_ids": [
     "FR-EINV-SIREN-BUYER"

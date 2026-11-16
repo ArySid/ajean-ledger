@@ -1,10 +1,10 @@
 {
-  "id": "trace_04_20261116104128_aa6ed0",
+  "id": "trace_04_20261116112441_abc45d",
   "scenario": "04",
   "scenario_label": "04 · EU consulting: reverse charge",
   "mode": "REPLAY",
   "recorded_from": "simulated",
-  "recorded_at": "2026-11-16T10:41:28.219Z",
+  "recorded_at": "2026-11-16T11:24:41.429Z",
   "agent": {
     "name": "Atelier Lumenor purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
@@ -13,7 +13,7 @@
       "daily_budget_usdc": "2.00"
     }
   },
-  "service_url": "http://localhost:3500",
+  "service_url": "https://ajean-ledger.ary-sidoun.workers.dev",
   "steps": [
     {
       "t_ms": 0,
@@ -31,13 +31,13 @@
       }
     },
     {
-      "t_ms": 5,
+      "t_ms": 6,
       "kind": "discovery",
       "title": "Discovered Ajean Ledger through its machine-readable catalog",
       "detail": "Free machine-readable catalog, no sign-up, no API key. I need a full journal entry (PCG accounts + VAT treatment + compliance + anomalies): POST /api/v1/entry does exactly that for 0.15 USDC, paid per call over HTTP 402 (x402) on Base Sepolia.",
       "http": {
         "method": "GET",
-        "url": "http://localhost:3500/api/v1/catalog",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/catalog",
         "status": 200,
         "headers": {
           "content-type": "application/json"
@@ -101,7 +101,7 @@
                 "id": "invoice_check",
                 "method": "POST",
                 "path": "/api/v1/invoice/check",
-                "url": "http://localhost:3500/api/v1/invoice/check",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/invoice/check",
                 "title": "E-invoice compliance check",
                 "description": "French e-invoice compliance check: mandatory mentions (incl. 2026 reform: buyer SIREN, operation nature, delivery address, VAT-on-debits option), format and VAT consistency.",
                 "price_usdc": "0.05",
@@ -116,8 +116,8 @@
                   "pdf",
                   "image"
                 ],
-                "request_schema": "http://localhost:3500/openapi.json#/components/schemas/CheckInvoiceRequest",
-                "response_schema": "http://localhost:3500/openapi.json#/components/schemas/CheckResponse",
+                "request_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/CheckInvoiceRequest",
+                "response_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/CheckResponse",
                 "mcp_tool": "check_invoice",
                 "example_request": {
                   "input": {
@@ -130,6 +130,7 @@
                       "currency": "EUR",
                       "supplier": {
                         "name": "Buro Velours SARL (fictional)",
+                        "company_size": "mid",
                         "siren": "000001016",
                         "vat_id": "FR53000001016",
                         "country": "FR",
@@ -186,7 +187,7 @@
                 "id": "entry",
                 "method": "POST",
                 "path": "/api/v1/entry",
-                "url": "http://localhost:3500/api/v1/entry",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
                 "title": "Journal entry proposal",
                 "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
                 "price_usdc": "0.15",
@@ -202,8 +203,8 @@
                   "pdf",
                   "image"
                 ],
-                "request_schema": "http://localhost:3500/openapi.json#/components/schemas/CreateEntryRequest",
-                "response_schema": "http://localhost:3500/openapi.json#/components/schemas/EntryResponse",
+                "request_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/CreateEntryRequest",
+                "response_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/EntryResponse",
                 "mcp_tool": "create_entry",
                 "example_request": {
                   "input": {
@@ -216,6 +217,7 @@
                       "currency": "EUR",
                       "supplier": {
                         "name": "Buro Velours SARL (fictional)",
+                        "company_size": "mid",
                         "siren": "000001016",
                         "vat_id": "FR53000001016",
                         "country": "FR",
@@ -272,7 +274,7 @@
                 "id": "audit",
                 "method": "POST",
                 "path": "/api/v1/audit",
-                "url": "http://localhost:3500/api/v1/audit",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/audit",
                 "title": "Batch audit",
                 "description": "Batch audit of up to 50 entries or invoices (mini FEC extract): duplicates, VAT inconsistencies, suspicious accounts, with statutory-auditor and tax-inspector viewpoints.",
                 "price_usdc": "1.00",
@@ -282,8 +284,8 @@
                 "output_summary": "AuditResult: entries_audited, totals, anomalies[entry_ref], viewpoints {statutory_auditor, tax_inspector}, human_review_required, explanation + request_id + receipt",
                 "input_formats": [],
                 "max_items": 50,
-                "request_schema": "http://localhost:3500/openapi.json#/components/schemas/AuditRequest",
-                "response_schema": "http://localhost:3500/openapi.json#/components/schemas/AuditResponse",
+                "request_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/AuditRequest",
+                "response_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/AuditResponse",
                 "mcp_tool": "audit_entries",
                 "example_request": {
                   "items": [
@@ -296,6 +298,7 @@
                         "currency": "EUR",
                         "supplier": {
                           "name": "Buro Velours SARL (fictional)",
+                          "company_size": "mid",
                           "siren": "000001016",
                           "vat_id": "FR53000001016",
                           "country": "FR",
@@ -334,7 +337,7 @@
                 "id": "catalog",
                 "method": "GET",
                 "path": "/api/v1/catalog",
-                "url": "http://localhost:3500/api/v1/catalog",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/catalog",
                 "price_usdc": "0",
                 "description": "Machine-readable service and pricing manifest."
               },
@@ -342,7 +345,7 @@
                 "id": "openapi",
                 "method": "GET",
                 "path": "/openapi.json",
-                "url": "http://localhost:3500/openapi.json",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json",
                 "price_usdc": "0",
                 "description": "OpenAPI 3.1 specification."
               },
@@ -350,7 +353,7 @@
                 "id": "llms_txt",
                 "method": "GET",
                 "path": "/llms.txt",
-                "url": "http://localhost:3500/llms.txt",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/llms.txt",
                 "price_usdc": "0",
                 "description": "Agent discovery file (what the service does, how to pay, examples)."
               },
@@ -358,7 +361,7 @@
                 "id": "agent_json",
                 "method": "GET",
                 "path": "/.well-known/agent.json",
-                "url": "http://localhost:3500/.well-known/agent.json",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/.well-known/agent.json",
                 "price_usdc": "0",
                 "description": "Agent card for discovery."
               },
@@ -366,7 +369,7 @@
                 "id": "receipts",
                 "method": "GET",
                 "path": "/api/v1/receipts/{id}",
-                "url": "http://localhost:3500/api/v1/receipts/{id}",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/receipts/{id}",
                 "price_usdc": "0",
                 "description": "Payment receipt + result retrieval by request_id (idempotency)."
               },
@@ -374,19 +377,19 @@
                 "id": "health",
                 "method": "GET",
                 "path": "/api/health",
-                "url": "http://localhost:3500/api/health",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/health",
                 "price_usdc": "0",
                 "description": "Service status: payment mode, network, payTo, store kind. No secrets."
               }
             ]
           },
           "discovery": {
-            "catalog": "http://localhost:3500/api/v1/catalog",
-            "openapi": "http://localhost:3500/openapi.json",
-            "llms_txt": "http://localhost:3500/llms.txt",
-            "agent_card": "http://localhost:3500/.well-known/agent.json",
-            "mcp": "http://localhost:3500/mcp",
-            "health": "http://localhost:3500/api/health"
+            "catalog": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/catalog",
+            "openapi": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json",
+            "llms_txt": "https://ajean-ledger.ary-sidoun.workers.dev/llms.txt",
+            "agent_card": "https://ajean-ledger.ary-sidoun.workers.dev/.well-known/agent.json",
+            "mcp": "https://ajean-ledger.ary-sidoun.workers.dev/mcp",
+            "health": "https://ajean-ledger.ary-sidoun.workers.dev/api/health"
           },
           "_trace_note": "trimmed for display (provider, base_url, idempotency, mcp, errors, examples, limits, generated_at); full catalog at GET /api/v1/catalog"
         }
@@ -398,13 +401,13 @@
       }
     },
     {
-      "t_ms": 9,
+      "t_ms": 10,
       "kind": "discovery",
       "title": "Service status: SIMULATED payments",
       "detail": "The server decides the payment mode. Same x402 flow and real signatures, but the facilitator is simulated: no on-chain transfer. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
       "http": {
         "method": "GET",
-        "url": "http://localhost:3500/api/health",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/health",
         "status": 200,
         "headers": {
           "content-type": "application/json"
@@ -440,7 +443,7 @@
           },
           "engine_ready": true,
           "llm_configured": false,
-          "time": "2026-11-16T10:41:28.226Z"
+          "time": "2026-11-16T11:24:41.437Z"
         }
       },
       "data": {
@@ -449,7 +452,7 @@
       }
     },
     {
-      "t_ms": 9,
+      "t_ms": 10,
       "kind": "policy",
       "title": "Spending policy check: ALLOW",
       "detail": "Price 0.15 USDC ≤ max per call 0.20 USDC. Spent today 0.30 + 0.15 = 0.45 USDC ≤ daily budget 2.00 USDC → allowed.",
@@ -464,16 +467,16 @@
       }
     },
     {
-      "t_ms": 14,
+      "t_ms": 16,
       "kind": "http_request",
       "title": "POST /api/v1/entry (no payment attached)",
       "detail": "First attempt without payment: the service will answer with its price in machine-readable form. I attach the fingerprints of 2 invoice(s) already in our ERP so the service can detect duplicates.",
       "http": {
         "method": "POST",
-        "url": "http://localhost:3500/api/v1/entry",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "aa6ed085-3947-4c80-bb70-0c07069d92ef",
+          "Idempotency-Key": "abc45d10-18f9-4ecd-8639-4e10790df381",
           "accept": "application/json"
         },
         "body": {
@@ -549,18 +552,18 @@
       }
     },
     {
-      "t_ms": 14,
+      "t_ms": 16,
       "kind": "http_response",
       "title": "402 Payment Required: 0.15 USDC on Base Sepolia",
       "detail": "The PAYMENT-REQUIRED header carries the price (150000 atomic units = 0.15 USDC), the asset, the network and the payTo wallet. Everything matches what discovery advertised (/api/v1/catalog).",
       "http": {
         "method": "POST",
-        "url": "http://localhost:3500/api/v1/entry",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "status": 402,
         "headers": {
           "content-type": "application/json",
-          "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cDovL2xvY2FsaG9zdDozNTAwL2FwaS92MS9lbnRyeSIsImRlc2NyaXB0aW9uIjoiRnVsbCBGcmVuY2ggam91cm5hbCBlbnRyeSBwcm9wb3NhbCAoUENHIGFjY291bnRzKSArIFZBVCB0cmVhdG1lbnQgKyBlLWludm9pY2luZyBjb21wbGlhbmNlICsgYW5vbWFseSBmbGFncyBmb3Igb25lIGludm9pY2UsIGNyZWRpdCBub3RlIG9yIGJhbmsgdHJhbnNhY3Rpb24uIiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIiwic2VydmljZU5hbWUiOiJBamVhbiBMZWRnZXIiLCJ0YWdzIjpbImFjY291bnRpbmciLCJmcmFuY2UiLCJlLWludm9pY2luZyIsInZhdCIsImNyZWF0ZV9lbnRyeSJdfSwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMyIiwiYW1vdW50IjoiMTUwMDAwIiwiYXNzZXQiOiIweDAzNkNiRDUzODQyYzU0MjY2MzRlNzkyOTU0MWVDMjMxOGYzZENGN2UiLCJwYXlUbyI6IjB4Q0I0Yjg0MDc5QjFkZDE5ODI4YzNkNTczM2Y5ZTBEMkRjQjI2ZEZlQyIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7Im5hbWUiOiJVU0RDIiwidmVyc2lvbiI6IjIifX1dfQ==",
-          "X-Request-Id": "req_01M7HZ5557EH19JJQPQVP6BX3E"
+          "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIuYXJ5LXNpZG91bi53b3JrZXJzLmRldi9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkZ1bGwgRnJlbmNoIGpvdXJuYWwgZW50cnkgcHJvcG9zYWwgKFBDRyBhY2NvdW50cykgKyBWQVQgdHJlYXRtZW50ICsgZS1pbnZvaWNpbmcgY29tcGxpYW5jZSArIGFub21hbHkgZmxhZ3MgZm9yIG9uZSBpbnZvaWNlLCBjcmVkaXQgbm90ZSBvciBiYW5rIHRyYW5zYWN0aW9uLiIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiIsInNlcnZpY2VOYW1lIjoiQWplYW4gTGVkZ2VyIiwidGFncyI6WyJhY2NvdW50aW5nIiwiZnJhbmNlIiwiZS1pbnZvaWNpbmciLCJ2YXQiLCJjcmVhdGVfZW50cnkiXX0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImV4YWN0IiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImFzc2V0IjoiMHgwMzZDYkQ1Mzg0MmM1NDI2NjM0ZTc5Mjk1NDFlQzIzMThmM2RDRjdlIiwicGF5VG8iOiIweENCNGI4NDA3OUIxZGQxOTgyOGMzZDU3MzNmOWUwRDJEY0IyNmRGZUMiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MzAwLCJleHRyYSI6eyJuYW1lIjoiVVNEQyIsInZlcnNpb24iOiIyIn19XX0=",
+          "X-Request-Id": "req_01M7J1M9K264V2ZZ6CP2RA73WD"
         },
         "body": {
           "error": {
@@ -578,7 +581,7 @@
             },
             "docs_url": "/llms.txt#errors"
           },
-          "request_id": "req_01M7HZ5557EH19JJQPQVP6BX3E"
+          "request_id": "req_01M7J1M9K264V2ZZ6CP2RA73WD"
         },
         "decoded": {
           "header": "PAYMENT-REQUIRED",
@@ -586,7 +589,7 @@
             "x402Version": 2,
             "error": "Payment required",
             "resource": {
-              "url": "http://localhost:3500/api/v1/entry",
+              "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
               "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
               "mimeType": "application/json",
               "serviceName": "Ajean Ledger",
@@ -651,7 +654,7 @@
       }
     },
     {
-      "t_ms": 16,
+      "t_ms": 18,
       "kind": "payment",
       "title": "Signed a 0.15 USDC payment authorisation (EIP-3009)",
       "detail": "transferWithAuthorization from my wallet to Ajean Ledger's payTo wallet, valid for a few minutes. Off-chain signature: no gas, no account, no API key. The facilitator submits the transfer only if the call succeeds.",
@@ -664,21 +667,21 @@
         "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
         "value": "150000",
         "validAfter": "0",
-        "validBefore": "1794825988",
-        "nonce": "0x0786535514c9173e1b71d90209f2d5569757703e9f6b8ee0e81f2e7435a3d3d9"
+        "validBefore": "1794828581",
+        "nonce": "0x87c130fe035e0dade36e36a508e5b28df056c7619f566cac868cf60f735b8812"
       }
     },
     {
-      "t_ms": 31,
+      "t_ms": 29,
       "kind": "http_request",
       "title": "POST /api/v1/entry with PAYMENT-SIGNATURE",
       "detail": "Same request, retried with the signed payment attached. Payment is the authentication.",
       "http": {
         "method": "POST",
-        "url": "http://localhost:3500/api/v1/entry",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "aa6ed085-3947-4c80-bb70-0c07069d92ef",
+          "Idempotency-Key": "abc45d10-18f9-4ecd-8639-4e10790df381",
           "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicGF5bG9hZCI6eyJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5… (1372 chars, decoded below)",
           "accept": "application/json"
         },
@@ -762,13 +765,13 @@
                 "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
                 "value": "150000",
                 "validAfter": "0",
-                "validBefore": "1794825988",
-                "nonce": "0x0786535514c9173e1b71d90209f2d5569757703e9f6b8ee0e81f2e7435a3d3d9"
+                "validBefore": "1794828581",
+                "nonce": "0x87c130fe035e0dade36e36a508e5b28df056c7619f566cac868cf60f735b8812"
               },
-              "signature": "0x4371895316…fa1bd21b (redacted)"
+              "signature": "0x0ca0cc9b4a…c5ab971b (redacted)"
             },
             "resource": {
-              "url": "http://localhost:3500/api/v1/entry",
+              "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
               "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
               "mimeType": "application/json",
               "serviceName": "Ajean Ledger",
@@ -797,33 +800,33 @@
       }
     },
     {
-      "t_ms": 31,
+      "t_ms": 29,
       "kind": "http_response",
       "title": "200 OK: entry received (compliant)",
       "detail": "The PAYMENT-RESPONSE header confirms settlement and carries the transaction hash.",
       "http": {
         "method": "POST",
-        "url": "http://localhost:3500/api/v1/entry",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "status": 200,
         "headers": {
           "content-type": "application/json",
-          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHg1MTUxMjY0OGE1OTJiOGUwZGViMWI2NDg3MmUwNzFmNGYxYjIzODgwZWZkZGE4NDNiMjFhODVhNjQzMjA4MGE1IiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ==",
-          "X-Request-Id": "req_01M7HZ555DHRC0K2XM8Y1KYC4C"
+          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHg1MTUxZWY3OWFiNTMzNGNhM2JhZTk5ODRjYzg5OTJiMmRlNjhmZWIzN2YzNDA0ODg3YWMyNjJjNDI5ZTg3ZGIyIiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ==",
+          "X-Request-Id": "req_01M7J1M9K9X48Y51CTTJVRNRK9"
         },
         "body": {
-          "request_id": "req_01M7HZ555DHRC0K2XM8Y1KYC4C",
+          "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
           "receipt": {
             "amount": "0.15",
             "amount_atomic": "150000",
             "asset": "USDC",
             "network": "base-sepolia",
             "network_caip2": "eip155:84532",
-            "tx_hash": "0x51512648a592b8e0deb1b64872e071f4f1b23880efdda843b21a85a6432080a5",
+            "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
             "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
             "explorer_url": null,
             "mode": "simulated",
-            "paid_at": "2026-11-16T10:41:28.248Z"
+            "paid_at": "2026-11-16T11:24:41.456Z"
           },
           "invoice": {
             "document_type": "invoice",
@@ -1064,6 +1067,7 @@
               "BALANCE-CHECK",
               "VAT-REVERSE-CHARGE-ENTRY",
               "VAT-EXPECTED-RATE",
+              "TOTALS-CHECK",
               "DUPLICATE-CHECK"
             ],
             "llm_used": false,
@@ -1076,7 +1080,7 @@
           "value": {
             "success": true,
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
-            "transaction": "0x51512648a592b8e0deb1b64872e071f4f1b23880efdda843b21a85a6432080a5",
+            "transaction": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
             "network": "eip155:84532",
             "amount": "150000",
             "extra": {
@@ -1088,28 +1092,28 @@
       }
     },
     {
-      "t_ms": 31,
+      "t_ms": 29,
       "kind": "settlement",
       "title": "Payment settled: 0.15 USDC (simulated transaction)",
-      "detail": "Transaction 0x51512648a592… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_01M7HZ555DHRC0K2XM8Y1KYC4C kept for idempotency.",
+      "detail": "Transaction 0x5151ef79ab53… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_01M7J1M9K9X48Y51CTTJVRNRK9 kept for idempotency.",
       "data": {
-        "tx_hash": "0x51512648a592b8e0deb1b64872e071f4f1b23880efdda843b21a85a6432080a5",
+        "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
         "network": "eip155:84532",
         "amount_usdc": "0.15",
-        "request_id": "req_01M7HZ555DHRC0K2XM8Y1KYC4C",
+        "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
         "explorer_url": null,
         "simulated": true,
         "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF"
       }
     },
     {
-      "t_ms": 31,
+      "t_ms": 29,
       "kind": "erp",
       "title": "ERP: entry HA KB-2026-077 posted (validated)",
-      "detail": "4 lines written to the mock ERP, debits = credits = 2640.00 EUR, linked to receipt req_01M7HZ555DHRC0K2XM8Y1KYC4C.",
+      "detail": "4 lines written to the mock ERP, debits = credits = 2640.00 EUR, linked to receipt req_01M7J1M9K9X48Y51CTTJVRNRK9.",
       "data": {
         "erp": "mock ERP (in memory)",
-        "erp_id": "ERP-20261116-5B5399",
+        "erp_id": "ERP-20261116-0CCD69",
         "status": "posted",
         "journal": "HA",
         "reference": "KB-2026-077",
@@ -1140,12 +1144,12 @@
           }
         ],
         "balanced": true,
-        "request_id": "req_01M7HZ555DHRC0K2XM8Y1KYC4C",
-        "tx_hash": "0x51512648a592b8e0deb1b64872e071f4f1b23880efdda843b21a85a6432080a5"
+        "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
+        "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2"
       }
     },
     {
-      "t_ms": 31,
+      "t_ms": 29,
       "kind": "reasoning",
       "title": "Done: invoice booked, no human needed",
       "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.45 / 2.00 USDC. Noted for the file: VAT self-assessed at the French rate: 440.00 EUR due (4452) and deductible (44566/44562); report it on the VAT return. Service explanation relayed to my operator: \"Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR incl. VAT) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.\"",
@@ -1157,19 +1161,19 @@
     }
   ],
   "result": {
-    "request_id": "req_01M7HZ555DHRC0K2XM8Y1KYC4C",
+    "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
     "receipt": {
       "amount": "0.15",
       "amount_atomic": "150000",
       "asset": "USDC",
       "network": "base-sepolia",
       "network_caip2": "eip155:84532",
-      "tx_hash": "0x51512648a592b8e0deb1b64872e071f4f1b23880efdda843b21a85a6432080a5",
+      "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
       "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
       "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
       "explorer_url": null,
       "mode": "simulated",
-      "paid_at": "2026-11-16T10:41:28.248Z"
+      "paid_at": "2026-11-16T11:24:41.456Z"
     },
     "invoice": {
       "document_type": "invoice",
@@ -1410,6 +1414,7 @@
         "BALANCE-CHECK",
         "VAT-REVERSE-CHARGE-ENTRY",
         "VAT-EXPECTED-RATE",
+        "TOTALS-CHECK",
         "DUPLICATE-CHECK"
       ],
       "llm_used": false,
@@ -1417,6 +1422,6 @@
     },
     "disclaimer": "Proof of concept on synthetic data. Not a substitute for a chartered accountant's review."
   },
-  "duration_ms": 32,
+  "duration_ms": 29,
   "outcome": "posted"
 }

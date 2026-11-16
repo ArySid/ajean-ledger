@@ -133,6 +133,8 @@ export interface InvoiceAnalysis {
   llm_used: boolean;
   vat_consistency: { passed: boolean; detail: string };
   derived_nature?: OperationNature;
+  /** Excess VAT (cents) invoiced above the legally due rate and not deducted (ADR-018). */
+  vat_excess?: { cents: number; pairs: { invoiced: number; due: number }[] };
 }
 
 function summaryOf(inv: InvoiceInput, nature?: OperationNature): InvoiceSummary {
@@ -197,7 +199,7 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
     let isAsset = false;
     if (c.category.id === "it_equipment") {
       rules.add("ASSET-THRESHOLD-500");
-      if (Math.abs(l.unit_price_excl_vat) >= FIXED_ASSET_THRESHOLD) {
+      if (Math.abs(l.unit_price_excl_vat) > FIXED_ASSET_THRESHOLD) {
         isAsset = true;
         account = FIXED_ASSET_ACCOUNT.account;
         accountLabel = FIXED_ASSET_ACCOUNT.label;
@@ -230,7 +232,10 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
   for (const c of compliance.checks) rules.add(c.rule_id);
   if (!inv.operation_nature && !explicitKinds && guessedNature) {
     const chk = compliance.checks.find((c) => c.rule_id === "FR-EINV-OPERATION-NATURE");
-    if (chk && !chk.passed) chk.fix_hint = `Operation category missing; the line classification suggests "${guessedNature}".`;
+    if (chk && !chk.passed) {
+      const timeline = chk.severity === "warning" ? (chk.fix_hint ?? "").replace(/^[^.]*\./, "") : "";
+      chk.fix_hint = `Operation category missing; the line classification suggests "${guessedNature}".${timeline}`;
+    }
   }
 
   // 3. VAT amounts ---------------------------------------------------------------
@@ -244,6 +249,28 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
   const selfRate = (l: LineInfo) => l.category.expected_vat_rates?.find((r) => r > 0) ?? 0.2;
   const selfVatPerLine = regime.self_assessed ? lines.map((l) => vatCents(l.baseCents, selfRate(l))) : lines.map(() => 0);
 
+  // Excess VAT invoiced above the legally expected rate (ADR-018): only the VAT
+  // legally due is deductible; the excess is added to the expense. The supplier
+  // is still credited with the invoiced total (ADR-008: never silently correct).
+  const expectedPerLine = lines.map((l) =>
+    !regime.self_assessed && loc === "FR" && isValidRate(l.rate) && l.classification.confidence >= CLASSIFICATION_THRESHOLD
+      ? unexpectedRate(l.category, l.description, l.rate)
+      : null,
+  );
+  const dueRatePerLine = lines.map((l, i) => {
+    const exp = expectedPerLine[i];
+    if (!exp) return null;
+    const lower = Math.min(...exp);
+    return l.rate > lower ? lower : null;
+  });
+  const excessPerLine = lines.map((l, i) => {
+    const r = dueRatePerLine[i];
+    if (r === null || !l.deductible || vatPerLine[i] <= 0) return 0;
+    return vatPerLine[i] - Math.min(vatCents(l.baseCents, r), vatPerLine[i]);
+  });
+  const totalExcess = excessPerLine.reduce((a, b) => a + b, 0);
+  if (totalExcess > 0) rules.add("VAT-DEDUCT-LEGALLY-DUE");
+
   // 4. Entry -------------------------------------------------------------------
   const supplier = supplierAccount(inv);
   const debitLines: CentsLine[] = [];
@@ -253,13 +280,14 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
   let nonDeductibleVat = 0;
   lines.forEach((l, i) => {
     const v = regime.self_assessed ? selfVatPerLine[i] : vatPerLine[i];
-    const charge = l.baseCents + (l.deductible ? 0 : v);
+    const ded = l.deductible ? v - excessPerLine[i] : 0;
+    const charge = l.baseCents + (v - ded);
     if (!l.deductible) nonDeductibleVat += v;
     debitLines.push({ account: l.account, label: l.accountLabel, debit: charge, credit: 0 });
-    if (l.deductible && v !== 0) {
-      deductibleVat += v;
+    if (ded !== 0) {
+      deductibleVat += ded;
       const acc = l.isAsset ? VAT_ACCOUNTS.deductibleFixedAssets : VAT_ACCOUNTS.deductibleGoodsServices;
-      vatLines.push({ account: acc.account, label: acc.label, debit: v, credit: 0 });
+      vatLines.push({ account: acc.account, label: acc.label, debit: ded, credit: 0 });
     }
     if (regime.self_assessed) due4452 += v;
   });
@@ -281,34 +309,34 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
     }
   }
   rules.add("VAT-EXPECTED-RATE");
-  if (!regime.self_assessed && loc === "FR") {
-    for (const l of lines) {
-      if (!isValidRate(l.rate) || l.classification.confidence < CLASSIFICATION_THRESHOLD) continue;
-      const expected = unexpectedRate(l.category, l.description, l.rate);
-      if (expected) {
-        const lower = Math.min(...expected);
-        const excess = l.rate > lower ? vatPerLine[l.index] - vatCents(l.baseCents, lower) : 0;
-        anomalies.push({
-          code: "VAT_RATE_MISMATCH", severity: "warning", rule_id: "VAT-EXPECTED-RATE",
-          detail: `Line ${l.index + 1} ("${l.description}") is invoiced at ${rateLabel(l.rate)}; the expected rate for this expense (${l.category.description.toLowerCase()}) is ${expected.map(rateLabel).join(" or ")}.` +
-            (excess > 0 ? ` Excess VAT: ${formatEur(excess)}.` : "") +
-            " The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice.",
-        });
-      }
-    }
+  for (const l of lines) {
+    const expected = expectedPerLine[l.index];
+    if (!expected) continue;
+    const lower = Math.min(...expected);
+    const excess = l.rate > lower ? Math.max(0, vatPerLine[l.index] - vatCents(l.baseCents, lower)) : 0;
+    const booked = excessPerLine[l.index];
+    anomalies.push({
+      code: "VAT_RATE_MISMATCH", severity: "warning", rule_id: "VAT-EXPECTED-RATE",
+      detail: `Line ${l.index + 1} ("${l.description}") is invoiced at ${rateLabel(l.rate)}; the expected rate for this expense (${l.category.description.toLowerCase()}) is ${expected.map(rateLabel).join(" or ")}.` +
+        (excess > 0 ? ` Excess VAT: ${formatEur(excess)}.` : "") +
+        (booked > 0
+          ? ` Only the VAT legally due is deducted; the excess${booked !== excess ? ` (${formatEur(booked)})` : ""} is added to the expense — request a corrected invoice to recover it.`
+          : " Request a corrected invoice."),
+    });
   }
   if (!tc.htOk || !tc.vatOk || !tc.ttcOk || tc.lineMismatches.length > 0) {
     anomalies.push({ code: "TOTALS_INCONSISTENT", severity: "error", rule_id: "FR-INV-VAT-AMOUNT", detail: "Invoice totals are inconsistent with the lines (see compliance checks); the entry uses the line amounts and the invoiced VAT." });
   }
   const totalsFlagged = anomalies.some((a) => a.code === "TOTALS_INCONSISTENT");
   if (!totalsFlagged && Math.abs(toCents(Math.abs(inv.totals.total_incl_vat)) - supplierCredit) > 1) {
-    anomalies.push({ code: "SUPPLIER_TOTAL_MISMATCH", severity: "error", detail: `Supplier credited ${formatEur(supplierCredit)} but the invoice total is ${formatEur(toCents(Math.abs(inv.totals.total_incl_vat)))}.` });
+    anomalies.push({ code: "SUPPLIER_TOTAL_MISMATCH", severity: "error", rule_id: "TOTALS-CHECK", detail: `Supplier credited ${formatEur(supplierCredit)} but the invoice total is ${formatEur(toCents(Math.abs(inv.totals.total_incl_vat)))}.` });
   }
   for (const l of lines) {
     if (l.classification.confidence < CLASSIFICATION_THRESHOLD) {
-      anomalies.push({ code: "CLASSIFICATION_UNCERTAIN", severity: "warning", detail: `Line ${l.index + 1} ("${l.description}") could not be classified with confidence (${l.classification.confidence.toFixed(2)}); provisionally booked to ${l.account}.` });
+      anomalies.push({ code: "CLASSIFICATION_UNCERTAIN", severity: "warning", rule_id: "PCG-CLASSIFY", detail: `Line ${l.index + 1} ("${l.description}") could not be classified with confidence (${l.classification.confidence.toFixed(2)}); provisionally booked to ${l.account}.` });
     }
   }
+  rules.add("TOTALS-CHECK");
   rules.add("DUPLICATE-CHECK");
   const dups = findDuplicates(fingerprint(inv), ctx.history ?? []);
   for (const d of dups) {
@@ -320,17 +348,22 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
     });
   }
   if (inv.customer.siren && profile.siren && inv.customer.siren !== profile.siren) {
-    anomalies.push({ code: "CUSTOMER_MISMATCH", severity: "warning", detail: `The invoice is addressed to SIREN ${inv.customer.siren}, not to ${profile.name} (${profile.siren}); VAT is only deductible by the addressee.` });
+    anomalies.push({ code: "CUSTOMER_MISMATCH", severity: "warning", rule_id: "CUSTOMER-CHECK", detail: `The invoice is addressed to SIREN ${inv.customer.siren}, not to ${profile.name} (${profile.siren}); VAT is only deductible by the addressee.` });
   }
   if (foreignVatCharged) {
-    anomalies.push({ code: "FOREIGN_VAT_CHARGED", severity: "warning", detail: "A non-French supplier charged VAT: foreign VAT is not deductible on the French return (refund procedure in the supplier's country); it is included in the expense." });
+    anomalies.push({ code: "FOREIGN_VAT_CHARGED", severity: "warning", rule_id: "VAT-FOREIGN", detail: "A non-French supplier charged VAT: foreign VAT is not deductible on the French return (refund procedure in the supplier's country); it is included in the expense." });
   }
   if (loc === "NON_EU") {
-    anomalies.push({ code: "NON_EU_SUPPLIER", severity: "warning", detail: "Supplier established outside the EU: import VAT / reverse charge must be reviewed manually." });
+    anomalies.push({
+      code: "NON_EU_SUPPLIER", severity: "warning", rule_id: "VAT-NON-EU",
+      detail: regime.regime === "reverse_charge_non_eu"
+        ? "Supplier established outside the EU: VAT on these services is self-assessed by the buyer (reverse charge); add the self-assessed VAT lines after review."
+        : "Supplier established outside the EU: import VAT / reverse charge must be reviewed manually.",
+    });
   }
   for (const l of lines) {
     if (l.isAsset) {
-      anomalies.push({ code: "FIXED_ASSET_CAPITALISED", severity: "info", rule_id: "ASSET-THRESHOLD-500", detail: `Line ${l.index + 1} ("${l.description}", ${l.unitPrice.toFixed(2)} EUR excl. VAT per unit) is at or above the EUR ${FIXED_ASSET_THRESHOLD} threshold: capitalised in ${FIXED_ASSET_ACCOUNT.account}; set up a depreciation schedule.` });
+      anomalies.push({ code: "FIXED_ASSET_CAPITALISED", severity: "info", rule_id: "ASSET-THRESHOLD-500", detail: `Line ${l.index + 1} ("${l.description}", ${l.unitPrice.toFixed(2)} EUR excl. VAT per unit) is above the EUR ${FIXED_ASSET_THRESHOLD} low-value tolerance: capitalised in ${FIXED_ASSET_ACCOUNT.account}; set up a depreciation schedule.` });
     }
   }
   const nonDed = lines.filter((l) => !l.deductible && (regime.self_assessed ? selfVatPerLine[l.index] : vatPerLine[l.index]) !== 0);
@@ -362,6 +395,10 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
   const mainRate = [...vatBreakdown].sort((a, b) => b.base - a.base || b.rate - a.rate)[0]?.rate ?? 0;
   const notes: string[] = [];
   if (regime.note) notes.push(regime.note);
+  if (totalExcess > 0) {
+    const pairs = [...new Set(lines.filter((l) => excessPerLine[l.index] > 0).map((l) => `${rateLabel(l.rate)} instead of ${rateLabel(dueRatePerLine[l.index]!)}`))];
+    notes.push(`${formatEur(totalExcess)} of excess VAT (invoiced at ${pairs.join(", ")}) is not deductible and is included in the expense; request a corrected invoice to recover it.`);
+  }
   if (nonDed.length > 0 && !foreignVatCharged) notes.push(`${formatEur(nonDed.reduce((a, l) => a + (regime.self_assessed ? selfVatPerLine[l.index] : vatPerLine[l.index]), 0))} of VAT is not deductible and is included in the expense.`);
   const hasServicesVat = !regime.self_assessed && loc === "FR" && lines.some((l) => l.kind === "services" && l.rate > 0 && l.deductible);
   if (hasServicesVat && inv.vat_on_debits_option !== true) {
@@ -370,10 +407,10 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
   }
   const vat: VatTreatment = {
     regime: regime.regime,
-    rate: regime.regime === "exempt" || regime.regime === "out_of_scope" ? 0 : mainRate,
+    rate: regime.regime === "exempt" || regime.regime === "out_of_scope" || regime.regime === "reverse_charge_non_eu" ? 0 : mainRate,
     deductible: deductibleVat > 0,
     breakdown: vatBreakdown,
-    ...(regime.legal_basis_id ? { legal_basis_id: regime.legal_basis_id } : {}),
+    ...(totalExcess > 0 ? { legal_basis_id: "LB-VAT-DEDUCTION-LEGALLY-DUE" } : regime.legal_basis_id ? { legal_basis_id: regime.legal_basis_id } : {}),
     ...(notes.length ? { note: notes.join(" ") } : {}),
   };
 
@@ -402,6 +439,17 @@ export async function analyseInvoice(inv: InvoiceInput, ctx: EngineContext, meta
   return {
     invoice: inv, profile, summary: summaryOf(inv, explicitKinds ?? guessedNature), lines, regime, compliance, vat, entry, anomalies,
     review_reasons: reasons, rules_applied: [...rules], llm_used: llm_used || meta.method === "llm", vat_consistency, derived_nature: explicitKinds,
+    ...(totalExcess > 0
+      ? {
+          vat_excess: {
+            cents: totalExcess,
+            pairs: lines
+              .filter((l) => excessPerLine[l.index] > 0)
+              .map((l) => ({ invoiced: l.rate, due: dueRatePerLine[l.index]! }))
+              .filter((p, i, arr) => arr.findIndex((q) => q.invoiced === p.invoiced && q.due === p.due) === i),
+          },
+        }
+      : {}),
   };
 }
 
@@ -431,6 +479,7 @@ const REGIME_TEXT: Record<VatTreatment["regime"], string> = {
   reduced: "reduced-rate VAT",
   mixed_rates: "several VAT rates",
   reverse_charge_intra_eu: "intra-EU reverse charge (VAT self-assessed)",
+  reverse_charge_non_eu: "reverse charge on services from a non-EU supplier (VAT self-assessed by the buyer; self-assessed VAT lines to be added after review)",
   exempt: "VAT exempt (no VAT invoiced)",
   out_of_scope: "outside the scope of French VAT",
 };
@@ -445,9 +494,21 @@ export function explainInvoice(a: InvoiceAnalysis, confidence: number, human: bo
   const inv = a.invoice;
   const doc = inv.document_type === "credit_note" ? "Credit note" : "Purchase invoice";
   const parts: string[] = [];
-  parts.push(`${doc} ${inv.number} from ${inv.supplier.name} (${Math.abs(inv.totals.total_incl_vat).toFixed(2)} EUR incl. VAT) is booked in journal ${a.entry.journal}: ${entryText(a.entry)}.`);
+  const head = `${doc} ${inv.number} from ${inv.supplier.name} (${Math.abs(inv.totals.total_incl_vat).toFixed(2)} EUR incl. VAT)`;
+  const duplicate = a.review_reasons.includes("DUPLICATE_SUSPECTED");
+  const cash = a.profile.accounting_basis === "cash";
+  if (duplicate) parts.push(`${head}: proposed entry in journal ${a.entry.journal}, not to be posted until the suspected duplicate is cleared: ${entryText(a.entry)}.`);
+  else if (cash) parts.push(`${head}: proposed purchase view in journal ${a.entry.journal}, to be recorded at the payment date: ${entryText(a.entry)}.`);
+  else if (human) parts.push(`${head}: proposed entry in journal ${a.entry.journal}, pending review: ${entryText(a.entry)}.`);
+  else parts.push(`${head} is booked in journal ${a.entry.journal}: ${entryText(a.entry)}.`);
   if (inv.document_type === "credit_note") parts.push("The original purchase entry is reversed (supplier debited, expense and VAT credited).");
-  parts.push(`VAT treatment: ${REGIME_TEXT[a.vat.regime]}.`);
+  if (a.vat_excess) {
+    const p = a.vat_excess.pairs;
+    parts.push(
+      `VAT treatment: invoiced at ${[...new Set(p.map((x) => rateLabel(x.invoiced)))].join("/")}, only ${[...new Set(p.map((x) => rateLabel(x.due)))].join("/")} legally due and deductible; ` +
+        `excess ${formatEur(a.vat_excess.cents)} booked to expense pending a corrected invoice.`,
+    );
+  } else parts.push(`VAT treatment: ${REGIME_TEXT[a.vat.regime]}.`);
   const failed = a.compliance.checks.filter((c) => !c.passed && c.severity !== "info");
   parts.push(
     a.compliance.status === "compliant"
@@ -557,7 +618,7 @@ function bankEntry(tx: BankTransactionInput, candidates: InvoiceInput[], ctx: En
     reasons.push("PARTIAL_MATCH");
   }
   if (profile.accounting_basis === "cash") {
-    anomalies.push({ code: "CASH_BASIS_CLIENT", severity: "info", detail: "Cash-basis client: this payment date is the date at which the expense is recognised in the receipts-expenses ledger." });
+    anomalies.push({ code: "CASH_BASIS_CLIENT", severity: "info", rule_id: "BNC-CASH-BASIS", detail: "Cash-basis client: this payment date is the date at which the expense is recognised in the receipts-expenses ledger." });
   }
   const compliance: Compliance = {
     status: m.invoice ? "compliant" : "warning",

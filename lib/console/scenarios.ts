@@ -11,8 +11,8 @@ export interface Scenario {
 
 export const SCENARIOS: Scenario[] = [
   { id: "01", label: "01 · Office supplies, compliant", takeaway: "Clean invoice → posted with no human in the loop." },
-  { id: "03", label: "03 · Restaurant VAT anomaly", takeaway: "The VAT mistake a human would have missed → review flag." },
-  { id: "04", label: "04 · EU SaaS, reverse charge", takeaway: "German supplier, no VAT invoiced → self-assessed VAT, net cost zero." },
+  { id: "03", label: "03 · Restaurant VAT anomaly", takeaway: "Invoiced at 20% instead of 10% → only the VAT legally due is deducted, excess to expense, review flag." },
+  { id: "04", label: "04 · EU consulting, reverse charge", takeaway: "German consultant, no VAT invoiced → VAT self-assessed (due and deductible, 4452 / 44566), net VAT cost zero." },
   { id: "06", label: "06 · Duplicate of invoice 01", takeaway: "Same invoice sent twice → DUPLICATE_SUSPECTED, not posted." },
 ];
 

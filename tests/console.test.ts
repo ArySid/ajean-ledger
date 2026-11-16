@@ -4,7 +4,10 @@ import { allBundledReplays, BUNDLED_REPLAYS } from "@/lib/console/replays";
 import { SCENARIOS } from "@/lib/console/scenarios";
 import { extractTrace, isAgentTrace, LIVE_FAILED_NOTICE, loadReplay, runScenario } from "@/lib/console/source";
 import { loadOperatorStats, normaliseStats, statsFromReplays } from "@/lib/console/stats";
+import path from "node:path";
+import { createEntry } from "@/engine";
 import type { EntryResult } from "@/engine/types";
+import { loadFixture } from "@/fixtures/loader";
 
 const failingFetch = (async () => {
   throw new Error("network down");
@@ -38,15 +41,32 @@ describe("bundled replays", () => {
     }
   });
 
-  it("tell the expected story per scenario", () => {
+  it("match what the engine computes for each scenario's fixture (no hand-written samples)", async () => {
+    const lines = (r: EntryResult) => r.entry.lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit }));
+    for (const s of SCENARIOS) {
+      const replay = BUNDLED_REPLAYS[s.id].result as EntryResult;
+      const fx = loadFixture(path.resolve(__dirname, `../fixtures/${s.id}.json`));
+      const engine = await createEntry(fx.input, fx.context ?? {});
+      // Structure of the §5.4 contract.
+      for (const k of ["invoice", "compliance", "entry", "vat", "anomalies", "confidence", "human_review_required", "explanation", "engine", "disclaimer"]) {
+        expect(replay, `${s.id}.${k}`).toHaveProperty(k);
+      }
+      // Accounts and amounts are the ones the engine computes today.
+      expect(lines(replay), s.id).toEqual(lines(engine));
+      expect(replay.entry.journal).toBe(engine.entry.journal);
+      expect(replay.vat.regime).toBe(engine.vat.regime);
+      expect(replay.vat.legal_basis_id).toBe(engine.vat.legal_basis_id);
+      expect(replay.compliance.status).toBe(engine.compliance.status);
+      expect(replay.human_review_required).toBe(engine.human_review_required);
+      expect([...new Set(replay.anomalies.map((a) => a.code))].sort()).toEqual([...new Set(engine.anomalies.map((a) => a.code))].sort());
+      expect(replay.invoice.supplier.siren ?? "000").toMatch(/^000/);
+      expect(replay.invoice.customer.siren ?? "000").toMatch(/^000/);
+    }
+    // The story the console tells, derived from the engine output above.
     const r = (id: "01" | "03" | "04" | "06") => BUNDLED_REPLAYS[id].result as EntryResult;
     expect(r("01").human_review_required).toBe(false);
-    expect(r("01").entry.lines.map((l) => l.account)).toEqual(["6064", "44566", "401BURO"]);
     expect(r("03").anomalies.map((a) => a.code)).toContain("VAT_RATE_MISMATCH");
-    expect(r("03").human_review_required).toBe(true);
-    expect(r("03").entry.lines[0].account).toBe("6257");
     expect(r("04").vat.regime).toBe("reverse_charge_intra_eu");
-    expect(r("04").entry.lines.map((l) => l.account)).toEqual(["6135", "44566", "4452", "401CLOU"]);
     expect(r("06").anomalies.map((a) => a.code)).toContain("DUPLICATE_SUSPECTED");
   });
 
