@@ -35,7 +35,8 @@ export function OperatorDashboard() {
 
   const s = state?.stats;
   const avg = s && s.calls > 0 ? s.usdc_earned / s.calls : 0;
-  const reviewPct = s && s.review_required !== null && s.calls > 0 ? Math.round((s.review_required / s.calls) * 100) : null;
+  const reviewWin = s?.review_window ?? null;
+  const reviewPct = s && s.review_required !== null && reviewWin ? Math.round((s.review_required / reviewWin) * 100) : null;
   const maxUsdc = s ? Math.max(...s.by_endpoint.map((e) => e.usdc), 0.000001) : 1;
 
   return (
@@ -89,13 +90,17 @@ export function OperatorDashboard() {
           </div>
           <div className="hint">pay per use, no subscription</div>
         </div>
-        <div className="panel kpi">
-          <div className="label">Needing human review</div>
-          <div className="value" style={{ color: "var(--warn)" }}>
-            {reviewPct === null ? "—" : `${reviewPct}%`}
+        {reviewPct !== null && s && (
+          <div className="panel kpi" data-testid="kpi-review">
+            <div className="label">Needing human review</div>
+            <div className="value" style={{ color: "var(--warn)" }}>
+              {reviewPct}%
+            </div>
+            <div className="hint">
+              {s.review_required} of {reviewWin && reviewWin < s.calls ? `the last ${reviewWin}` : reviewWin} call{reviewWin === 1 ? "" : "s"} · flagged instead of guessed
+            </div>
           </div>
-          <div className="hint">{reviewPct === null ? "not reported by this source" : "flagged instead of guessed"}</div>
-        </div>
+        )}
       </div>
 
       <div className="op-grid">

@@ -494,7 +494,9 @@ export function explainInvoice(a: InvoiceAnalysis, confidence: number, human: bo
   const inv = a.invoice;
   const doc = inv.document_type === "credit_note" ? "Credit note" : "Purchase invoice";
   const parts: string[] = [];
-  const head = `${doc} ${inv.number} from ${inv.supplier.name} (${Math.abs(inv.totals.total_incl_vat).toFixed(2)} EUR incl. VAT)`;
+  // An invoice with no VAT (reverse charge, exempt) has no "incl. VAT" total: say so (Phase 5 review m9).
+  const totalLabel = inv.totals.total_vat === 0 ? "EUR, no VAT invoiced" : "EUR incl. VAT";
+  const head = `${doc} ${inv.number} from ${inv.supplier.name} (${Math.abs(inv.totals.total_incl_vat).toFixed(2)} ${totalLabel})`;
   const duplicate = a.review_reasons.includes("DUPLICATE_SUSPECTED");
   const cash = a.profile.accounting_basis === "cash";
   if (duplicate) parts.push(`${head}: proposed entry in journal ${a.entry.journal}, not to be posted until the suspected duplicate is cleared: ${entryText(a.entry)}.`);

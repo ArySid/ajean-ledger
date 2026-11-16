@@ -11,6 +11,7 @@ export function toTxSummary(r: ReceiptRecord): TxSummary {
     mode: r.receipt.mode,
     explorer_url: r.receipt.explorer_url,
     paid_at: r.receipt.paid_at,
+    human_review_required: (r.result as { human_review_required?: unknown } | null)?.human_review_required === true,
   };
 }
 

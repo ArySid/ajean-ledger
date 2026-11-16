@@ -44,7 +44,7 @@ function doubts(f: DocFacts): string {
   if (f.documentType === "credit_note") return "It is a credit note, so the entry must be reversed — and I am not sure which accounts to reverse.";
   if (f.supplierCountry && f.supplierCountry !== "FR") {
     const c = COUNTRY[f.supplierCountry] ?? f.supplierCountry;
-    return `The supplier is based in ${c} and charged ${eur(f.totalVat)} ${f.currency} of VAT. I do not know whether French VAT is still due on our side, nor how to book it.`;
+    return `The supplier is based in ${c} and charged ${f.totalVat === 0 ? "no VAT" : `${eur(f.totalVat)} ${f.currency} of VAT`}. I do not know whether French VAT is still due on our side, nor how to book it.`;
   }
   if (/d[ée]jeuner|restaurant|repas|menu|caf[ée]s?\b|d[îi]ner/.test(text)) {
     return "It is a restaurant bill. French VAT rates and deductibility rules for meals are a classic trap, and I have no reliable way to check that the rate charged is the right one.";
@@ -66,7 +66,7 @@ export function intakeReasoning(item: InboxItem): { title: string; detail: strin
   return {
     title: `New ${what} ${f.number ?? ""} from ${f.supplier ?? "a supplier"}`.replace(/\s+/g, " ").trim(),
     detail:
-      `I am the purchasing agent of Atelier Lumenor SAS (fictional). I received ${what} ${f.number ?? "?"} for ${eur(f.totalInclVat)} ${f.currency} incl. VAT${lines}` +
+      `I am the purchasing agent of Atelier Lumenor SAS (fictional). I received ${what} ${f.number ?? "?"} for ${eur(f.totalInclVat)} ${f.currency} ${f.totalVat === 0 ? "(no VAT invoiced)" : "incl. VAT"}${lines}` +
       `${item.channel ? ` by ${item.channel}` : ""}. I must book it in our ERP. ${doubts(f)} ` +
       "I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
   };
@@ -82,15 +82,40 @@ export function discoveryDetail(task: InboxItem["task"], path: string, price: st
   return `Free ${source}, no sign-up, no API key. I need ${TASK_NEED[task]}: POST ${path} does exactly that for ${price} USDC, paid per call over HTTP 402 (x402) on Base Sepolia.`;
 }
 
+const EXCESS_RE = /excess VAT:\s*([\d.,]+)\s*EUR/i;
+const NOTE_EXCESS_RE = /([\d.,]+)\s*EUR of excess VAT/i;
+const toCents = (s: string) => Math.round(Number(s.replace(",", ".")) * 100);
+
+/**
+ * TOTAL excess VAT (EUR) over ALL VAT_RATE_MISMATCH anomalies (one per invoice line), falling back to the
+ * engine's `vat.note` ("14.60 EUR of excess VAT …"). Undefined when unknown. Phase 5 review m2: the message
+ * used to quote only the first line's excess (13.60) while the entry and the note say 14.60.
+ */
+export function totalExcessVat(anomalies: { code: string; detail?: string }[], vatNote?: string): number | undefined {
+  let cents = 0;
+  let found = false;
+  for (const a of anomalies) {
+    if (a.code !== "VAT_RATE_MISMATCH") continue;
+    const m = EXCESS_RE.exec(a.detail ?? "");
+    if (m) {
+      cents += toCents(m[1]);
+      found = true;
+    }
+  }
+  if (found) return cents / 100;
+  const n = NOTE_EXCESS_RE.exec(vatNote ?? "");
+  return n ? toCents(n[1]) / 100 : undefined;
+}
+
 /** Plain-language message to the bookkeeper for each review reason. */
-export function reviewMessage(code: string, ctx: { supplier?: string; number?: string; total?: number; vat?: number; detail?: string }): string {
+export function reviewMessage(code: string, ctx: { supplier?: string; number?: string; total?: number; vat?: number; detail?: string; excessVat?: number }): string {
   const who = `${(ctx.supplier ?? "Supplier").replace(/\s*\(fictional\)/i, "")} invoice ${ctx.number ?? ""}`.trim();
   switch (code) {
     case "VAT_RATE_MISMATCH": {
       const d = ctx.detail ?? "";
       const charged = /invoiced at (\d+(?:[.,]\d+)?%)/i.exec(d)?.[1] ?? "a higher rate";
       const expected = /expected rate[^.]*? is (\d+(?:[.,]\d+)?%)/i.exec(d)?.[1] ?? "a lower rate";
-      const excess = /excess VAT:\s*([\d.,]+)\s*EUR/i.exec(d)?.[1];
+      const excess = typeof ctx.excessVat === "number" ? ctx.excessVat.toFixed(2) : EXCESS_RE.exec(d)?.[1];
       return `${who} applies ${charged} VAT where ${expected} is expected for this expense${excess ? ` (${excess} EUR of VAT too much)` : ""}. Only the VAT legally due was deducted and the excess sits in the expense: please ask the supplier for a corrected invoice to recover it.`;
     }
     case "DUPLICATE_SUSPECTED":

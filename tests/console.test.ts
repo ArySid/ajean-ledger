@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { decodeBase64Json, decodedHeaders, isSimulatedTx, resultRevealIndex, stepHighlights, txExplorerUrl } from "@/lib/console/format";
+import {
+  agentTimeLabel,
+  asEntryResponse,
+  decodeBase64Json,
+  decodedHeaders,
+  invoiceTotalLabel,
+  isSimulatedTx,
+  policyRefusalSummary,
+  resultRevealIndex,
+  stepHighlights,
+  txExplorerUrl,
+  vatSummary,
+} from "@/lib/console/format";
+import { chipValue } from "@/components/live/TraceStepItem";
 import { allBundledReplays, BUNDLED_REPLAYS } from "@/lib/console/replays";
 import { SCENARIOS } from "@/lib/console/scenarios";
+
+const ENTRY_SCENARIOS = SCENARIOS.filter((s) => s.kind === "entry");
+const entryReplays = () => allBundledReplays().filter((t) => t.outcome !== "refused_by_policy");
 import { extractTrace, fetchServerMode, isAgentTrace, LIVE_FAILED_NOTICE, loadReplay, runScenario } from "@/lib/console/source";
 import { MODE_INFO, MODE_ORDER } from "@/lib/console/modes";
 import { loadOperatorStats, normaliseStats, statsFromReplays } from "@/lib/console/stats";
@@ -32,7 +48,7 @@ describe("bundled replays", () => {
   });
 
   it("are accounting-correct: balanced entries with 2-decimal amounts", () => {
-    for (const t of allBundledReplays()) {
+    for (const t of entryReplays()) {
       const r = t.result as EntryResult;
       const d = r.entry.lines.reduce((s, l) => s + l.debit, 0);
       const c = r.entry.lines.reduce((s, l) => s + l.credit, 0);
@@ -44,7 +60,7 @@ describe("bundled replays", () => {
 
   it("match what the engine computes for each scenario's fixture (no hand-written samples)", async () => {
     const lines = (r: EntryResult) => r.entry.lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit }));
-    for (const s of SCENARIOS) {
+    for (const s of ENTRY_SCENARIOS) {
       const replay = BUNDLED_REPLAYS[s.id].result as EntryResult;
       const fx = loadFixture(path.resolve(__dirname, `../fixtures/${s.id}.json`));
       const engine = await createEntry(fx.input, fx.context ?? {});
@@ -86,7 +102,7 @@ describe("bundled replays", () => {
 
   it("receipts match the mode they were recorded in (simulated: no explorer link; testnet: Basescan link)", () => {
     // Holds before and after `npm run record:replays -- --public` against the TESTNET deployment.
-    for (const t of allBundledReplays()) {
+    for (const t of entryReplays()) {
       const r = (t.result as { receipt: Parameters<typeof isSimulatedTx>[0] }).receipt;
       if (t.recorded_from === "testnet") {
         expect(isSimulatedTx(r), t.scenario).toBe(false);
@@ -98,6 +114,69 @@ describe("bundled replays", () => {
     }
     const real = { tx_hash: "0x" + "ab".repeat(32), mode: "testnet" as const, explorer_url: null };
     expect(txExplorerUrl(real)).toBe(`https://sepolia.basescan.org/tx/${real.tx_hash}`);
+  });
+});
+
+describe("review fixes on the console (Phase 5 review M3, m3–m9)", () => {
+  it("replay 90: refused by policy before any payment, no POST, nothing signed (M3)", () => {
+    const t = BUNDLED_REPLAYS["90"];
+    expect(t).toMatchObject({ scenario: "90", mode: "REPLAY", outcome: "refused_by_policy" });
+    expect(t.result).toBeUndefined();
+    expect(t.steps.map((s) => s.kind)).toEqual(["reasoning", "discovery", "discovery", "policy", "review"]);
+    const r = policyRefusalSummary(t.steps, t.outcome)!;
+    expect(r).toMatchObject({ endpoint: "/api/v1/audit", price_usdc: "1.00", max_per_call_usdc: "0.20", spent_today_usdc: "0.00", code: "PRICE_ABOVE_MAX_PER_CALL", signed: false });
+    expect(r.http_calls).toEqual(["GET /api/v1/catalog", "GET /api/health"]);
+    expect(r.paid_posts).toEqual([]);
+    expect(r.escalation).toMatch(/Nothing was signed, nothing was paid/);
+    expect(policyRefusalSummary(BUNDLED_REPLAYS["03"].steps, BUNDLED_REPLAYS["03"].outcome)).toBeNull();
+    expect(SCENARIOS.find((s) => s.id === "90")).toMatchObject({ kind: "policy_refusal", label: expect.stringContaining("REFUSED by policy") });
+  });
+
+  it("each replay starts from a fresh spend ledger, like a live run: Spent today 0.15 / 2.00 (m5)", () => {
+    for (const t of entryReplays()) {
+      const done = t.steps[t.steps.length - 1];
+      expect(done.data?.spent_today_usdc, t.scenario).toBe("0.15");
+      expect(t.steps.find((s) => s.kind === "policy")?.data?.spent_today_usdc, t.scenario).toBe("0.00");
+    }
+  });
+
+  it("the bookkeeper message quotes the TOTAL excess VAT on fixture 03 (14.60, not 13.60) (m2)", () => {
+    const review = BUNDLED_REPLAYS["03"].steps.find((s) => s.kind === "review")!;
+    expect(review.detail).toContain("14.60 EUR of VAT too much");
+    expect(review.detail).not.toContain("13.60");
+  });
+
+  it("VAT panel shows the deductible VAT actually booked (m3)", () => {
+    const v = (id: "01" | "03" | "04" | "06") => vatSummary(asEntryResponse(BUNDLED_REPLAYS[id].result)!)!;
+    const row = (id: "01" | "03" | "04" | "06", label: string) => v(id).rows.find((r) => r.label.startsWith(label))?.value;
+    // 03: 29.20 invoiced at 20%, only 14.60 (10% legally due) deducted, 14.60 to the expense.
+    expect(v("03")).toMatchObject({ deductible: "partly", invoiced_vat: 29.2, deductible_booked: 14.6 });
+    expect(row("03", "Deductible VAT booked")).toBe("14.60 EUR");
+    expect(row("03", "Not deducted")).toBe("14.60 EUR → added to the expense");
+    expect(v("03").rows.find((r) => r.label === "Not deducted")?.note).toContain("10%");
+    // 01 / 06: all 28.00 deducted.
+    for (const id of ["01", "06"] as const) {
+      expect(v(id)).toMatchObject({ deductible: "yes", invoiced_vat: 28, deductible_booked: 28 });
+      expect(row(id, "Not deducted")).toBeUndefined();
+    }
+    // 04: reverse charge, nothing invoiced, 440 due and 440 deductible.
+    expect(v("04")).toMatchObject({ deductible: "yes", invoiced_vat: 0, deductible_booked: 440, self_assessed_due: 440 });
+    expect(row("04", "VAT invoiced")).toBe("none (reverse charge)");
+    expect(row("04", "Net VAT cost")).toBe("0.00 EUR");
+  });
+
+  it("no 'incl. VAT' for an invoice without VAT; agent time hidden when meaningless; 402 checks as chips (m6, m7, m9)", () => {
+    expect(invoiceTotalLabel(asEntryResponse(BUNDLED_REPLAYS["04"].result)!)).toBe("2,200.00 EUR total payable to the supplier · reverse charge: VAT self-assessed");
+    expect(invoiceTotalLabel(asEntryResponse(BUNDLED_REPLAYS["03"].result)!)).toBe("175.20 EUR incl. VAT");
+    expect(invoiceTotalLabel({ invoice: { totals: { total_excl_vat: 1200, total_vat: 0, total_incl_vat: 1200 } } } as never)).toBe("1,200.00 EUR, no VAT invoiced");
+    expect((BUNDLED_REPLAYS["04"].result as EntryResult).explanation).toContain("2200.00 EUR, no VAT invoiced");
+    expect(BUNDLED_REPLAYS["04"].steps[0].detail).toContain("(no VAT invoiced)");
+    expect(agentTimeLabel(46)).toBeNull();
+    expect(agentTimeLabel(860)).toBe("0.9 s of agent time");
+    const r402 = BUNDLED_REPLAYS["03"].steps.find((s) => s.http?.status === 402)!;
+    const chip = chipValue(r402.data?.requirements_check);
+    expect(chip).toBe("amount ✓ / asset (USDC) ✓ / network ✓ / payTo ✓ / scheme ✓");
+    expect(chip).not.toContain("{");
   });
 });
 
@@ -177,6 +256,7 @@ describe("operator stats", () => {
     expect(s.calls).toBe(4);
     expect(s.usdc_earned).toBeCloseTo(0.6, 6);
     expect(s.review_required).toBe(2);
+    expect(s.review_window).toBe(4);
     expect(s.by_endpoint.map((e) => e.endpoint)).toEqual(["/api/v1/invoice/check", "/api/v1/entry", "/api/v1/audit"]);
     expect(s.source).toBe("replay");
   });
@@ -202,6 +282,12 @@ describe("operator stats", () => {
     expect(b.source).toBe("memory");
     expect(b.recent[0].endpoint).toBe("/api/v1/entry");
     expect(b.by_endpoint.find((e) => e.endpoint === "/api/v1/entry")?.calls).toBe(1);
+    // No review information at all → unknown (the /operator tile is hidden), never a guess.
+    expect(a.review_required).toBeNull();
+    expect(a.review_window).toBeNull();
+    // Exact count over the window the API reports (m8).
+    const c = normaliseStats({ calls: 12, usdc_earned: "1.80", by_endpoint: [], recent: [], review_window: { calls: 10, review_required: 3 }, source: "cloudflare-kv" })!;
+    expect(c).toMatchObject({ review_required: 3, review_window: 10 });
   });
 
   it("falls back to replays when the stats API fails or has no traffic", async () => {

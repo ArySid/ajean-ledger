@@ -113,7 +113,7 @@ function RawHttp({ http }: { http: HttpExchange }) {
 }
 
 const DATA_KEYS: Record<string, string[]> = {
-  policy: ["decision", "price_usdc", "max_per_call_usdc", "spent_today_usdc", "daily_budget_usdc", "reason"],
+  policy: ["decision", "code", "price_usdc", "max_per_call_usdc", "spent_today_usdc", "daily_budget_usdc", "reason"],
   payment: ["amount_usdc", "scheme", "network", "from", "to"],
   settlement: ["amount_usdc", "network", "request_id"],
   erp: ["erp_file", "status", "journal", "reference", "lines"],
@@ -121,20 +121,24 @@ const DATA_KEYS: Record<string, string[]> = {
   reasoning: ["inbox_file"],
 };
 
-/** Renders one array item: ledger lines as "6257 D 160.60", other objects as compact JSON. */
-function chipItem(v: unknown): string {
+/**
+ * Renders one array item: ledger lines as "6257 D 160.60", 402 requirement checks as "amount ✓",
+ * other objects as compact JSON (the chip CSS wraps long values inside the card).
+ */
+export function chipItem(v: unknown): string {
   if (v && typeof v === "object") {
-    const o = v as { account?: string; debit?: number; credit?: number };
+    const o = v as { account?: string; debit?: number; credit?: number; check?: string; ok?: boolean };
     if (typeof o.account === "string") {
       const amt = (o.debit ?? 0) > 0 ? `D ${Number(o.debit).toFixed(2)}` : `C ${Number(o.credit ?? 0).toFixed(2)}`;
       return `${o.account} ${amt}`;
     }
+    if (typeof o.check === "string" && typeof o.ok === "boolean") return `${o.check} ${o.ok ? "✓" : "✕"}`;
     return JSON.stringify(v);
   }
   return String(v);
 }
 
-function chipValue(v: unknown): string {
+export function chipValue(v: unknown): string {
   if (Array.isArray(v)) return v.map(chipItem).join(" / ");
   if (v && typeof v === "object") return chipItem(v);
   if (typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v)) return shortHex(v);

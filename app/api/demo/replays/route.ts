@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     );
   }
   if (!isDemoScenarioId(scenario)) {
-    return NextResponse.json({ error: { code: "NOT_FOUND", message: 'No replay for this scenario. Use "01", "03", "04" or "06".' } }, { status: 404, headers });
+    return NextResponse.json({ error: { code: "NOT_FOUND", message: 'No replay for this scenario. Use "01", "03", "04", "06" or "90".' } }, { status: 404, headers });
   }
   return NextResponse.json(getReplay(scenario), { headers });
 }

@@ -204,8 +204,9 @@ curl -s https://ajean-ledger.ary-sidoun.workers.dev/api/health   # payment.mode 
 # 4. Day-J check with real payments (paid /entry from .env.local's key + one demo run from the Worker's key)
 npm run warmup -- --pay --expect-mode testnet          # → READY FOR DEMO, tx links on sepolia.basescan.org
 
-# 5. Re-record the 4 replays from REAL testnet runs against the public URL (writes demo/replays/*.json only if
-#    01 posted, 03 posted_with_review, 04 posted, 06 posted_with_review; prints the Basescan link of each run)
+# 5. Re-record the 5 replays from REAL testnet runs against the public URL (writes demo/replays/*.json only if
+#    01 posted, 03 posted_with_review, 04 posted, 06 posted_with_review, 90 refused_by_policy (pays nothing);
+#    prints the Basescan link of each paid run)
 npm run record:replays -- --public
 npx vitest run                                         # replays must still match the engine output
 npm run cf:deploy:embedded                             # ship the new replays (bundled into the Worker)

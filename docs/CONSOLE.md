@@ -15,7 +15,23 @@ works from 1280×720 down to mobile.
 | `/office` | `app/office/page.tsx` | Small CSS-only nod to Ajean's virtual office (agents arrive, pay, leave with a document). No JS. |
 
 ### `/live` controls
-- **Scenario**: 01 compliant office supplies, 03 restaurant VAT 20% instead of 10%, 04 intra-EU consulting services (reverse charge), 06 duplicate of 01 (`lib/console/scenarios.ts`).
+- **Scenario**: 01 compliant office supplies, 03 restaurant VAT 20% instead of 10%, 04 intra-EU consulting services (reverse charge), 06 duplicate of 01, and **90 · Audit request 1.00 USDC > max_per_call 0.20 → REFUSED by policy** (`lib/console/scenarios.ts`, `kind: "policy_refusal"`). Scenario 90 runs the real agent policy path: it reads the catalog, sees `/api/v1/audit` at 1.00 USDC, refuses before any payment (`outcome: "refused_by_policy"`, no POST to the paid endpoint, nothing signed) and escalates to a human. The result column then shows a red **REFUSED BY POLICY — no payment made** panel (price vs limit, spent today unchanged, the HTTP calls actually made, the escalation message) instead of an entry.
+
+### Result panel semantics (Phase 5 review m3, m4, m9)
+- **Compliance chip = invoice mentions only.** The engine's `compliance.status` is unchanged: it covers the mandatory
+  invoice mentions (e-invoicing / commercial-code rules). VAT and accounting problems are `anomalies` and drive
+  `human_review_required`. The chip therefore reads **"Invoice mentions: compliant"**, and a separate amber
+  **"VAT anomaly: VAT_RATE_MISMATCH"** chip appears when the engine reports one (fixture 03).
+- **VAT panel = what was booked.** `vatSummary()` (`lib/console/format.ts`) reads the entry lines on 4456x (deductible)
+  and 4452 (self-assessed due), the invoice totals, `vat.breakdown` and the `VAT_RATE_MISMATCH` anomalies. Fixture 03:
+  "Deductible: partly · Invoiced 146.00 + VAT 29.20 at 20% · Deductible VAT booked (44566) 14.60 EUR of 29.20 ·
+  Not deducted 14.60 EUR → added to the expense (VAT legally due at 10%)". 01/06: 28.00 of 28.00. 04: no VAT invoiced,
+  440.00 self-assessed, due 440.00 (4452) = deductible 440.00 (44566), net 0.00.
+- **No "incl. VAT" for an invoice without VAT**: 04 reads "2,200.00 EUR total payable to the supplier · reverse charge:
+  VAT self-assessed"; an exempt invoice reads "…, no VAT invoiced" (same wording in the engine explanation and the
+  agent's intake text).
+- The 402 step's `requirements_check` renders as `amount ✓ / asset (USDC) ✓ / network ✓ / payTo ✓ / scheme ✓`; long chip
+  values wrap inside the card. "s of agent time" is hidden under 0.1 s (replays recorded on localhost).
 - **TESTNET / SIMULATED**: payment mode of live runs. The **server** decides how agents pay (`PAYMENT_MODE`), so on
   load the console reads `GET /api/health` (`fetchServerMode`) and selects the deployment's mode; the other button
   is disabled with a tooltip ("this deployment runs in … mode; REPLAY always works"). If health is unreachable both
@@ -58,8 +74,10 @@ The API returns the whole trace at once; the console animates it client side (it
 are bundled into the page, so `/live` (Replay) and `/operator` work with no backend at all, including on
 a static host.
 
-The current files are **recorded from real runs of the demo agent against a SIMULATED server**
-(`recorded_from: "simulated"`, simulated `0x5151…` tx hashes, no explorer link; `npm run record:replays`).
+The current files (`demo/replays/01|03|04|06|90.json`) are **recorded from real runs of the demo agent against a SIMULATED server**
+(`recorded_from: "simulated"`, simulated `0x5151…` tx hashes, no explorer link; `npm run record:replays`). Each scenario
+is recorded from a fresh spend ledger and mock ERP, like a live `/api/demo/run`, so every entry replay shows
+"Spent today 0.15 / 2.00"; replay 90 has no payment and no `result`.
 Once the agent wallet is funded they are re-recorded against the TESTNET deployment (`docs/HOSTING.md` §7). They follow the x402 v2 wire format (`PAYMENT-REQUIRED`,
 `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` as base64 JSON, `eip155:84532`, 150000 atomic units, test
 USDC `0x036C…CF7e`, payTo `0xCB4b…dFeC`, agent `0xD25E…c1BF`) and the receipt shape of
@@ -71,17 +89,17 @@ Base Sepolia explorer link instead of the "SIMULATED tx" label.
 
 | Endpoint | Request | Response |
 |---|---|---|
-| `POST /api/demo/run` | `{"scenario": "01"\|"03"\|"04"\|"06", "mode": "testnet"\|"simulated"}` | `AgentTrace` (`lib/trace/types.ts`), or `{trace: AgentTrace}`. `mode` = `TESTNET`/`SIMULATED`. `result` = the `/api/v1/entry` body (EntryResult + `request_id` + `receipt`). Must answer within 45 s. |
+| `POST /api/demo/run` | `{"scenario": "01"\|"03"\|"04"\|"06"\|"90", "mode": "testnet"\|"simulated"}` | `AgentTrace` (`lib/trace/types.ts`), or `{trace: AgentTrace}`. `mode` = `TESTNET`/`SIMULATED`. `result` = the `/api/v1/entry` body (EntryResult + `request_id` + `receipt`); absent for 90 (`outcome: "refused_by_policy"`, which the console shows as a result, not as a failure). Must answer within 45 s. |
 | `GET /api/demo/replays?scenario=XX` | — | `AgentTrace` (or `{trace}` / an array of traces). Optional: without it the bundled files are used. |
-| `GET /api/v1/operator/stats` | — | Either `{calls, usdc_earned, by_endpoint:[{endpoint, calls, usdc}], recent:[{request_id, at, endpoint, payer, amount, tx_hash, explorer_url, mode, human_review_required?}], source, review_required?}` or the store's `StoreStats` (`calls_served`, `revenue_per_endpoint`, `recent_transactions`, `store`). The "% needing human review" KPI needs `review_required` (count) or `recent[].human_review_required`; otherwise it shows "—". |
+| `GET /api/v1/operator/stats` | — | Either `{calls, usdc_earned, by_endpoint:[{endpoint, calls, usdc}], recent:[{request_id, at, endpoint, payer, amount, tx_hash, explorer_url, mode, human_review_required?}], source, review_required?}` or the store's `StoreStats` (`calls_served`, `revenue_per_endpoint`, `recent_transactions`, `store`). The "% needing human review" KPI uses an exact count, never an extrapolation: `review_required` (over all calls), else `review_window: {calls, review_required}` (what `/api/v1/operator/stats` returns, counted over the store's recent window, "x of the last N calls"), else `recent[].human_review_required`. With none of them the tile is hidden. |
 | `/llms.txt`, `/openapi.json`, `/.well-known/agent.json`, `/api/v1/catalog`, `/mcp` | — | Linked from the landing page. |
 
 Timeline rendering relies on `TraceStep.kind`, `title`, `detail`, `t_ms`, `http` (`method`, `url`,
 `status`, `headers`, `body`, `decoded`) and, for chips, these `data` keys: policy (`decision`,
-`price_usdc`, `max_per_call_usdc`, `spent_today_usdc`, `daily_budget_usdc`), payment (`amount_usdc`,
+`code`, `price_usdc`, `max_per_call_usdc`, `spent_today_usdc`, `daily_budget_usdc`), payment (`amount_usdc`,
 `from`, `to`…), settlement (`tx_hash`, `explorer_url`, `request_id`), erp (`erp_file`, `status`,
 `journal`, `reference`, `lines`), review (`review_reasons`). The result panel appears when the first
-`http_response` with status 200 on a POST is revealed.
+`http_response` with status 200 on a POST is revealed (for a policy refusal, after the last step).
 
 ## Verification
 

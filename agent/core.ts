@@ -31,7 +31,7 @@ import {
 import type { HttpExchange, PaymentModeLabel, TraceStep, TraceStepKind } from "../lib/trace/types";
 import { mergeFingerprints } from "./erp";
 import { decodeB64Json, redactPaymentPayload, tracedFetch, truncateForTrace } from "./http";
-import { discoveryDetail, docFacts, intakeReasoning, reviewMessage } from "./narrative";
+import { discoveryDetail, docFacts, intakeReasoning, reviewMessage, totalExcessVat } from "./narrative";
 import { evaluatePolicy, type PolicyDecision } from "./policy";
 import type { AgentTask, AgentTrace, ErpRecord, ErpStatus, RunAgentOptions } from "./types";
 
@@ -441,7 +441,8 @@ export class AgentRun {
     const ok = this.item.task === "audit" ? "audit report received" : this.item.task === "invoice_check" ? "compliance check received" : "entry received";
     const status = (resBody.compliance as { status?: string } | undefined)?.status;
     const review = resBody.human_review_required === true;
-    this.step("http_response", `200 OK: ${ok}${status ? ` (${status}${review ? ", review required" : ""})` : review ? " (review required)" : ""}`, {
+    // compliance.status covers the invoice mentions only; VAT anomalies are separate (Phase 5 review m4).
+    this.step("http_response", `200 OK: ${ok}${status ? ` (invoice mentions ${status.replace("_", "-")}${review ? ", review required" : ""})` : review ? " (review required)" : ""}`, {
       detail: "The PAYMENT-RESPONSE header confirms settlement and carries the transaction hash.",
       http: { ...paid.exchange, ...(settle ? { decoded: { header: "PAYMENT-RESPONSE", value: settle } } : {}) },
     });
@@ -576,6 +577,7 @@ export class AgentRun {
     if (!reasons.length) return [];
     const inv = r.invoice as { number?: string; supplier?: { name?: string }; totals?: { total_incl_vat?: number; total_vat?: number } } | undefined;
     const anomalies = (Array.isArray(r.anomalies) ? r.anomalies : []) as { code: string; detail?: string; severity?: string }[];
+    const excessVat = totalExcessVat(anomalies, (r.vat as { note?: string } | undefined)?.note);
     const messages = reasons.map((code) =>
       reviewMessage(code, {
         supplier: inv?.supplier?.name,
@@ -583,6 +585,7 @@ export class AgentRun {
         total: inv?.totals?.total_incl_vat,
         vat: inv?.totals?.total_vat,
         detail: anomalies.find((a) => a.code === code)?.detail,
+        excessVat,
       }),
     );
     this.step("review", `Human review requested: ${reasons.join(", ")}`, {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ModeBadge } from "@/components/ModeBadge";
-import { resultRevealIndex, utcStamp } from "@/lib/console/format";
+import { agentTimeLabel, resultRevealIndex, utcStamp } from "@/lib/console/format";
 import { DEFAULT_SCENARIO, isScenarioId, SCENARIOS, type ScenarioId } from "@/lib/console/scenarios";
 import { MODE_DECIDED_BY_SERVER, MODE_INFO, MODE_ORDER } from "@/lib/console/modes";
 import { fetchServerMode, loadReplay, runScenario, LIVE_TIMEOUT_MS, type RunMode, type RunOutcome } from "@/lib/console/source";
@@ -130,6 +130,8 @@ export function LiveConsole() {
   const badgeSub = outcome ? undefined : phase === "calling" ? "connecting…" : "selected";
   const sc = SCENARIOS.find((s) => s.id === scenario);
   const trace = outcome?.trace;
+  const refusal = trace ? trace.outcome === "refused_by_policy" : sc?.kind === "policy_refusal";
+  const agentTime = trace ? agentTimeLabel(trace.duration_ms) : null;
 
   return (
     <div className="live">
@@ -293,7 +295,7 @@ export function LiveConsole() {
           )}
           {phase === "done" && trace && (
             <p className="faint" style={{ paddingLeft: 44, fontSize: "0.85rem" }} data-testid="run-complete">
-              Run complete · {steps.length} steps · {(trace.duration_ms / 1000).toFixed(1)} s of agent time · outcome: <b>{trace.outcome}</b>
+              Run complete · {steps.length} steps{agentTime ? ` · ${agentTime}` : ""} · outcome: <b>{trace.outcome}</b>
             </p>
           )}
           <div ref={timelineEnd} />
@@ -302,17 +304,24 @@ export function LiveConsole() {
         <div className="col" ref={resultCol} aria-label="Structured result" aria-live="polite">
           <div className="col-head">
             <h2>What the agent received</h2>
-            <span className="who">POST /api/v1/entry → 200</span>
+            <span className="who">{refusal ? "price read from GET /api/v1/catalog → refused, no paid POST" : "POST /api/v1/entry → 200"}</span>
           </div>
           {trace && showResult ? (
             <ResultPanel trace={trace} />
           ) : (
             <div className="empty">
-              <h3>{busy ? "Waiting for the paid response…" : "No result yet"}</h3>
-              <p>
-                The structured result appears once the agent has paid and received <span className="mono">HTTP 200</span>: compliance status, the journal entry as a
-                mini ledger, VAT treatment, anomalies and the payment receipt.
-              </p>
+              <h3>{busy ? (refusal ? "Waiting for the agent's decision…" : "Waiting for the paid response…") : "No result yet"}</h3>
+              {refusal ? (
+                <p>
+                  In this scenario the agent reads the price in the catalog, compares it with its spending policy and decides whether to pay. The decision and the HTTP
+                  calls it made appear here.
+                </p>
+              ) : (
+                <p>
+                  The structured result appears once the agent has paid and received <span className="mono">HTTP 200</span>: compliance status, the journal entry as a
+                  mini ledger, VAT treatment, anomalies and the payment receipt.
+                </p>
+              )}
             </div>
           )}
         </div>

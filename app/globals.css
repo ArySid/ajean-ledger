@@ -948,6 +948,9 @@ pre,
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--muted);
+  /* long values (hashes, JSON) wrap inside the card instead of overflowing it (Phase 5 review m7) */
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .hl b {
   color: var(--text);
@@ -1193,6 +1196,19 @@ pre,
 .banner-ok .ico,
 .banner-ok b {
   color: var(--ok);
+}
+.banner-refused {
+  background: var(--err-bg);
+  border-color: rgba(255, 114, 114, 0.55);
+}
+.banner-refused .ico,
+.banner-refused b {
+  color: var(--err);
+}
+.refused-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 .card {
   overflow-x: auto;

@@ -1,10 +1,10 @@
 {
-  "id": "trace_04_20261116112441_abc45d",
+  "id": "trace_04_20261116115029_f4654f",
   "scenario": "04",
   "scenario_label": "04 · EU consulting: reverse charge",
   "mode": "REPLAY",
   "recorded_from": "simulated",
-  "recorded_at": "2026-11-16T11:24:41.429Z",
+  "recorded_at": "2026-11-16T11:50:29.339Z",
   "agent": {
     "name": "Atelier Lumenor purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
@@ -19,7 +19,7 @@
       "t_ms": 0,
       "kind": "reasoning",
       "title": "New invoice KB-2026-077 from Kranich Beratung GmbH (fictional)",
-      "detail": "I am the purchasing agent of Atelier Lumenor SAS (fictional). I received invoice KB-2026-077 for 2200.00 EUR incl. VAT (\"Strategy consulting services — e-invoicing readiness assessment (2 days)\") by supplier portal. I must book it in our ERP. The supplier is based in Germany and charged 0.00 EUR of VAT. I do not know whether French VAT is still due on our side, nor how to book it. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
+      "detail": "I am the purchasing agent of Atelier Lumenor SAS (fictional). I received invoice KB-2026-077 for 2200.00 EUR (no VAT invoiced) (\"Strategy consulting services — e-invoicing readiness assessment (2 days)\") by supplier portal. I must book it in our ERP. The supplier is based in Germany and charged no VAT. I do not know whether French VAT is still due on our side, nor how to book it. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
       "data": {
         "inbox_file": "inbox/04-kranich-beratung-consulting.json",
         "task": "entry",
@@ -31,7 +31,7 @@
       }
     },
     {
-      "t_ms": 6,
+      "t_ms": 11,
       "kind": "discovery",
       "title": "Discovered Ajean Ledger through its machine-readable catalog",
       "detail": "Free machine-readable catalog, no sign-up, no API key. I need a full journal entry (PCG accounts + VAT treatment + compliance + anomalies): POST /api/v1/entry does exactly that for 0.15 USDC, paid per call over HTTP 402 (x402) on Base Sepolia.",
@@ -401,7 +401,7 @@
       }
     },
     {
-      "t_ms": 10,
+      "t_ms": 20,
       "kind": "discovery",
       "title": "Service status: SIMULATED payments",
       "detail": "The server decides the payment mode. Same x402 flow and real signatures, but the facilitator is simulated: no on-chain transfer. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
@@ -443,7 +443,7 @@
           },
           "engine_ready": true,
           "llm_configured": false,
-          "time": "2026-11-16T11:24:41.437Z"
+          "time": "2026-11-16T11:50:29.357Z"
         }
       },
       "data": {
@@ -452,31 +452,31 @@
       }
     },
     {
-      "t_ms": 10,
+      "t_ms": 20,
       "kind": "policy",
       "title": "Spending policy check: ALLOW",
-      "detail": "Price 0.15 USDC ≤ max per call 0.20 USDC. Spent today 0.30 + 0.15 = 0.45 USDC ≤ daily budget 2.00 USDC → allowed.",
+      "detail": "Price 0.15 USDC ≤ max per call 0.20 USDC. Spent today 0.00 + 0.15 = 0.15 USDC ≤ daily budget 2.00 USDC → allowed.",
       "data": {
         "decision": "allow",
         "endpoint": "/api/v1/entry",
         "price_usdc": "0.15",
         "max_per_call_usdc": "0.20",
-        "spent_today_usdc": "0.30",
+        "spent_today_usdc": "0.00",
         "daily_budget_usdc": "2.00",
         "ledger": "memory"
       }
     },
     {
-      "t_ms": 16,
+      "t_ms": 29,
       "kind": "http_request",
       "title": "POST /api/v1/entry (no payment attached)",
-      "detail": "First attempt without payment: the service will answer with its price in machine-readable form. I attach the fingerprints of 2 invoice(s) already in our ERP so the service can detect duplicates.",
+      "detail": "First attempt without payment: the service will answer with its price in machine-readable form.",
       "http": {
         "method": "POST",
         "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "abc45d10-18f9-4ecd-8639-4e10790df381",
+          "Idempotency-Key": "f4654f57-24ab-499b-8442-39adebded39e",
           "accept": "application/json"
         },
         "body": {
@@ -531,28 +531,12 @@
             "accounting_basis": "accrual",
             "vat_regime": "standard",
             "vat_on_debits": false
-          },
-          "history": [
-            {
-              "supplier_key": "SIREN:000001016",
-              "number": "BE-2026-0412",
-              "issue_date": "2026-10-05",
-              "total_incl_vat": 168,
-              "document_type": "invoice"
-            },
-            {
-              "supplier_key": "SIREN:000001024",
-              "number": "LBL-2026-1187",
-              "issue_date": "2026-10-08",
-              "total_incl_vat": 175.2,
-              "document_type": "invoice"
-            }
-          ]
+          }
         }
       }
     },
     {
-      "t_ms": 16,
+      "t_ms": 29,
       "kind": "http_response",
       "title": "402 Payment Required: 0.15 USDC on Base Sepolia",
       "detail": "The PAYMENT-REQUIRED header carries the price (150000 atomic units = 0.15 USDC), the asset, the network and the payTo wallet. Everything matches what discovery advertised (/api/v1/catalog).",
@@ -563,7 +547,7 @@
         "headers": {
           "content-type": "application/json",
           "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIuYXJ5LXNpZG91bi53b3JrZXJzLmRldi9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkZ1bGwgRnJlbmNoIGpvdXJuYWwgZW50cnkgcHJvcG9zYWwgKFBDRyBhY2NvdW50cykgKyBWQVQgdHJlYXRtZW50ICsgZS1pbnZvaWNpbmcgY29tcGxpYW5jZSArIGFub21hbHkgZmxhZ3MgZm9yIG9uZSBpbnZvaWNlLCBjcmVkaXQgbm90ZSBvciBiYW5rIHRyYW5zYWN0aW9uLiIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiIsInNlcnZpY2VOYW1lIjoiQWplYW4gTGVkZ2VyIiwidGFncyI6WyJhY2NvdW50aW5nIiwiZnJhbmNlIiwiZS1pbnZvaWNpbmciLCJ2YXQiLCJjcmVhdGVfZW50cnkiXX0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImV4YWN0IiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImFzc2V0IjoiMHgwMzZDYkQ1Mzg0MmM1NDI2NjM0ZTc5Mjk1NDFlQzIzMThmM2RDRjdlIiwicGF5VG8iOiIweENCNGI4NDA3OUIxZGQxOTgyOGMzZDU3MzNmOWUwRDJEY0IyNmRGZUMiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MzAwLCJleHRyYSI6eyJuYW1lIjoiVVNEQyIsInZlcnNpb24iOiIyIn19XX0=",
-          "X-Request-Id": "req_01M7J1M9K264V2ZZ6CP2RA73WD"
+          "X-Request-Id": "req_01M7J33H7NAS24497RN1KTBJW2"
         },
         "body": {
           "error": {
@@ -581,7 +565,7 @@
             },
             "docs_url": "/llms.txt#errors"
           },
-          "request_id": "req_01M7J1M9K264V2ZZ6CP2RA73WD"
+          "request_id": "req_01M7J33H7NAS24497RN1KTBJW2"
         },
         "decoded": {
           "header": "PAYMENT-REQUIRED",
@@ -654,7 +638,7 @@
       }
     },
     {
-      "t_ms": 18,
+      "t_ms": 32,
       "kind": "payment",
       "title": "Signed a 0.15 USDC payment authorisation (EIP-3009)",
       "detail": "transferWithAuthorization from my wallet to Ajean Ledger's payTo wallet, valid for a few minutes. Off-chain signature: no gas, no account, no API key. The facilitator submits the transfer only if the call succeeds.",
@@ -667,12 +651,12 @@
         "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
         "value": "150000",
         "validAfter": "0",
-        "validBefore": "1794828581",
-        "nonce": "0x87c130fe035e0dade36e36a508e5b28df056c7619f566cac868cf60f735b8812"
+        "validBefore": "1794830129",
+        "nonce": "0x22d657fceb9d6d44e69707fdda62158643987321f4b926f526aaa33b9ef79d60"
       }
     },
     {
-      "t_ms": 29,
+      "t_ms": 45,
       "kind": "http_request",
       "title": "POST /api/v1/entry with PAYMENT-SIGNATURE",
       "detail": "Same request, retried with the signed payment attached. Payment is the authentication.",
@@ -681,7 +665,7 @@
         "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "abc45d10-18f9-4ecd-8639-4e10790df381",
+          "Idempotency-Key": "f4654f57-24ab-499b-8442-39adebded39e",
           "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicGF5bG9hZCI6eyJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5… (1372 chars, decoded below)",
           "accept": "application/json"
         },
@@ -737,23 +721,7 @@
             "accounting_basis": "accrual",
             "vat_regime": "standard",
             "vat_on_debits": false
-          },
-          "history": [
-            {
-              "supplier_key": "SIREN:000001016",
-              "number": "BE-2026-0412",
-              "issue_date": "2026-10-05",
-              "total_incl_vat": 168,
-              "document_type": "invoice"
-            },
-            {
-              "supplier_key": "SIREN:000001024",
-              "number": "LBL-2026-1187",
-              "issue_date": "2026-10-08",
-              "total_incl_vat": 175.2,
-              "document_type": "invoice"
-            }
-          ]
+          }
         },
         "decoded": {
           "header": "PAYMENT-SIGNATURE",
@@ -765,10 +733,10 @@
                 "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
                 "value": "150000",
                 "validAfter": "0",
-                "validBefore": "1794828581",
-                "nonce": "0x87c130fe035e0dade36e36a508e5b28df056c7619f566cac868cf60f735b8812"
+                "validBefore": "1794830129",
+                "nonce": "0x22d657fceb9d6d44e69707fdda62158643987321f4b926f526aaa33b9ef79d60"
               },
-              "signature": "0x0ca0cc9b4a…c5ab971b (redacted)"
+              "signature": "0x4ffd8ed533…d70bef1b (redacted)"
             },
             "resource": {
               "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
@@ -800,9 +768,9 @@
       }
     },
     {
-      "t_ms": 29,
+      "t_ms": 45,
       "kind": "http_response",
-      "title": "200 OK: entry received (compliant)",
+      "title": "200 OK: entry received (invoice mentions compliant)",
       "detail": "The PAYMENT-RESPONSE header confirms settlement and carries the transaction hash.",
       "http": {
         "method": "POST",
@@ -810,23 +778,23 @@
         "status": 200,
         "headers": {
           "content-type": "application/json",
-          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHg1MTUxZWY3OWFiNTMzNGNhM2JhZTk5ODRjYzg5OTJiMmRlNjhmZWIzN2YzNDA0ODg3YWMyNjJjNDI5ZTg3ZGIyIiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ==",
-          "X-Request-Id": "req_01M7J1M9K9X48Y51CTTJVRNRK9"
+          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHg1MTUxYTA4ZDgxMzc5MzI0ZTkzYmY0NGRlMTFkOWZjM2FmODUzZWI1Y2VjMjM1OGNlMzFiMGQwNWZlYjU5ZTY1IiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ==",
+          "X-Request-Id": "req_01M7J33H80SZVB9VTBWAR88AQE"
         },
         "body": {
-          "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
+          "request_id": "req_01M7J33H80SZVB9VTBWAR88AQE",
           "receipt": {
             "amount": "0.15",
             "amount_atomic": "150000",
             "asset": "USDC",
             "network": "base-sepolia",
             "network_caip2": "eip155:84532",
-            "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
+            "tx_hash": "0x5151a08d81379324e93bf44de11d9fc3af853eb5cec2358ce31b0d05feb59e65",
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
             "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
             "explorer_url": null,
             "mode": "simulated",
-            "paid_at": "2026-11-16T11:24:41.456Z"
+            "paid_at": "2026-11-16T11:50:29.382Z"
           },
           "invoice": {
             "document_type": "invoice",
@@ -1040,7 +1008,7 @@
           "confidence": 0.98,
           "human_review_required": false,
           "review_reasons": [],
-          "explanation": "Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR incl. VAT) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.",
+          "explanation": "Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR, no VAT invoiced) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.",
           "engine": {
             "version": "0.1.0",
             "rules_applied": [
@@ -1080,7 +1048,7 @@
           "value": {
             "success": true,
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
-            "transaction": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
+            "transaction": "0x5151a08d81379324e93bf44de11d9fc3af853eb5cec2358ce31b0d05feb59e65",
             "network": "eip155:84532",
             "amount": "150000",
             "extra": {
@@ -1092,28 +1060,28 @@
       }
     },
     {
-      "t_ms": 29,
+      "t_ms": 45,
       "kind": "settlement",
       "title": "Payment settled: 0.15 USDC (simulated transaction)",
-      "detail": "Transaction 0x5151ef79ab53… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_01M7J1M9K9X48Y51CTTJVRNRK9 kept for idempotency.",
+      "detail": "Transaction 0x5151a08d8137… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_01M7J33H80SZVB9VTBWAR88AQE kept for idempotency.",
       "data": {
-        "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
+        "tx_hash": "0x5151a08d81379324e93bf44de11d9fc3af853eb5cec2358ce31b0d05feb59e65",
         "network": "eip155:84532",
         "amount_usdc": "0.15",
-        "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
+        "request_id": "req_01M7J33H80SZVB9VTBWAR88AQE",
         "explorer_url": null,
         "simulated": true,
         "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF"
       }
     },
     {
-      "t_ms": 29,
+      "t_ms": 45,
       "kind": "erp",
       "title": "ERP: entry HA KB-2026-077 posted (validated)",
-      "detail": "4 lines written to the mock ERP, debits = credits = 2640.00 EUR, linked to receipt req_01M7J1M9K9X48Y51CTTJVRNRK9.",
+      "detail": "4 lines written to the mock ERP, debits = credits = 2640.00 EUR, linked to receipt req_01M7J33H80SZVB9VTBWAR88AQE.",
       "data": {
         "erp": "mock ERP (in memory)",
-        "erp_id": "ERP-20261116-0CCD69",
+        "erp_id": "ERP-20261116-FB6F14",
         "status": "posted",
         "journal": "HA",
         "reference": "KB-2026-077",
@@ -1144,36 +1112,36 @@
           }
         ],
         "balanced": true,
-        "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
-        "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2"
+        "request_id": "req_01M7J33H80SZVB9VTBWAR88AQE",
+        "tx_hash": "0x5151a08d81379324e93bf44de11d9fc3af853eb5cec2358ce31b0d05feb59e65"
       }
     },
     {
-      "t_ms": 29,
+      "t_ms": 45,
       "kind": "reasoning",
       "title": "Done: invoice booked, no human needed",
-      "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.45 / 2.00 USDC. Noted for the file: VAT self-assessed at the French rate: 440.00 EUR due (4452) and deductible (44566/44562); report it on the VAT return. Service explanation relayed to my operator: \"Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR incl. VAT) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.\"",
+      "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.15 / 2.00 USDC. Noted for the file: VAT self-assessed at the French rate: 440.00 EUR due (4452) and deductible (44566/44562); report it on the VAT return. Service explanation relayed to my operator: \"Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR, no VAT invoiced) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.\"",
       "data": {
         "outcome": "posted",
-        "spent_today_usdc": "0.45",
+        "spent_today_usdc": "0.15",
         "review_reasons": []
       }
     }
   ],
   "result": {
-    "request_id": "req_01M7J1M9K9X48Y51CTTJVRNRK9",
+    "request_id": "req_01M7J33H80SZVB9VTBWAR88AQE",
     "receipt": {
       "amount": "0.15",
       "amount_atomic": "150000",
       "asset": "USDC",
       "network": "base-sepolia",
       "network_caip2": "eip155:84532",
-      "tx_hash": "0x5151ef79ab5334ca3bae9984cc8992b2de68feb37f3404887ac262c429e87db2",
+      "tx_hash": "0x5151a08d81379324e93bf44de11d9fc3af853eb5cec2358ce31b0d05feb59e65",
       "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
       "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
       "explorer_url": null,
       "mode": "simulated",
-      "paid_at": "2026-11-16T11:24:41.456Z"
+      "paid_at": "2026-11-16T11:50:29.382Z"
     },
     "invoice": {
       "document_type": "invoice",
@@ -1387,7 +1355,7 @@
     "confidence": 0.98,
     "human_review_required": false,
     "review_reasons": [],
-    "explanation": "Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR incl. VAT) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.",
+    "explanation": "Purchase invoice KB-2026-077 from Kranich Beratung GmbH (fictional) (2200.00 EUR, no VAT invoiced) is booked in journal HA: debit 6226 2200.00, debit 44566 440.00, credit 4452 440.00, credit 401KRANICH 2200.00. VAT treatment: intra-EU reverse charge (VAT self-assessed). All mandatory invoice mentions checked are present. No human review needed; confidence 0.98.",
     "engine": {
       "version": "0.1.0",
       "rules_applied": [
@@ -1422,6 +1390,6 @@
     },
     "disclaimer": "Proof of concept on synthetic data. Not a substitute for a chartered accountant's review."
   },
-  "duration_ms": 29,
+  "duration_ms": 45,
   "outcome": "posted"
 }

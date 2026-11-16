@@ -35,6 +35,8 @@ export interface OperatorStats {
   recent: RecentTx[];
   /** Count of calls whose result required human review, when the source knows it. */
   review_required: number | null;
+  /** Number of calls `review_required` is counted over (all calls, or the recent window). Null when unknown. */
+  review_window: number | null;
   source: string;
 }
 
@@ -90,12 +92,20 @@ export function normaliseStats(json: unknown): OperatorStats | null {
     human_review_required: typeof r.human_review_required === "boolean" ? r.human_review_required : undefined,
   }));
 
+  // Exact counts only, never extrapolated: over all calls when the source gives a total, else over the
+  // recent window the source reported (Phase 5 review m8).
   let reviewRequired: number | null = null;
-  if (typeof o.review_required === "number") reviewRequired = o.review_required;
-  else if (recent.length > 0 && recent.every((r) => typeof r.human_review_required === "boolean")) {
-    // Only a ratio over the recent window; scaled to total calls for the KPI.
-    const share = recent.filter((r) => r.human_review_required).length / recent.length;
-    reviewRequired = Math.round(share * num(calls));
+  let reviewWindow: number | null = null;
+  const rw = o.review_window as { calls?: unknown; review_required?: unknown } | undefined;
+  if (typeof o.review_required === "number") {
+    reviewRequired = o.review_required;
+    reviewWindow = num(calls);
+  } else if (rw && typeof rw.review_required === "number" && typeof rw.calls === "number" && rw.calls > 0) {
+    reviewRequired = rw.review_required;
+    reviewWindow = rw.calls;
+  } else if (recent.length > 0 && recent.every((r) => typeof r.human_review_required === "boolean")) {
+    reviewRequired = recent.filter((r) => r.human_review_required).length;
+    reviewWindow = recent.length;
   }
 
   return {
@@ -104,6 +114,7 @@ export function normaliseStats(json: unknown): OperatorStats | null {
     by_endpoint: completeEndpoints(byEndpoint),
     recent,
     review_required: reviewRequired,
+    review_window: reviewWindow,
     source: String(o.source ?? o.store ?? "api"),
   };
 }
@@ -143,6 +154,7 @@ export function statsFromReplays(traces: ConsoleTrace[] = allBundledReplays()): 
     by_endpoint: completeEndpoints([...by.values()]),
     recent,
     review_required: recent.filter((r) => r.human_review_required).length,
+    review_window: recent.length,
     source: "replay",
   };
 }

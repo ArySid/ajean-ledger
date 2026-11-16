@@ -27,32 +27,44 @@ interface OperatorStatsBody {
   by_endpoint: { endpoint: string; calls: number; usdc: string }[];
   by_mode?: StoreStats["by_mode"];
   recent: RecentRow[];
+  /**
+   * Calls whose result required a human review, counted over `review_window.calls` calls (the recent
+   * window for a store; all calls for the replay fallback). Exact count, never extrapolated.
+   */
+  review_window: { calls: number; review_required: number };
   source: string;
   generated_at: string;
 }
 
+function reviewWindow(recent: RecentRow[]): OperatorStatsBody["review_window"] {
+  return { calls: recent.length, review_required: recent.filter((r) => r.human_review_required === true).length };
+}
+
 function fromStore(s: StoreStats): OperatorStatsBody {
+  const recent: RecentRow[] = s.recent_transactions.map((t) => ({
+    request_id: t.request_id,
+    at: t.paid_at,
+    endpoint: PAID_ENDPOINTS[t.endpoint as PaidEndpointId]?.path ?? t.endpoint,
+    payer: t.payer,
+    amount: t.amount,
+    tx_hash: t.tx_hash,
+    explorer_url: t.explorer_url,
+    mode: t.mode,
+    human_review_required: t.human_review_required,
+  }));
   return {
     calls: s.calls_served,
     usdc_earned: s.usdc_earned,
     by_endpoint: PAID_ENDPOINT_LIST.map((e) => ({ endpoint: e.path, calls: s.revenue_per_endpoint[e.id]?.calls ?? 0, usdc: s.revenue_per_endpoint[e.id]?.usdc ?? "0.00" })),
     by_mode: s.by_mode,
-    recent: s.recent_transactions.map((t) => ({
-      request_id: t.request_id,
-      at: t.paid_at,
-      endpoint: PAID_ENDPOINTS[t.endpoint as PaidEndpointId]?.path ?? t.endpoint,
-      payer: t.payer,
-      amount: t.amount,
-      tx_hash: t.tx_hash,
-      explorer_url: t.explorer_url,
-      mode: t.mode,
-    })),
+    recent,
+    review_window: reviewWindow(recent),
     source: s.store,
     generated_at: new Date().toISOString(),
   };
 }
 
-/** Aggregates the recorded replays (each successful run = one paid call). */
+/** Aggregates the recorded replays (each successful run = one paid call; a policy refusal has no receipt and is skipped). */
 function statsFromReplays(): OperatorStatsBody {
   const recent: RecentRow[] = [];
   for (const t of allReplays()) {
@@ -83,6 +95,7 @@ function statsFromReplays(): OperatorStatsBody {
       return { endpoint: e.path, calls: rows.length, usdc: sum(rows) };
     }),
     recent,
+    review_window: reviewWindow(recent),
     source: "replay",
     generated_at: new Date().toISOString(),
   };

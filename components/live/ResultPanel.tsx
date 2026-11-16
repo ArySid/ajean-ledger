@@ -1,12 +1,19 @@
 import type { Anomaly, ComplianceCheck } from "@/engine/types";
 import type { AgentTrace } from "@/lib/trace/types";
-import { addressUrl, asEntryResponse, isSimulatedTx, money, pct, shortHex, txExplorerUrl } from "@/lib/console/format";
+import { addressUrl, asEntryResponse, invoiceTotalLabel, isSimulatedTx, money, policyRefusalSummary, shortHex, txExplorerUrl, vatSummary } from "@/lib/console/format";
 
+/**
+ * The engine's `compliance.status` covers the mandatory invoice MENTIONS only (e-invoicing / L441 rules);
+ * VAT and accounting problems are anomalies and drive the review flag. The chip says so explicitly, so a
+ * green chip never sits next to a VAT anomaly looking like "everything is fine" (Phase 5 review m4).
+ */
 const STATUS_PILL: Record<string, { cls: string; label: string }> = {
-  compliant: { cls: "pill-ok", label: "✓ COMPLIANT" },
-  warning: { cls: "pill-warn", label: "! WARNING" },
-  non_compliant: { cls: "pill-err", label: "✕ NON-COMPLIANT" },
+  compliant: { cls: "pill-ok", label: "✓ Invoice mentions: compliant" },
+  warning: { cls: "pill-warn", label: "! Invoice mentions: warning" },
+  non_compliant: { cls: "pill-err", label: "✕ Invoice mentions: non-compliant" },
 };
+const STATUS_TITLE =
+  "Compliance status = mandatory invoice mentions (e-invoicing rules). VAT and accounting anomalies are reported separately and trigger the human review flag.";
 
 const SEV_COLOR: Record<string, string> = { error: "var(--err)", warning: "var(--warn)", info: "var(--faint)" };
 
@@ -30,8 +37,94 @@ function sortAnomalies(list: Anomaly[]): Anomaly[] {
   return [...list].sort((a, b) => rank(a) - rank(b));
 }
 
+/** Result column of a run the agent refused to pay for (scenario 90): nothing was bought, so no entry. */
+function PolicyRefusalPanel({ trace }: { trace: AgentTrace }) {
+  const r = policyRefusalSummary(trace.steps, trace.outcome);
+  if (!r) return null;
+  return (
+    <div className="result" data-testid="refusal-panel">
+      <div className="banner-review banner-refused" role="alert">
+        <span className="ico" aria-hidden="true">
+          ⛔
+        </span>
+        <div>
+          <div className="refused-title">
+            <b>REFUSED BY POLICY — no payment made</b>
+          </div>
+          <div className="muted" style={{ fontSize: "0.9rem" }}>
+            {r.endpoint} costs <b className="money">{r.price_usdc} USDC</b>, above the <b>{r.max_per_call_usdc} USDC</b> per-call limit set by the agent&apos;s operator.
+            The agent stopped before calling the paid endpoint and escalated to a human.
+          </div>
+        </div>
+      </div>
+
+      <div className="summary-row">
+        <span className="pill pill-err">{r.code}</span>
+        <span className="pill pill-plain">0.00 USDC spent</span>
+        <span className="pill pill-plain">nothing signed</span>
+        <span className="pill pill-plain">no POST to {r.endpoint}</span>
+      </div>
+
+      <section className="card" aria-label="Spending policy">
+        <h3>Spending policy (deterministic code, not an LLM)</h3>
+        <dl className="kv">
+          <dt>Endpoint</dt>
+          <dd className="mono">POST {r.endpoint}</dd>
+          <dt>Price (from the catalog)</dt>
+          <dd>
+            <b className="money">{r.price_usdc} USDC</b>
+          </dd>
+          <dt>Max per call</dt>
+          <dd>{r.max_per_call_usdc} USDC</dd>
+          <dt>Spent today</dt>
+          <dd>
+            {r.spent_today_usdc} / {r.daily_budget_usdc} USDC (unchanged)
+          </dd>
+          <dt>Decision</dt>
+          <dd>
+            <b style={{ color: "var(--err)" }}>REFUSE</b> · {r.reason}
+          </dd>
+        </dl>
+      </section>
+
+      <section className="card" aria-label="HTTP calls made">
+        <h3>
+          <span>HTTP calls the agent made</span>
+          <span>{r.http_calls.length}</span>
+        </h3>
+        <ul className="checks">
+          {r.http_calls.map((c, i) => (
+            <li key={`${c}-${i}`}>
+              <span className="ic-ok" aria-label="free call">
+                ✓
+              </span>
+              <span className="mono">{c}</span>
+            </li>
+          ))}
+          <li className="failed">
+            <span className="ic-err" aria-label="not called">
+              ✕
+            </span>
+            <span>
+              <span className="mono">POST {r.endpoint}</span> never sent: no 402, no PAYMENT-SIGNATURE, no settlement{r.paid_posts.length ? ` (unexpected: ${r.paid_posts.join(", ")})` : ""}
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      {r.escalation && (
+        <section className="card" aria-label="Escalation">
+          <h3>Message the agent sends to its operator</h3>
+          <p className="explanation">{r.escalation}</p>
+        </section>
+      )}
+    </div>
+  );
+}
+
 export function ResultPanel({ trace }: { trace: AgentTrace }) {
   const res = asEntryResponse(trace.result);
+  if (!res && trace.outcome === "refused_by_policy") return <PolicyRefusalPanel trace={trace} />;
   if (!res) {
     return (
       <div className="empty">
@@ -55,6 +148,8 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
   const checks = sortChecks(res.compliance?.checks ?? []);
   const failed = checks.filter((c) => !c.passed).length;
   const payerUrl = addressUrl(receipt?.payer ?? trace.agent?.wallet);
+  const vat = vatSummary(res);
+  const vatAnomalies = anomalies.filter((a) => a.code.startsWith("VAT_") && a.severity !== "info");
 
   return (
     <div className="result" data-testid="result-panel">
@@ -63,14 +158,19 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
           {res.invoice?.supplier?.name ?? "Invoice"} · {res.invoice?.number}
         </div>
         <div className="result-sub">
-          {res.invoice?.date} · {money(res.invoice?.totals?.total_incl_vat)} EUR incl. VAT · for {res.invoice?.customer?.name ?? "the agent's client"}
+          {res.invoice?.date} · {invoiceTotalLabel(res)} · for {res.invoice?.customer?.name ?? "the agent's client"}
         </div>
       </div>
 
       <div className="summary-row">
-        <span className={`pill ${pill.cls}`} data-testid="compliance-pill">
+        <span className={`pill ${pill.cls}`} data-testid="compliance-pill" title={STATUS_TITLE}>
           {pill.label}
         </span>
+        {vatAnomalies.length > 0 && (
+          <span className="pill pill-warn" data-testid="vat-anomaly-pill">
+            ! VAT anomaly: {[...new Set(vatAnomalies.map((a) => a.code))].join(", ")}
+          </span>
+        )}
         {res.human_review_required ? <span className="pill pill-warn">HUMAN REVIEW REQUIRED</span> : <span className="pill pill-ok">NO HUMAN NEEDED</span>}
         {typeof res.confidence === "number" && <span className="pill pill-plain">confidence {Math.round(res.confidence * 100)}%</span>}
         {res.request_id && <span className="pill pill-plain mono">{res.request_id}</span>}
@@ -189,23 +289,26 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
         </table>
       </section>
 
-      {res.vat && (
-        <section className="card" aria-label="VAT treatment">
+      {res.vat && vat && (
+        <section className="card" aria-label="VAT treatment" data-testid="vat-panel">
           <h3>VAT treatment</h3>
           <dl className="kv">
             <dt>Regime</dt>
             <dd>
               <b>{REGIME_LABEL[res.vat.regime] ?? res.vat.regime}</b>
             </dd>
-            <dt>Rate</dt>
-            <dd>{pct(res.vat.rate)}</dd>
             <dt>Deductible</dt>
-            <dd>{res.vat.deductible ? "yes" : "no"}</dd>
-            {res.vat.breakdown?.map((b, i) => (
-              <span key={i} style={{ display: "contents" }}>
-                <dt>Base / VAT</dt>
-                <dd className="mono">
-                  {money(b.base)} / {money(b.vat)} at {pct(b.rate)}
+            <dd>
+              <b style={{ color: vat.deductible === "yes" ? "var(--ok)" : vat.deductible === "partly" ? "var(--warn)" : undefined }}>{vat.deductible}</b>
+            </dd>
+            {vat.rows.map((row, i) => (
+              <span key={`${row.label}-${i}`} style={{ display: "contents" }}>
+                <dt>{row.label}</dt>
+                <dd>
+                  <span className="mono" style={row.tone ? { color: row.tone === "ok" ? "var(--ok)" : "var(--warn)" } : undefined}>
+                    {row.value}
+                  </span>
+                  {row.note && <span className="muted"> · {row.note}</span>}
                 </dd>
               </span>
             ))}

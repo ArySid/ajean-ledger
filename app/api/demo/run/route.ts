@@ -1,4 +1,5 @@
-// POST /api/demo/run {scenario: "01"|"03"|"04"|"06", mode?} — used by the /live console.
+// POST /api/demo/run {scenario: "01"|"03"|"04"|"06"|"90", mode?} — used by the /live console.
+// Scenario 90 (1.00 USDC audit) is refused by the agent's spending policy before any payment.
 // Runs the demo purchasing agent IN-PROCESS against this same deployment (real HTTP: catalog,
 // 402, x402 payment, 200) and returns its AgentTrace. Never fails hard: on error it answers
 // 200 with outcome "error", the steps so far and fallback_hint "replay".
@@ -64,11 +65,11 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as typeof body;
   } catch {
-    return json({ error: { code: "INVALID_JSON", message: 'Body must be JSON: {"scenario": "01"|"03"|"04"|"06", "mode"?: "testnet"|"simulated"}' } }, 400);
+    return json({ error: { code: "INVALID_JSON", message: 'Body must be JSON: {"scenario": "01"|"03"|"04"|"06"|"90", "mode"?: "testnet"|"simulated"}' } }, 400);
   }
   const scenario = body?.scenario;
   if (!isDemoScenarioId(scenario)) {
-    return json({ error: { code: "INVALID_SCENARIO", message: 'scenario must be one of "01", "03", "04", "06".' } }, 400);
+    return json({ error: { code: "INVALID_SCENARIO", message: 'scenario must be one of "01", "03", "04", "06", "90".' } }, 400);
   }
 
   const serverMode = getPaymentMode();
@@ -81,14 +82,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Wallet: the configured throwaway agent wallet; in SIMULATED mode only, an ephemeral key if none.
+  // Scenario 90 never signs anything (refused by policy before the paid call), so it runs in any mode.
   let wallet: PrivateKeyAccount;
   let walletNote: string | undefined;
   const key = process.env.AGENT_PRIVATE_KEY?.trim();
   if (key && /^0x[0-9a-fA-F]{64}$/.test(key)) {
     wallet = privateKeyToAccount(key as `0x${string}`);
-  } else if (serverMode === "simulated") {
+  } else if (serverMode === "simulated" || scenario === "90") {
     wallet = privateKeyToAccount(generatePrivateKey());
-    walletNote = "AGENT_PRIVATE_KEY not configured: ephemeral wallet generated for this run (SIMULATED only)";
+    walletNote =
+      serverMode === "simulated"
+        ? "AGENT_PRIVATE_KEY not configured: ephemeral wallet generated for this run (SIMULATED only)"
+        : "AGENT_PRIVATE_KEY not configured: ephemeral wallet (this request is refused by policy, nothing is signed)";
   } else {
     const t = errorTrace(scenario, label, modeLabel, serviceUrl, "Agent wallet not configured", "AGENT_PRIVATE_KEY is missing on this deployment, so the agent cannot pay in TESTNET mode.");
     return json({ ...t, fallback_hint: "replay" });

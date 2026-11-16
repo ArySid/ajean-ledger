@@ -38,6 +38,8 @@ No detours: one invoice, one payment, one result. Fixture: **03, restaurant invo
 
 Total: about **2:35**, which leaves 25 seconds of slack within 3 minutes.
 
+**Optional, only with ≥ 15 s of slack or in Q&A ("can the agent overspend?"):** select **90 · Audit request 1.00 USDC > max_per_call 0.20 → REFUSED by policy**, tick **Skip animation**, click **▶ Run scenario**. Narrator: "The CFO asks the same agent for a batch audit. Our catalog says 1.00 USDC; its operator capped it at 0.20 per call. It refuses before paying anything, and asks a human." Screen: red panel **REFUSED BY POLICY — no payment made**, policy step `Price 1.00 USDC > max per call 0.20 USDC`, HTTP calls = only `GET /api/v1/catalog` and `GET /api/health`, no `POST /api/v1/audit`, 0.00 USDC spent. Works in any mode (nothing is signed); its replay works offline too.
+
 > At the end of a run the timeline scrolls to the last step: to point at the 402 step at 0:35, the driver scrolls the left column back up (or ticks **Skip animation** before running and scrolls once).
 
 > Amounts above are the fixture 03 engine output after the Phase 1 review fix (ADR-018): 6257 160.60 / 44566 14.60 / 401BOUCHON 175.20. Do not say a number on stage that is not on screen.
@@ -49,7 +51,7 @@ The public deployment runs **one** payment mode (`PAYMENT_MODE`, chosen by us, n
 | Level | Trigger | Driver action | Narrator line |
 |---|---|---|---|
 | **1. TESTNET** (default) | — | — | — |
-| **2. REPLAY (automatic or manual)** | The yellow notice appears, or the 402 → 200 step takes more than **10 s** | Nothing if automatic; otherwise click **Use recorded run now** (while waiting) or **⟲ Replay recorded run** | "The conference Wi-Fi is the one thing we don't control, so here is the same exchange recorded earlier from the same agent: same requests, same 402, same payment." Add "with its real transaction hash, which you can check on the explorer afterwards" **only if** the notice line says *recorded from a testnet run*; if it says *simulated*, say "simulated payment, labelled on screen". |
+| **2. REPLAY (automatic or manual)** | The yellow notice appears, or the 402 → 200 step takes more than **10 s** | Nothing if automatic; otherwise click **Use recorded run now** (while waiting) or **⟲ Replay recorded run** | "The conference Wi-Fi is the one thing we don't control, so here is the same exchange recorded earlier from the same agent: same requests, same 402, same payment." Then read the **REPLAY** line on screen and say only what it says: if it reads *recorded from a **testnet** run* (replay `recorded_from: "testnet"`), add "recorded from a real Base Sepolia testnet run, with its real transaction hash you can check on the explorer afterwards"; if it reads *recorded from a **simulated** run*, say "recorded earlier from the same agent, simulated payment, labelled on screen", and never say "testnet" or "on-chain". |
 | **3. Backup laptop** | The public URL does not load at all | Backup laptop takes over, already on `/live` with a replay loaded (works offline once the page is open: replays are bundled in the page) | Same line as level 2. |
 | **4. Last resort** | No network and no browser | Play the backup screen recording `{{BACKUP_VIDEO_PATH}}` | "Same run, recorded." Then move on to the slides. |
 

@@ -1,16 +1,19 @@
 /**
  * npm run record:replays — records the demo replays from REAL runs of the agent.
  *
- * Runs the purchasing agent on scenarios 01, 03, 04, 06 (one shared mock ERP and spend ledger,
- * like a working day) against AJEAN_LEDGER_URL (or --url), then writes demo/replays/NN.json
- * with mode "REPLAY", recorded_from = the server's payment mode, recorded_at = now.
- * Files are only overwritten when ALL four runs succeeded with the expected outcome.
+ * Runs the purchasing agent on scenarios 01, 03, 04, 06 and 90 against AJEAN_LEDGER_URL (or --url),
+ * then writes demo/replays/NN.json with mode "REPLAY", recorded_from = the server's payment mode,
+ * recorded_at = now. Each scenario starts from a FRESH mock ERP and spend ledger, exactly like a
+ * live /api/demo/run (Phase 5 review m5: replays used to show a cumulative "Spent today 0.30/0.45/0.60").
+ * Scenario 06 still finds its duplicate through the ERP history carried by fixture 06.
+ * Scenario 90 (1.00 USDC audit) must be refused by the spending policy: no payment, no POST.
+ * Files are only overwritten when ALL runs succeeded with the expected outcome.
  *
  *   PAYMENT_MODE=simulated npx next start -p 3500   (or npm run dev)
  *   AJEAN_LEDGER_URL=http://localhost:3500 npm run record:replays
  *   npm run record:replays -- --public          record directly against the PUBLIC deployment
  *                                               (env PUBLIC_URL, else DEFAULT_PUBLIC_URL); with a TESTNET
- *                                               deployment this pays 4 × 0.15 test USDC from AGENT_PRIVATE_KEY
+ *                                               deployment this pays 4 × 0.15 test USDC from AGENT_PRIVATE_KEY (90 pays nothing)
  *                                               and yields replays with real Base Sepolia tx hashes.
  *   flags: --url <base>  --public  --dry-run (print a summary, write nothing)
  *          --public-url [base]  rewrite the recorded base URL (e.g. http://localhost:3600) to the public
@@ -82,6 +85,7 @@ const EXPECTED: Record<DemoScenarioId, AgentTrace["outcome"]> = {
   "03": "posted_with_review",
   "04": "posted",
   "06": "posted_with_review",
+  "90": "refused_by_policy",
 };
 
 async function main() {
@@ -108,11 +112,12 @@ async function main() {
   }
 
   console.log(`Recording replays against ${url} (${mode.toUpperCase()}), agent wallet ${wallet.address}`);
-  const erp = new MemoryErp();
-  const ledger = new MemorySpendLedger();
   const traces: AgentTrace[] = [];
   const failures: string[] = [];
   for (const id of DEMO_SCENARIO_IDS) {
+    // One fresh ERP + spend ledger per scenario: each replay shows what a live run shows (Spent today 0.15 / 2.00).
+    const erp = new MemoryErp();
+    const ledger = new MemorySpendLedger();
     const trace = await runAgent({
       serviceUrl: url,
       item: scenarioItem(id),

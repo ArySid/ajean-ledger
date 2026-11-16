@@ -40,7 +40,7 @@ Legend: ✅ done · 🟡 in progress / partial · ⬜ not started.
 | Criterion | Weight | Status | Evidence |
 |---|---|---|---|
 | Economic relevance & innovation | 30% | ✅ | Real pain (agents mis-booking French invoices, e-invoicing reform 2026/2027, VAT deduction errors): the fixture 03 story deducts only the VAT legally due (ADR-018) and flags it; concept note draft |
-| Fit for AI-agent use | 25% | ✅ | Payment = authentication (x402, no sign-up, no API key); 402 with machine-readable requirements; discovery files + MCP (remote and stdio); idempotency keys, receipts, stable `rule_id`s, error codes; agent spending policy (`max_per_call` 0.20, `daily_budget` 2.00) enforced in code; rate limits published in the catalog and `llms.txt` |
+| Fit for AI-agent use | 25% | ✅ | Payment = authentication (x402, no sign-up, no API key); 402 with machine-readable requirements; discovery files + MCP (remote and stdio); idempotency keys, receipts, stable `rule_id`s, error codes; agent spending policy (`max_per_call` 0.20, `daily_budget` 2.00) enforced in code and shown refusing a 1.00 USDC audit on `/live` (scenario 90); rate limits published in the catalog and `llms.txt` |
 | Quality of the PoC | 20% | ✅ | End-to-end real service: engine (13 fixtures), paid API, discovery, MCP, demo agent, console, public deployment; 209 tests, `tsc` clean; Phase 1 independent review applied (`docs/reviews/PHASE1_REVIEW.md`); fresh-clone run-through green without any `.env` (Phase 6) |
 | Commercial potential | 15% | 🟡 | Per-call pricing 0.05 / 0.15 / 1.00 USDC from one config (`lib/payments/pricing.ts`); `/operator` shows calls served and USDC earned per endpoint; payer = agent operator; pricing illustration in the concept note (Phase 7) |
 | Final presentation | 10% | 🟡 | Demo script + slides outline drafts; demo hardened (warmup, fallbacks, replays); rehearsal from the public URL in Phase 7 |
@@ -60,7 +60,7 @@ Legend: ✅ done · 🟡 in progress / partial · ⬜ not started.
 
 | Item | Status | Evidence |
 |---|---|---|
-| Record 3 replay runs | ✅ (simulated) / 🟡 (testnet) | `demo/replays/01, 03, 04, 06.json` recorded from real agent runs against a SIMULATED server; re-record with real Base Sepolia tx hashes: `npm run record:replays -- --public` after the testnet switch (`docs/HOSTING.md` §7) |
+| Record 3 replay runs | ✅ (simulated) / 🟡 (testnet) | `demo/replays/01, 03, 04, 06, 90.json` recorded from real agent runs against a SIMULATED server (90 = policy refusal, no payment); re-record with real Base Sepolia tx hashes: `npm run record:replays -- --public` after the testnet switch (`docs/HOSTING.md` §7) |
 | Check the fallbacks | ✅ | live → REPLAY, `/operator` empty store → replay stats, store failure → memory: tests in `tests/console.test.ts`, `tests/agent.test.ts`, `tests/api.test.ts`; `docs/CONSOLE.md` |
 | Rate limiting (simple) | ✅ | `lib/api/rate-limit.ts` on the 3 paid endpoints, `/mcp` and `/api/demo/run`; `CF-Connecting-IP`; 429 + `Retry-After`; documented in catalog `limits` and `llms.txt` |
 | README quickstart (3 commands) | ✅ | `README.md` (clone + `npm ci`, `npm test`, `npm run dev`; "Try it as an agent") |

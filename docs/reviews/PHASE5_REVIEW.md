@@ -183,3 +183,29 @@ None.
   - spending-policy step: `11-live-03-policy.png`.
 - **Operator:** `04-operator*.png`.
 - **Office:** `05-office*.png`.
+
+## 5. Resolution (fix workstream, 2026-11-16, after the review)
+
+Not deployed by the fix workstream: the orchestrator deploys and re-records the replays on TESTNET afterwards.
+`npx vitest run`: **8 files, 217 tests passed**. `npx tsc --noEmit`: 0 errors.
+
+| Finding | Status | What changed |
+|---|---|---|
+| **M1** testnet never run publicly | Left to the orchestrator | Operational (set `PAYMENT_MODE=testnet`, redeploy, `pay:testnet`, re-record). `record:replays` now also records 90 and expects `refused_by_policy` for it (`docs/HOSTING.md` step 5). |
+| **M2** TESTNET selected vs SIMULATED server | Already fixed in Phase 6 (ADR-022) | Console reads `/api/health` and disables the other mode. |
+| **M3** policy refusal invisible | **Fixed** | Scenario **90 · Audit request 1.00 USDC > max_per_call 0.20 → REFUSED by policy** in `/live` (`lib/console/scenarios.ts`, `agent/scenarios.ts`). `POST /api/demo/run {"scenario":"90"}` runs the real agent: catalog → health → policy REFUSE → escalation; no POST to `/api/v1/audit`, nothing signed, outcome `refused_by_policy` (runs in any mode, ephemeral wallet allowed since nothing is signed). The result column shows a red **REFUSED BY POLICY — no payment made** panel: price vs limit, spent today unchanged, the HTTP calls actually made, the escalation message. Replay `demo/replays/90.json` recorded by `npm run record:replays` (agent code) against a local SIMULATED server; it is not a stored call, so operator stats ignore it. Tests: route, replay, `policyRefusalSummary`. |
+| **M4** demo script claims testnet replays | **Fixed (conditional wording)** | `DEMO_SCRIPT.md` level 2: the narrator reads the REPLAY line and says "recorded from a real Base Sepolia testnet run …" **only if** it reads *recorded from a testnet run* (`recorded_from: "testnet"`); otherwise "recorded earlier from the same agent, simulated payment, labelled on screen". The current replays are `recorded_from: "simulated"` until the orchestrator re-records them. Optional 15 s segment for scenario 90 added. |
+| **M5** QA_PREP claims reviewed legal references | **Fixed** | Q10 now says the table is curated and hidden from agents until a chartered accountant signs each entry off (pending); `{{TEST_COUNT}}` → 217 (`npx vitest run`), 13 fixtures. `reviewed_by` stays empty: signing off is Ary's decision, not a code fix. |
+| **m1** stale BRIEF_COMPLIANCE | Already fixed in Phase 6 | Rows for replays and the spending policy updated with scenario 90. |
+| **m2** bookkeeper message 13.60 | **Fixed** | `totalExcessVat()` (`agent/narrative.ts`) sums the excess over all `VAT_RATE_MISMATCH` anomalies (fallback: `vat.note`); `agent/core.ts` passes it. Fixture 03 now says "14.60 EUR of VAT too much". |
+| **m3** VAT panel contradicts the ledger | **Fixed** | `vatSummary()` (`lib/console/format.ts`) reads the 4456x / 4452 lines, totals, `vat.breakdown` and anomalies. 03: "Deductible: partly · Invoiced 146.00 + VAT 29.20 at 20% · Deductible VAT booked (44566) 14.60 EUR of 29.20 · Not deducted 14.60 EUR → added to the expense (VAT legally due at 10%)". 01/06: 28.00 of 28.00. 04: none invoiced, 440 self-assessed, due 440 = deductible 440, net 0. Engine unchanged (no `vat.deductible_amount` field added: the ledger already carries it). |
+| **m4** COMPLIANT next to a VAT anomaly | **Fixed (label), engine semantics unchanged** | Chip "Invoice mentions: compliant" + separate amber "VAT anomaly: VAT_RATE_MISMATCH" chip; agent 200 step "(invoice mentions compliant, review required)". `compliance.status` keeps meaning "mandatory mentions" (ADR-023). |
+| **m5** cumulative spend in replays | **Fixed** | `scripts/record-replays.ts` uses a fresh spend ledger and mock ERP per scenario, like a live run. All replays re-recorded: "Spent today 0.15 / 2.00" (policy step 0.00 + 0.15). |
+| **m6** "0.0 s of agent time" | **Fixed** | `agentTimeLabel()` hides the figure under 0.1 s. |
+| **m7** JSON chip overflow on the 402 step | **Fixed** | `requirements_check` renders as `amount ✓ / asset (USDC) ✓ / network ✓ / payTo ✓ / scheme ✓`; `.hl` chips wrap (`overflow-wrap: anywhere`). |
+| **m8** empty "Needing human review" tile | **Fixed** | Store `recent_transactions[].human_review_required` (read from the stored result); `/api/v1/operator/stats` returns `recent[].human_review_required` and `review_window: {calls, review_required}` (exact count over the recent window, never extrapolated: the old normaliser scaled a ratio to all calls). Tile shows "x of the last N calls", and is hidden when the source reports nothing. A store-wide counter was not added (it would need a schema/counter change in five stores for a PoC tile). |
+| **m9** "incl. VAT" on a VAT-free invoice | **Fixed** | Engine explanation "(2200.00 EUR, no VAT invoiced)" when `total_vat = 0`; agent intake "(no VAT invoiced)" / "charged no VAT"; result panel "2,200.00 EUR total payable to the supplier · reverse charge: VAT self-assessed". |
+| **m10** retention wording | **Fixed** | QA_PREP Q6: receipts keep the full result (names, addresses, SIRENs) for 30 days (KV TTL); invoice fingerprints are kept with no expiry today (production: retention period to set). |
+| Note: scroll back to the 402 step | Already in the demo script | — |
+
+Checked visually with headless Chrome against a scratch `next dev` (SIMULATED): replays 90, 03 and 04 render as described.

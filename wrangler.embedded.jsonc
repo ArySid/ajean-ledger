@@ -10,7 +10,7 @@
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "ajean-ledger" }],
   "observability": { "enabled": true },
   "vars": {
-    "PAYMENT_MODE": "simulated",
+    "PAYMENT_MODE": "testnet",
     "X402_NETWORK": "eip155:84532",
     "X402_FACILITATOR_URL": "https://x402.org/facilitator",
     "STORE_KIND": "auto"

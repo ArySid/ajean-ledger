@@ -1,0 +1,487 @@
+{
+  "id": "trace_90_20261116115029_d74342",
+  "scenario": "90",
+  "scenario_label": "90 · Audit request 1.00 USDC > max_per_call 0.20 → REFUSED by policy",
+  "mode": "REPLAY",
+  "recorded_from": "simulated",
+  "recorded_at": "2026-11-16T11:50:29.434Z",
+  "agent": {
+    "name": "Atelier Lumenor purchasing agent",
+    "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+    "policy": {
+      "max_per_call_usdc": "0.20",
+      "daily_budget_usdc": "2.00"
+    }
+  },
+  "service_url": "https://ajean-ledger.ary-sidoun.workers.dev",
+  "steps": [
+    {
+      "t_ms": 0,
+      "kind": "reasoning",
+      "title": "Request from the CFO: batch audit of 3 October purchase invoices",
+      "detail": "I am the purchasing agent of Atelier Lumenor SAS (fictional). cfo@atelier-lumenor.example (fictional) asks: \"Can the agent run a batch audit of October purchases before closing?\". A batch audit (duplicates, VAT inconsistencies, statutory-auditor and tax-inspector viewpoints) is beyond what I can do myself, so I will look for a paid service — within my spending policy.",
+      "data": {
+        "inbox_file": "inbox/90-year-end-audit-request.json",
+        "task": "audit",
+        "from": "cfo@atelier-lumenor.example (fictional)",
+        "subject": "Can the agent run a batch audit of October purchases before closing?",
+        "fixtures": [
+          "fixtures/01.json",
+          "fixtures/03.json",
+          "fixtures/04.json"
+        ]
+      }
+    },
+    {
+      "t_ms": 8,
+      "kind": "discovery",
+      "title": "Discovered Ajean Ledger through its machine-readable catalog",
+      "detail": "Free machine-readable catalog, no sign-up, no API key. I need a batch audit: POST /api/v1/audit does exactly that for 1.00 USDC, paid per call over HTTP 402 (x402) on Base Sepolia.",
+      "http": {
+        "method": "GET",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/catalog",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "service": "Ajean Ledger",
+          "id": "ajean-ledger",
+          "version": "0.1.0",
+          "description": "Send a French invoice or bank transaction, get back a validated machine-readable accounting entry (PCG accounts, VAT treatment, e-invoicing compliance, anomaly flags), paid per call in USDC via x402.",
+          "disclaimer": "Proof of concept on synthetic data, testnet only (Base Sepolia test USDC, no real funds). Not a substitute for a chartered accountant's review.",
+          "audience": "AI agents (machine-to-machine). JSON in, JSON out. No human UI in the product path.",
+          "payment": {
+            "protocol": "x402",
+            "x402Version": 2,
+            "scheme": "exact",
+            "network": "eip155:84532",
+            "network_name": "base-sepolia",
+            "chain_id": 84532,
+            "testnet": true,
+            "asset": {
+              "symbol": "USDC",
+              "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              "decimals": 6,
+              "eip712": {
+                "name": "USDC",
+                "version": "2"
+              }
+            },
+            "payTo": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "facilitator": "local simulated facilitator (no on-chain transaction)",
+            "mode": "simulated",
+            "mode_label": "SIMULATED",
+            "max_timeout_seconds": 300,
+            "explorer_tx_base_url": "https://sepolia.basescan.org/tx/",
+            "authentication": "none — payment is the authentication (no sign-up, no API key)",
+            "charged_only_on_success": true,
+            "headers": {
+              "payment_required": "PAYMENT-REQUIRED",
+              "payment_signature": "PAYMENT-SIGNATURE",
+              "payment_response": "PAYMENT-RESPONSE"
+            },
+            "how_to_pay": [
+              "1. Call the paid endpoint with your JSON body and no payment: you get HTTP 402 with a PAYMENT-REQUIRED header (base64 JSON PaymentRequired: x402Version 2, resource, accepts[0] = {scheme: exact, network, amount (atomic USDC), asset, payTo, maxTimeoutSeconds, extra {name, version}}).",
+              "2. Sign an EIP-3009 transferWithAuthorization for accepts[0] (amount to payTo, USDC EIP-712 domain from extra) with your wallet, e.g. @x402/fetch + ExactEvmScheme.",
+              "3. Retry the exact same request with the PAYMENT-SIGNATURE header (base64 JSON PaymentPayload). Optionally add an Idempotency-Key header.",
+              "4. Read the 200 JSON result (request_id + receipt + result) and the PAYMENT-RESPONSE header (base64 JSON SettleResponse with the transaction hash). Failed calls (status >= 400) are never settled."
+            ],
+            "sdk": {
+              "client": [
+                "@x402/fetch",
+                "@x402/evm (ExactEvmScheme)",
+                "@x402/mcp (createx402MCPClient)"
+              ],
+              "version": "2.31.0"
+            },
+            "test_funds": "Base Sepolia test USDC from https://faucet.circle.com (gas is paid by the facilitator)."
+          },
+          "endpoints": {
+            "paid": [
+              {
+                "id": "invoice_check",
+                "method": "POST",
+                "path": "/api/v1/invoice/check",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/invoice/check",
+                "title": "E-invoice compliance check",
+                "description": "French e-invoice compliance check: mandatory mentions (incl. 2026 reform: buyer SIREN, operation nature, delivery address, VAT-on-debits option), format and VAT consistency.",
+                "price_usdc": "0.05",
+                "price_atomic": "50000",
+                "currency": "USDC",
+                "input_summary": "{ input: EngineInput (format \"json\" | \"facturx\" | \"ubl\" | \"pdf\" | \"image\"), profile?: ClientProfile, history?: InvoiceFingerprint[] }",
+                "output_summary": "CheckResult: invoice summary, compliance {status, checks[rule_id, passed, severity, fix_hint]}, vat_consistency, anomalies, explanation, engine meta + request_id + receipt",
+                "input_formats": [
+                  "json",
+                  "facturx",
+                  "ubl",
+                  "pdf",
+                  "image"
+                ],
+                "request_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/CheckInvoiceRequest",
+                "response_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/CheckResponse",
+                "mcp_tool": "check_invoice",
+                "example_request": {
+                  "input": {
+                    "format": "json",
+                    "invoice": {
+                      "document_type": "invoice",
+                      "number": "BE-2026-0412",
+                      "issue_date": "2026-10-05",
+                      "due_date": "2026-11-04",
+                      "currency": "EUR",
+                      "supplier": {
+                        "name": "Buro Velours SARL (fictional)",
+                        "company_size": "mid",
+                        "siren": "000001016",
+                        "vat_id": "FR53000001016",
+                        "country": "FR",
+                        "address": "48 boulevard Voltaire, 75011 Paris"
+                      },
+                      "customer": {
+                        "name": "Atelier Lumenor SAS (fictional)",
+                        "siren": "000001008",
+                        "vat_id": "FR29000001008",
+                        "country": "FR",
+                        "address": "12 rue des Ateliers, 69002 Lyon"
+                      },
+                      "operation_nature": "goods",
+                      "lines": [
+                        {
+                          "description": "Ramettes papier A4 80 g (carton de 5)",
+                          "quantity": 4,
+                          "unit_price_excl_vat": 22.5,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 90,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Stylos bille bleus (boîte de 50)",
+                          "quantity": 1,
+                          "unit_price_excl_vat": 18.4,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 18.4,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Classeurs à levier dos 80 mm",
+                          "quantity": 10,
+                          "unit_price_excl_vat": 3.16,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 31.6,
+                          "kind": "goods"
+                        }
+                      ],
+                      "totals": {
+                        "total_excl_vat": 140,
+                        "total_vat": 28,
+                        "total_incl_vat": 168
+                      },
+                      "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+                      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+                      "fixed_recovery_indemnity_mention": true,
+                      "legal_mentions": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "entry",
+                "method": "POST",
+                "path": "/api/v1/entry",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
+                "title": "Journal entry proposal",
+                "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
+                "price_usdc": "0.15",
+                "price_atomic": "150000",
+                "currency": "USDC",
+                "input_summary": "{ input: EngineInput (format \"json\" | \"facturx\" | \"ubl\" | \"bank_transaction\" | \"pdf\" | \"image\"), profile?: ClientProfile, history?: InvoiceFingerprint[], use_server_history?: boolean }",
+                "output_summary": "EntryResult: invoice, compliance, entry {journal, lines[account, label, debit, credit], balanced}, vat, anomalies, confidence, human_review_required, explanation, engine meta + request_id + receipt",
+                "input_formats": [
+                  "json",
+                  "facturx",
+                  "ubl",
+                  "bank_transaction",
+                  "pdf",
+                  "image"
+                ],
+                "request_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/CreateEntryRequest",
+                "response_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/EntryResponse",
+                "mcp_tool": "create_entry",
+                "example_request": {
+                  "input": {
+                    "format": "json",
+                    "invoice": {
+                      "document_type": "invoice",
+                      "number": "BE-2026-0412",
+                      "issue_date": "2026-10-05",
+                      "due_date": "2026-11-04",
+                      "currency": "EUR",
+                      "supplier": {
+                        "name": "Buro Velours SARL (fictional)",
+                        "company_size": "mid",
+                        "siren": "000001016",
+                        "vat_id": "FR53000001016",
+                        "country": "FR",
+                        "address": "48 boulevard Voltaire, 75011 Paris"
+                      },
+                      "customer": {
+                        "name": "Atelier Lumenor SAS (fictional)",
+                        "siren": "000001008",
+                        "vat_id": "FR29000001008",
+                        "country": "FR",
+                        "address": "12 rue des Ateliers, 69002 Lyon"
+                      },
+                      "operation_nature": "goods",
+                      "lines": [
+                        {
+                          "description": "Ramettes papier A4 80 g (carton de 5)",
+                          "quantity": 4,
+                          "unit_price_excl_vat": 22.5,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 90,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Stylos bille bleus (boîte de 50)",
+                          "quantity": 1,
+                          "unit_price_excl_vat": 18.4,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 18.4,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Classeurs à levier dos 80 mm",
+                          "quantity": 10,
+                          "unit_price_excl_vat": 3.16,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 31.6,
+                          "kind": "goods"
+                        }
+                      ],
+                      "totals": {
+                        "total_excl_vat": 140,
+                        "total_vat": 28,
+                        "total_incl_vat": 168
+                      },
+                      "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+                      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+                      "fixed_recovery_indemnity_mention": true,
+                      "legal_mentions": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "audit",
+                "method": "POST",
+                "path": "/api/v1/audit",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/audit",
+                "title": "Batch audit",
+                "description": "Batch audit of up to 50 entries or invoices (mini FEC extract): duplicates, VAT inconsistencies, suspicious accounts, with statutory-auditor and tax-inspector viewpoints.",
+                "price_usdc": "1.00",
+                "price_atomic": "1000000",
+                "currency": "USDC",
+                "input_summary": "{ items: AuditEntryInput[] (1..50), profile?: ClientProfile }",
+                "output_summary": "AuditResult: entries_audited, totals, anomalies[entry_ref], viewpoints {statutory_auditor, tax_inspector}, human_review_required, explanation + request_id + receipt",
+                "input_formats": [],
+                "max_items": 50,
+                "request_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/AuditRequest",
+                "response_schema": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json#/components/schemas/AuditResponse",
+                "mcp_tool": "audit_entries",
+                "example_request": {
+                  "items": [
+                    {
+                      "invoice": {
+                        "document_type": "invoice",
+                        "number": "BE-2026-0412",
+                        "issue_date": "2026-10-05",
+                        "due_date": "2026-11-04",
+                        "currency": "EUR",
+                        "supplier": {
+                          "name": "Buro Velours SARL (fictional)",
+                          "company_size": "mid",
+                          "siren": "000001016",
+                          "vat_id": "FR53000001016",
+                          "country": "FR",
+                          "address": "48 boulevard Voltaire, 75011 Paris"
+                        },
+                        "customer": {
+                          "name": "Atelier Lumenor SAS (fictional)",
+                          "siren": "000001008",
+                          "vat_id": "FR29000001008",
+                          "country": "FR",
+                          "address": "12 rue des Ateliers, 69002 Lyon"
+                        },
+                        "operation_nature": "goods",
+                        "lines": [
+                          "[…]",
+                          "[…]",
+                          "[…]"
+                        ],
+                        "totals": {
+                          "total_excl_vat": 140,
+                          "total_vat": 28,
+                          "total_incl_vat": 168
+                        },
+                        "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+                        "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+                        "fixed_recovery_indemnity_mention": true,
+                        "legal_mentions": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "free": [
+              {
+                "id": "catalog",
+                "method": "GET",
+                "path": "/api/v1/catalog",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/catalog",
+                "price_usdc": "0",
+                "description": "Machine-readable service and pricing manifest."
+              },
+              {
+                "id": "openapi",
+                "method": "GET",
+                "path": "/openapi.json",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json",
+                "price_usdc": "0",
+                "description": "OpenAPI 3.1 specification."
+              },
+              {
+                "id": "llms_txt",
+                "method": "GET",
+                "path": "/llms.txt",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/llms.txt",
+                "price_usdc": "0",
+                "description": "Agent discovery file (what the service does, how to pay, examples)."
+              },
+              {
+                "id": "agent_json",
+                "method": "GET",
+                "path": "/.well-known/agent.json",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/.well-known/agent.json",
+                "price_usdc": "0",
+                "description": "Agent card for discovery."
+              },
+              {
+                "id": "receipts",
+                "method": "GET",
+                "path": "/api/v1/receipts/{id}",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/receipts/{id}",
+                "price_usdc": "0",
+                "description": "Payment receipt + result retrieval by request_id (idempotency)."
+              },
+              {
+                "id": "health",
+                "method": "GET",
+                "path": "/api/health",
+                "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/health",
+                "price_usdc": "0",
+                "description": "Service status: payment mode, network, payTo, store kind. No secrets."
+              }
+            ]
+          },
+          "discovery": {
+            "catalog": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/catalog",
+            "openapi": "https://ajean-ledger.ary-sidoun.workers.dev/openapi.json",
+            "llms_txt": "https://ajean-ledger.ary-sidoun.workers.dev/llms.txt",
+            "agent_card": "https://ajean-ledger.ary-sidoun.workers.dev/.well-known/agent.json",
+            "mcp": "https://ajean-ledger.ary-sidoun.workers.dev/mcp",
+            "health": "https://ajean-ledger.ary-sidoun.workers.dev/api/health"
+          },
+          "_trace_note": "trimmed for display (provider, base_url, idempotency, mcp, errors, examples, limits, generated_at); full catalog at GET /api/v1/catalog"
+        }
+      },
+      "data": {
+        "endpoint": "/api/v1/audit",
+        "price_usdc": "1.00",
+        "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC"
+      }
+    },
+    {
+      "t_ms": 19,
+      "kind": "discovery",
+      "title": "Service status: SIMULATED payments",
+      "detail": "The server decides the payment mode. Same x402 flow and real signatures, but the facilitator is simulated: no on-chain transfer. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
+      "http": {
+        "method": "GET",
+        "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/health",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "status": "ok",
+          "service": "ajean-ledger",
+          "version": "0.1.0",
+          "payment": {
+            "protocol": "x402 v2",
+            "mode": "simulated",
+            "label": "SIMULATED",
+            "scheme": "exact",
+            "network": "base-sepolia",
+            "network_caip2": "eip155:84532",
+            "asset": {
+              "symbol": "USDC",
+              "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              "decimals": 6
+            },
+            "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "facilitator": "local simulated facilitator (no on-chain tx)"
+          },
+          "prices": {
+            "/api/v1/invoice/check": "0.05",
+            "/api/v1/entry": "0.15",
+            "/api/v1/audit": "1.00"
+          },
+          "store": {
+            "kind": "memory",
+            "configured": "memory",
+            "degraded": false
+          },
+          "engine_ready": true,
+          "llm_configured": false,
+          "time": "2026-11-16T11:50:29.451Z"
+        }
+      },
+      "data": {
+        "server_mode": "simulated",
+        "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC"
+      }
+    },
+    {
+      "t_ms": 19,
+      "kind": "policy",
+      "title": "Spending policy check: REFUSE",
+      "detail": "Price 1.00 USDC > max per call 0.20 USDC set by my operator → refused.",
+      "data": {
+        "decision": "refuse",
+        "code": "PRICE_ABOVE_MAX_PER_CALL",
+        "endpoint": "/api/v1/audit",
+        "price_usdc": "1.00",
+        "max_per_call_usdc": "0.20",
+        "spent_today_usdc": "0.00",
+        "daily_budget_usdc": "2.00",
+        "ledger": "memory"
+      }
+    },
+    {
+      "t_ms": 19,
+      "kind": "review",
+      "title": "Not paying: escalated to my operator",
+      "detail": "/api/v1/audit costs 1.00 USDC, above the 0.20 USDC per-call limit my operator gave me. A human must either approve this one-off spend or raise my limit. Nothing was signed, nothing was paid.",
+      "data": {
+        "review_reasons": [
+          "PRICE_ABOVE_MAX_PER_CALL"
+        ],
+        "channel": "operator approval queue"
+      }
+    }
+  ],
+  "duration_ms": 19,
+  "outcome": "refused_by_policy"
+}

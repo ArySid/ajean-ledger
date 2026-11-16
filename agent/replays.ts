@@ -6,14 +6,16 @@ import r01 from "../demo/replays/01.json";
 import r03 from "../demo/replays/03.json";
 import r04 from "../demo/replays/04.json";
 import r06 from "../demo/replays/06.json";
+import r90 from "../demo/replays/90.json";
 import type { AgentTrace } from "../lib/trace/types";
-import type { DemoScenarioId } from "./scenarios";
+import { DEMO_SCENARIO_IDS, type DemoScenarioId } from "./scenarios";
 
 const REPLAYS: Record<DemoScenarioId, AgentTrace> = {
   "01": r01 as unknown as AgentTrace,
   "03": r03 as unknown as AgentTrace,
   "04": r04 as unknown as AgentTrace,
   "06": r06 as unknown as AgentTrace,
+  "90": r90 as unknown as AgentTrace,
 };
 
 /** Deep copy with mode forced to REPLAY. */
@@ -23,5 +25,6 @@ export function getReplay(id: DemoScenarioId): AgentTrace {
 }
 
 export function allReplays(): AgentTrace[] {
-  return (Object.keys(REPLAYS) as DemoScenarioId[]).map(getReplay);
+  // Explicit order: Object.keys would put the integer-like key "90" before "01".
+  return DEMO_SCENARIO_IDS.map(getReplay);
 }

@@ -66,6 +66,13 @@ Env `AGENT_MAX_PER_CALL_USDC` (default `0.20`), `AGENT_DAILY_BUDGET_USDC` (defau
 CLI overrides `--max-per-call`, `--daily-budget`. Deterministic code (`agent/policy.ts`, atomic-unit
 arithmetic), never decided by the LLM. Demo of a refusal: `inbox/90-year-end-audit-request.json`
 (`/api/v1/audit` = 1.00 USDC > 0.20) → `refused_by_policy`; run with `--max-per-call 1.00` to let it pay.
+It is also console scenario **90** on `/live` (`POST /api/demo/run {"scenario": "90"}`, replay `demo/replays/90.json`):
+the jury sees the refusal, with no POST to the paid endpoint and nothing signed. It runs in any payment mode (an
+ephemeral wallet is enough, since nothing is signed).
+
+The bookkeeper message for `VAT_RATE_MISMATCH` quotes the **total** excess VAT over all mismatching lines
+(`totalExcessVat()` in `agent/narrative.ts`, falling back to `vat.note`): 14.60 EUR on fixture 03, the amount of the
+entry, not the first line's 13.60.
 
 ## LLM reasoning (optional)
 
@@ -97,8 +104,10 @@ PAYMENT_MODE=simulated npx next start -p 3500        # or npm run dev
 AJEAN_LEDGER_URL=http://localhost:3500 npm run record:replays   # --dry-run to check without writing
 ```
 
-Runs 01, 03, 04, 06 in order with one shared ERP and spend ledger (a working day), checks the expected
-outcomes (`posted`, `posted_with_review`, `posted`, `posted_with_review`) and only then overwrites
+Runs 01, 03, 04, 06, 90 in order, each from a **fresh** mock ERP and spend ledger exactly like a live
+`/api/demo/run` (so every entry replay shows "Spent today 0.15 / 2.00"; 06 still finds its duplicate through the
+history carried by fixture 06), checks the expected outcomes (`posted`, `posted_with_review`, `posted`,
+`posted_with_review`, `refused_by_policy`) and only then overwrites
 `demo/replays/NN.json` (`mode: "REPLAY"`, `recorded_from` = server mode, `recorded_at`; no `sample`).
 Once the agent wallet holds test USDC, re-record against a `PAYMENT_MODE=testnet` server to get
 replays with real Base Sepolia tx hashes.

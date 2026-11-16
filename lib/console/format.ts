@@ -208,3 +208,135 @@ export function utcTime(iso: string | undefined): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toISOString().slice(11, 19);
 }
+
+/** "0.9 s of agent time", or null when the figure is meaningless (< 0.1 s, e.g. a replay recorded on localhost). */
+export function agentTimeLabel(ms: unknown): string | null {
+  if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 100) return null;
+  return `${(ms / 1000).toFixed(1)} s of agent time`;
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** "175.20 EUR incl. VAT", or for an invoice that carries no VAT the wording that does not imply one (review m9). */
+export function invoiceTotalLabel(res: EntryResponse): string {
+  const total = res.invoice?.totals?.total_incl_vat;
+  const vat = res.invoice?.totals?.total_vat;
+  if (vat === 0) {
+    const reverse = String(res.vat?.regime ?? "").startsWith("reverse_charge");
+    return reverse ? `${money(total)} EUR total payable to the supplier · reverse charge: VAT self-assessed` : `${money(total)} EUR, no VAT invoiced`;
+  }
+  return `${money(total)} EUR incl. VAT`;
+}
+
+export interface VatRow {
+  label: string;
+  value: string;
+  note?: string;
+  tone?: "ok" | "warn";
+}
+
+export interface VatSummary {
+  /** Is the VAT invoiced recoverable? "partly" when only the VAT legally due was deducted. */
+  deductible: "yes" | "partly" | "no";
+  invoiced_vat: number;
+  /** Deductible VAT actually booked (sum of the 4456x lines of the entry). */
+  deductible_booked: number;
+  /** VAT due booked on 4452 (reverse charge self-assessment). */
+  self_assessed_due: number;
+  rows: VatRow[];
+}
+
+/**
+ * VAT panel figures read from what was actually BOOKED (entry lines on 4456x / 4452), the invoice totals,
+ * `vat.breakdown` and the VAT anomalies — so the panel can never contradict the ledger (Phase 5 review m3:
+ * fixture 03 showed "Deductible: yes · 29.20 at 20%" next to a 44566 line of 14.60).
+ */
+export function vatSummary(res: EntryResponse): VatSummary | null {
+  if (!res.vat) return null;
+  const lines = res.entry?.lines ?? [];
+  const net = (prefix: string) => round2(lines.filter((l) => String(l.account).startsWith(prefix)).reduce((s, l) => s + (Number(l.debit) || 0) - (Number(l.credit) || 0), 0));
+  const dedNet = net("4456");
+  const deductible = Math.abs(dedNet);
+  const due = Math.abs(net("4452"));
+  const dedAccounts = [...new Set(lines.filter((l) => String(l.account).startsWith("4456")).map((l) => l.account))].join(" + ");
+  const breakdown = res.vat.breakdown ?? [];
+  const selfAssessed = String(res.vat.regime).startsWith("reverse_charge") || due > 0;
+  const invoiced = Math.abs(res.invoice?.totals?.total_vat ?? (selfAssessed ? 0 : breakdown.reduce((s, b) => s + (Number(b.vat) || 0), 0)));
+  const reversed = dedNet < 0 ? " (reversed: credit note)" : "";
+  const rows: VatRow[] = [];
+
+  if (selfAssessed) {
+    rows.push({ label: "VAT invoiced", value: invoiced > 0 ? `${money(invoiced)} EUR` : "none (reverse charge)" });
+    for (const b of breakdown) rows.push({ label: "Self-assessed", value: `${money(b.vat)} EUR at ${pct(b.rate)} on ${money(b.base)}` });
+    rows.push({ label: "Due (4452)", value: `${money(due)} EUR` });
+    rows.push({ label: `Deductible (${dedAccounts || "44566"})`, value: `${money(deductible)} EUR`, tone: deductible > 0 ? "ok" : undefined });
+    rows.push({ label: "Net VAT cost", value: `${money(round2(due - deductible))} EUR`, note: due === deductible ? "due and deductible cancel out" : undefined });
+    return { deductible: deductible > 0 ? "yes" : "no", invoiced_vat: invoiced, deductible_booked: deductible, self_assessed_due: due, rows };
+  }
+
+  for (const b of breakdown) rows.push({ label: "Invoiced", value: `${money(b.base)} + VAT ${money(b.vat)} at ${pct(b.rate)}` });
+  const notDeducted = round2(invoiced - deductible);
+  const status: VatSummary["deductible"] = deductible < 0.005 ? "no" : notDeducted > 0.005 ? "partly" : "yes";
+  rows.push({
+    label: `Deductible VAT booked${dedAccounts ? ` (${dedAccounts})` : ""}`,
+    value: `${money(deductible)} EUR${reversed}`,
+    note: status === "partly" ? `of ${money(invoiced)} EUR invoiced` : status === "yes" ? "all the VAT invoiced" : undefined,
+    tone: status === "yes" ? "ok" : status === "partly" ? "warn" : undefined,
+  });
+  if (notDeducted > 0.005) {
+    const expected = [
+      ...new Set(
+        (res.anomalies ?? [])
+          .filter((a) => a.code === "VAT_RATE_MISMATCH")
+          .map((a) => /expected rate[^.]*? is (\d+(?:[.,]\d+)?%)/i.exec(a.detail ?? "")?.[1])
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    rows.push({
+      label: "Not deducted",
+      value: `${money(notDeducted)} EUR → added to the expense`,
+      note: expected.length ? `VAT legally due at ${expected.join(" / ")}: the excess is not deductible` : "non-deductible VAT",
+      tone: "warn",
+    });
+  }
+  return { deductible: status, invoiced_vat: invoiced, deductible_booked: deductible, self_assessed_due: 0, rows };
+}
+
+export interface PolicyRefusal {
+  endpoint: string;
+  price_usdc: string;
+  max_per_call_usdc: string;
+  spent_today_usdc: string;
+  daily_budget_usdc: string;
+  code: string;
+  reason: string;
+  escalation: string;
+  /** Every HTTP call the agent made, e.g. "GET /api/v1/catalog". */
+  http_calls: string[];
+  /** POST calls to a paid endpoint: must be empty for a policy refusal. */
+  paid_posts: string[];
+  signed: boolean;
+}
+
+/** What a "refused_by_policy" trace shows in the result column (Phase 5 review M3). Null for other outcomes. */
+export function policyRefusalSummary(steps: TraceStep[], outcome: string | undefined): PolicyRefusal | null {
+  if (outcome !== "refused_by_policy") return null;
+  const pol = [...steps].reverse().find((s) => s.kind === "policy" && s.data?.decision === "refuse");
+  const d = (pol?.data ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, dflt = "?") => (typeof v === "string" && v ? v : dflt);
+  const review = steps.find((s) => s.kind === "review");
+  const calls = steps.filter((s) => s.http && s.kind !== "http_response").map((s) => `${s.http!.method} ${new URL(s.http!.url, "http://x").pathname}`);
+  return {
+    endpoint: str(d.endpoint),
+    price_usdc: str(d.price_usdc),
+    max_per_call_usdc: str(d.max_per_call_usdc),
+    spent_today_usdc: str(d.spent_today_usdc, "0.00"),
+    daily_budget_usdc: str(d.daily_budget_usdc),
+    code: str(d.code, "REFUSED"),
+    reason: pol?.detail ?? "",
+    escalation: review?.detail ?? "",
+    http_calls: calls,
+    paid_posts: calls.filter((c) => c.startsWith("POST ")),
+    signed: steps.some((s) => s.kind === "payment"),
+  };
+}

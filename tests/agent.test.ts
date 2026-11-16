@@ -18,6 +18,7 @@ import { AGENT_COMPANY_PROFILE, parseCatalog, runAgent } from "@/agent/core";
 import { MemoryErp } from "@/agent/erp";
 import { buildInboxItem, fsFixture, loadInbox } from "@/agent/inbox";
 import { MemorySpendLedger, evaluatePolicy, policyFromEnv } from "@/agent/policy";
+import { reviewMessage, totalExcessVat } from "@/agent/narrative";
 import { scenarioItem } from "@/agent/scenarios";
 import type { InboxItem, RunAgentOptions } from "@/agent/types";
 import { GET as healthGET } from "@/app/api/health/route";
@@ -168,6 +169,22 @@ describe("catalog parsing (tolerant to the catalog shape)", () => {
   });
 });
 
+describe("bookkeeper message (review m2)", () => {
+  it("sums the excess VAT over all VAT_RATE_MISMATCH anomalies, falls back to vat.note", () => {
+    const an = [
+      { code: "VAT_RATE_MISMATCH", detail: "Line 1 is invoiced at 20%; the expected rate for this expense (x) is 10%. Excess VAT: 13.60 EUR." },
+      { code: "VAT_RATE_MISMATCH", detail: "Line 2 is invoiced at 20%; the expected rate for this expense (x) is 10%. Excess VAT: 1.00 EUR." },
+      { code: "DUPLICATE_SUSPECTED", detail: "Excess VAT: 99.00 EUR (ignored)" },
+    ];
+    expect(totalExcessVat(an)).toBe(14.6);
+    expect(totalExcessVat([], "14.60 EUR of excess VAT (invoiced at 20% instead of 10%) is not deductible")).toBe(14.6);
+    expect(totalExcessVat([])).toBeUndefined();
+    const msg = reviewMessage("VAT_RATE_MISMATCH", { supplier: "Le Bouchon (fictional)", number: "N1", detail: an[0].detail, excessVat: 14.6 });
+    expect(msg).toContain("applies 20% VAT where 10% is expected");
+    expect(msg).toContain("(14.60 EUR of VAT too much)");
+  });
+});
+
 describe("inbox", () => {
   it("loads the inbox sorted, resolving fixtures (source of truth)", () => {
     const items = loadInbox();
@@ -179,6 +196,7 @@ describe("inbox", () => {
   });
   it("bundled scenarios match the inbox files", () => {
     expect(scenarioItem("03")).toEqual(loadInbox().find((i) => i.id === "03"));
+    expect(scenarioItem("90")).toEqual(loadInbox().find((i) => i.id === "90"));
   });
 });
 
@@ -230,6 +248,9 @@ describe("runAgent (scripted) against the real routes, simulated payments", () =
 
     expect(trace.steps[11].data?.review_reasons).toEqual(["VAT_RATE_MISMATCH"]);
     expect(trace.steps[11].detail).toContain("20%");
+    // Total excess over both lines (13.60 + 1.00), the amount of the entry and vat.note (review m2).
+    expect(trace.steps[11].detail).toContain("14.60 EUR of VAT too much");
+    expect(trace.steps[8].title).toBe("200 OK: entry received (invoice mentions compliant, review required)");
 
     const result = trace.result as { entry: { lines: { account: string }[] }; receipt: { tx_hash: string } };
     expect(result.entry.lines.map((l) => l.account)).toEqual(["6257", "44566", "401BOUCHON"]);
@@ -400,6 +421,26 @@ describe("demo routes", () => {
     }
   });
 
+  it("POST /api/demo/run scenario 90: refused by policy, no POST to /api/v1/audit, nothing paid (review M3)", async () => {
+    const f = makeFetch();
+    vi.stubGlobal("fetch", f);
+    try {
+      const res = await post({ scenario: "90" });
+      expect(res.status).toBe(200);
+      const t = await res.json();
+      expect(t).toMatchObject({ scenario: "90", mode: "SIMULATED", outcome: "refused_by_policy" });
+      expect(t.fallback_hint).toBeUndefined();
+      expect(t.scenario_label).toContain("REFUSED by policy");
+      expect(t.steps.map((s: { kind: string }) => s.kind)).toEqual(["reasoning", "discovery", "discovery", "policy", "review"]);
+      expect(t.steps[3].data).toMatchObject({ decision: "refuse", code: "PRICE_ABOVE_MAX_PER_CALL", price_usdc: "1.00", max_per_call_usdc: "0.20" });
+      expect(f.calls.some((c) => c.startsWith("POST"))).toBe(false);
+      expect(t.result).toBeUndefined();
+      expect((await (await statsGET()).json()).source).toBe("replay"); // nothing was paid → no receipt stored
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("POST /api/demo/run returns 200 + outcome error + fallback_hint when the service is down", async () => {
     vi.stubGlobal("fetch", (async () => {
       throw new Error("ECONNREFUSED");
@@ -418,14 +459,29 @@ describe("demo routes", () => {
     expect(one).toMatchObject({ scenario: "03", mode: "REPLAY" });
     expect(one.steps.length).toBeGreaterThan(3);
     const list = await (await replaysGET(new NextRequest(`${BASE}/api/demo/replays`))).json();
-    expect(list.replays.map((r: { scenario: string }) => r.scenario)).toEqual(["01", "03", "04", "06"]);
+    expect(list.replays.map((r: { scenario: string }) => r.scenario)).toEqual(["01", "03", "04", "06", "90"]);
+    expect(list.replays.find((r: { scenario: string }) => r.scenario === "90")).toMatchObject({ outcome: "refused_by_policy" });
     expect((await replaysGET(new NextRequest(`${BASE}/api/demo/replays?scenario=02`))).status).toBe(404);
   });
 
   it("GET /api/v1/operator/stats falls back to the replays when no call was served", async () => {
     const stats = await (await statsGET()).json();
     expect(stats.source).toBe("replay");
-    expect(stats.calls).toBeGreaterThan(0);
+    expect(stats.calls).toBe(4); // replay 90 paid nothing: not a call served
     expect(stats.by_endpoint).toHaveLength(3);
+    expect(stats.review_window).toEqual({ calls: 4, review_required: 2 });
+  });
+
+  it("GET /api/v1/operator/stats reports the review flag of stored calls (review m8)", async () => {
+    vi.stubGlobal("fetch", makeFetch());
+    try {
+      await post({ scenario: "03" });
+      await post({ scenario: "01" });
+      const stats = await (await statsGET()).json();
+      expect(stats).toMatchObject({ calls: 2, source: "memory", review_window: { calls: 2, review_required: 1 } });
+      expect(stats.recent.map((r: { human_review_required: boolean }) => r.human_review_required).sort()).toEqual([false, true]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

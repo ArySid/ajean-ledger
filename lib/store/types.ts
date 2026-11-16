@@ -29,6 +29,8 @@ export interface TxSummary {
   mode: Receipt["mode"];
   explorer_url: string | null;
   paid_at: string;
+  /** The result asked for a human review (entry / audit results); false when the result carries no such flag. */
+  human_review_required: boolean;
 }
 
 export interface EndpointRevenue {
