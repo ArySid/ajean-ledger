@@ -98,3 +98,39 @@ Times are UTC.
 
 **Files touched:** `docs/prompts/PROMPT_LOG.md`, `docs/DECISIONS.md`, then the whole code base across Phases 1–7.
 **Phase:** 0 → 7
+
+---
+
+## #03 — 2026-11-16 10:40 — GitHub repo created (mid-turn notes)
+**Prompt (verbatim, two short mid-turn messages):**
+> GitHub esr connecté
+
+> C'est créé https://github.com/ArySid/ajean-ledger.git
+
+**What was done:**
+- Attached `ArySid/ajean-ledger` to the session with push access, added it as `origin` and pushed the full local history; pushes after every step since.
+**Files touched:** none (git remote only)
+**Phase:** 0 → 1
+
+---
+
+## #04 — 2026-11-16 10:45 — Hosting change: no Vercel, Cloudflare Workers (OpenNext) then Netlify
+**Prompt (verbatim, original in French):**
+> Changement d'hébergement (décision finale, à logger en ADR) :
+>
+> - Mon compte Vercel est en PAUSE jusqu'au 12/12/2026 (dépassement Fast Origin Transfer). N'utilise PAS Vercel : aucun déploiement, pas d'import du repo, pas d'intégration Vercel Marketplace. Ne touche à aucun projet Vercel existant.
+> - Héberge ajean-ledger sur une offre GRATUITE ailleurs. Teste dans cet ordre et garde le premier qui fait tourner la démo complète sans erreur depuis une URL publique :
+>   1) Cloudflare Workers via l'adaptateur OpenNext. Contraintes de l'offre gratuite : 100 000 requêtes/jour et 10 ms de CPU par requête. Si le parsing PDF ou un autre traitement dépasse, déplace-le côté client ou utilise des résultats pré-calculés pour la démo, clairement labellisés.
+>   2) Netlify (offre gratuite).
+> - Stockage : l'option gratuite native de l'hébergeur retenu (ex. Cloudflare D1 ou KV), sinon Neon gratuit en direct. Pas de Supabase. Le stockage reste optionnel (fallback mémoire + replay).
+> - Argument à intégrer au pitch et à QA_PREP.md si Cloudflare est retenu : x402 a été co-créé par Coinbase et Cloudflare.
+> - Mets à jour le script warmup (check jour J) pour l'hébergeur retenu.
+> - Logge le choix final, les limites gratuites et leur impact dans DECISIONS.md, BRIEF_COMPLIANCE.md et QA_PREP.md.
+> - Si une création de compte est nécessaire (Cloudflare, Netlify ou Neon), mets-la dans "Action requise" avec le lien et la marche à suivre en 1 ligne, et continue tout le reste en attendant.
+
+**What was done:**
+- ADR-017: Vercel abandoned (account paused until 2026-12-12); hosting = Cloudflare Workers via OpenNext first, Netlify second; storage = Cloudflare KV/D1 (or Neon direct), optional.
+- Feasibility build with `@opennextjs/cloudflare` run locally (no account needed) to measure bundle size and CPU per request against the free-plan limits.
+- Account creation + API token requested in "Action requise".
+**Files touched:** `docs/prompts/PROMPT_LOG.md`, `docs/DECISIONS.md`, hosting config files (see CHANGELOG)
+**Phase:** 5 (hosting)

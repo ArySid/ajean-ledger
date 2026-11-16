@@ -109,3 +109,11 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 ## ADR-016 — Autonomous orchestrator mode
 - **Status:** accepted (prompt #02)
 - **Decision:** No more stops between phases. Independent workstreams are delegated to subagents with explicit file ownership (engine / payments-API / deliverables first; then discovery+MCP, demo agent, console). Independent reviewer subagents (that did not write the code) after Phases 1, 5 and 7 check accounting correctness of the 12 fixtures, brief compliance and an error-free demo from the public URL. User reports in French, ≤ 15 lines; technical detail stays in `docs/`.
+
+## ADR-017 — Hosting: Cloudflare Workers (OpenNext), Netlify as fallback — Vercel abandoned
+- **Status:** accepted (prompt #04) — supersedes the Vercel part of ADR-003 and ADR-011
+- **Context:** The user's Vercel account is paused until 2026-12-12 (Fast Origin Transfer overage). No Vercel deployment, repo import or Marketplace integration may be used, and no existing Vercel project may be touched.
+- **Decision:** Host on a free plan, tested in order, keeping the first one that runs the full demo without errors from a public URL: (1) **Cloudflare Workers** via `@opennextjs/cloudflare` (free plan: 100,000 requests/day, 10 ms CPU per request, worker size limit); (2) **Netlify** free plan. Storage: the host's native free option (Cloudflare KV/D1), else Neon free directly; never Supabase; storage remains optional (memory + replay fallback).
+- **Mitigations for the free limits:** heavy steps that could exceed 10 ms CPU (Factur-X PDF parsing, large audits) are measured; if needed they move client-side or the demo uses precomputed results, clearly labelled. Details and measurements: `docs/HOSTING.md`.
+- **Pitch argument (if Cloudflare is kept):** x402 was co-created by Coinbase and Cloudflare, so hosting the agent-payment service on Cloudflare is coherent with the protocol's ecosystem.
+- **Rejected:** Vercel (paused, forbidden by the user); paid plans of any host.
