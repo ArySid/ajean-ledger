@@ -104,6 +104,8 @@ chunks (viem, zod, pdf-lib, MCP SDK, engine) — no further split needed.
    node -e 'process.loadEnvFile(".env.local");process.stdout.write(process.env.AGENT_PRIVATE_KEY)'      | npx wrangler secret put AGENT_PRIVATE_KEY
    # optional
    node -e 'process.loadEnvFile(".env.local");process.stdout.write(process.env.ANTHROPIC_API_KEY)'      | npx wrangler secret put ANTHROPIC_API_KEY
+   # optional (credit packs, ADR-025): lets any isolate re-derive a credit token on an idempotent purchase replay
+   node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("hex"))'                   | npx wrangler secret put CREDIT_TOKEN_SECRET
    ```
 8. **Testnet mode**: see §7 (exact go-live sequence).
 9. **Check**: `npm run warmup` (defaults to the public URL; add `--pay` in testnet mode). Run it the evening before
@@ -119,7 +121,7 @@ chunks (viem, zod, pdf-lib, MCP SDK, engine) — no further split needed.
 | Worker size | 64 MiB uncompressed | 11.1 MiB. |
 | Memory | 128 MB / isolate | OK. |
 | Subrequests | 50 / invocation | Max ~5 (demo run), 2–3 (testnet facilitator verify/settle). |
-| KV | 100k reads, **1,000 writes** / day, 1 GB | ~4 writes per paid call (receipt, idempotency key, recent list, counters) → ~250 paid calls/day. Eventually consistent (≤ 60 s across locations); counters are read-modify-write (a concurrent call can lose an increment — fine for a PoC dashboard). Any KV error (quota/429) → memory fallback (ResilientStore). |
+| KV | 100k reads, **1,000 writes** / day, 1 GB | ~4 writes per paid call (receipt, idempotency key, recent list, counters) → ~250 paid calls/day; a credit-pack purchase or a call paid with `X-Credit-Token` adds 1 (the balance, ADR-025). Eventually consistent (≤ 60 s across locations); counters are read-modify-write (a concurrent call can lose an increment — fine for a PoC dashboard); credit balances are read-modify-write under a per-isolate lock, so two locations could overspend the last cents of one token (documented PoC limit). Any KV error (quota/429) → memory fallback (ResilientStore). |
 | Rate limits (ours) | per client IP (`CF-Connecting-IP`) and isolate: 120/min on paid endpoints + `/mcp`, 30/min on `/api/demo/run` | Protects the 100k/day quota from a single client. Two warmups + two full demos in one minute use about a third of each limit (checked on a local server). A 429 in the console → REPLAY. |
 | In-memory state | per isolate | Without KV, receipts/idempotency/rate-limit/simulated nonces live in one isolate and can vanish when it is recycled. Use KV for the public demo. |
 

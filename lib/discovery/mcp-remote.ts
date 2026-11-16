@@ -23,7 +23,7 @@ import { ApiError, errorBody, toApiError } from "@/lib/api/errors";
 import { requestHash } from "@/lib/api/idempotency";
 import { newRequestId } from "@/lib/api/request-id";
 import { getPayTo, getPaymentMode, type PaymentMode } from "@/lib/payments/config";
-import { NETWORK_CAIP2, PAYMENT_SCHEME, getPaidEndpoint, type PaidEndpointId } from "@/lib/payments/pricing";
+import { NETWORK_CAIP2, PAYMENT_SCHEME, assetPrices, getPaidEndpoint, type PaidEndpointId } from "@/lib/payments/pricing";
 import { buildReceipt } from "@/lib/payments/receipt";
 import { buildRouteConfig, getResourceServer } from "@/lib/payments/server";
 import { getStore, type ReceiptRecord } from "@/lib/store";
@@ -98,20 +98,26 @@ async function createWrapper(tool: PaidToolDef, mode: PaymentMode): Promise<Wrap
   if (!config) throw new ApiError("SERVICE_MISCONFIGURED", "SERVICE_PAY_TO_ADDRESS is not configured for testnet mode. Not charged.");
   const server = getResourceServer(mode);
   await ensureInitialized(server);
-  const option = Array.isArray(config.accepts) ? config.accepts[0] : config.accepts;
-  const accepts = await server.buildPaymentRequirements({
-    scheme: option.scheme,
-    network: option.network,
-    payTo: option.payTo as string,
-    price: option.price as Parameters<x402ResourceServer["buildPaymentRequirements"]>[0]["price"],
-    maxTimeoutSeconds: option.maxTimeoutSeconds,
-  });
+  // Same accepts as the HTTP 402: USDC (default, first) then EURC (ADR-024).
+  const options = Array.isArray(config.accepts) ? config.accepts : [config.accepts];
+  const accepts = [];
+  for (const option of options) {
+    accepts.push(
+      ...(await server.buildPaymentRequirements({
+        scheme: option.scheme,
+        network: option.network,
+        payTo: option.payTo as string,
+        price: option.price as Parameters<x402ResourceServer["buildPaymentRequirements"]>[0]["price"],
+        maxTimeoutSeconds: option.maxTimeoutSeconds,
+      })),
+    );
+  }
   const endpoint = getPaidEndpoint(tool.endpoint);
   return createPaymentWrapper(server, {
     accepts,
     resource: {
       url: `mcp://tool/${tool.name}`,
-      description: `${endpoint.description} (${endpoint.price_usdc} USDC)`,
+      description: `${endpoint.description} (${assetPrices(endpoint.price_atomic).map((p) => `${p.amount} ${p.asset}`).join(" or ")})`,
       mimeType: "application/json",
       serviceName: "Ajean Ledger",
       tags: ["accounting", "france", "e-invoicing", "vat", tool.name],
@@ -162,7 +168,8 @@ async function paidToolCall(tool: PaidToolDef, args: Args, extra: unknown): Prom
   if (out.isError || !computed || !settle?.success) return out; // 402-equivalent or error: not charged
 
   // Paid and settled: attach request_id + receipt, persist (receipts tool, operator stats).
-  const receipt = buildReceipt({ endpoint: tool.endpoint, settle, payTo: getPayTo(mode) ?? "", mode });
+  const payload = (extra as { _meta?: Record<string, unknown> } | undefined)?._meta?.["x402/payment"] as { accepted?: { asset?: string } } | undefined;
+  const receipt = buildReceipt({ endpoint: tool.endpoint, settle, payTo: getPayTo(mode) ?? "", mode, assetAddress: payload?.accepted?.asset ?? null });
   const record: ReceiptRecord = {
     request_id: requestId,
     endpoint: tool.endpoint,
@@ -202,7 +209,14 @@ export function createRemoteMcpServer(baseUrl: string): McpServer {
         description: tool.description,
         inputSchema: tool.inputSchema,
         annotations: { title: tool.title, readOnlyHint: true, openWorldHint: false, idempotentHint: true },
-        _meta: { "x402/price": { usdc: getPaidEndpoint(tool.endpoint).price_usdc, atomic: getPaidEndpoint(tool.endpoint).price_atomic, network: NETWORK_CAIP2 } },
+        _meta: {
+          "x402/price": {
+            usdc: getPaidEndpoint(tool.endpoint).price_usdc,
+            atomic: getPaidEndpoint(tool.endpoint).price_atomic,
+            network: NETWORK_CAIP2,
+            eurc: assetPrices(getPaidEndpoint(tool.endpoint).price_atomic).find((p) => p.asset === "EURC")?.amount,
+          },
+        },
       },
       (async (args: Args, extra: unknown) => paidToolCall(tool, args, extra)) as never,
     );

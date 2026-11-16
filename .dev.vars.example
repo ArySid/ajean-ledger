@@ -9,6 +9,9 @@ SERVICE_PAY_TO_ADDRESS=0x0000000000000000000000000000000000000000
 # In SIMULATED mode the demo agent uses an ephemeral key when this is empty.
 AGENT_PRIVATE_KEY=
 
+# Optional: secret for credit-pack tokens (ADR-025), >= 16 chars. Unset = random per isolate.
+CREDIT_TOKEN_SECRET=
+
 # Optional: LLM extraction (pdf/image) and agent reasoning.
 ANTHROPIC_API_KEY=
 

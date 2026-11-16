@@ -1,7 +1,7 @@
 import type { Redis } from "@upstash/redis";
 import type { InvoiceFingerprint } from "@/engine/types";
-import { buildStats, fingerprintKey, type Counters } from "./stats";
-import type { ReceiptRecord, Store, StoreStats } from "./types";
+import { buildStats, counterKey, fingerprintKey, type Counters } from "./stats";
+import type { CreditAccount, ReceiptRecord, Store, StoreStats } from "./types";
 
 const P = "ajean:";
 const RECENT_MAX = 1000;
@@ -29,8 +29,9 @@ export class UpstashStore implements Store {
     if (r.idempotency_key) p.set(`${P}idem:${r.idempotency_key}`, r.request_id);
     p.lpush(`${P}recent`, r.request_id);
     p.ltrim(`${P}recent`, 0, RECENT_MAX - 1);
-    p.hincrby(`${P}stats`, `calls:${r.receipt.mode}:${r.endpoint}`, 1);
-    p.hincrby(`${P}stats`, `atomic:${r.receipt.mode}:${r.endpoint}`, Number(r.receipt.amount_atomic));
+    const k = counterKey(r);
+    p.hincrby(`${P}stats`, `calls:${k}`, 1);
+    p.hincrby(`${P}stats`, `atomic:${k}`, Number(r.receipt.amount_atomic));
     await p.exec();
   }
 
@@ -57,8 +58,8 @@ export class UpstashStore implements Store {
     const raw = (await (await this.redis()).hgetall<Record<string, string | number>>(`${P}stats`)) ?? {};
     const counters: Counters = new Map();
     for (const [field, value] of Object.entries(raw)) {
-      const [kind, mode, endpoint] = field.split(":");
-      const key = `${mode}:${endpoint}`;
+      const [kind, ...rest] = field.split(":");
+      const key = rest.join(":"); // `${mode}:${endpoint}[:${channel}]` (legacy fields have no channel → USDC)
       const cur = counters.get(key) ?? { calls: 0, atomic: 0n };
       if (kind === "calls") cur.calls = Number(value);
       if (kind === "atomic") cur.atomic = BigInt(String(value));
@@ -74,5 +75,14 @@ export class UpstashStore implements Store {
   async history(siren: string): Promise<InvoiceFingerprint[]> {
     const all = await (await this.redis()).hgetall<Record<string, InvoiceFingerprint>>(`${P}fp:${siren}`);
     return Object.values(all ?? {});
+  }
+
+  async getCredit(tokenHash: string): Promise<CreditAccount | null> {
+    return (await (await this.redis()).get<CreditAccount>(`${P}credit:${tokenHash}`)) ?? null;
+  }
+
+  async saveCredit(account: CreditAccount): Promise<void> {
+    const ttl = Math.max(60, Math.ceil((Date.parse(account.expires_at) - Date.now()) / 1000) + 24 * 3600);
+    await (await this.redis()).set(`${P}credit:${account.token_hash}`, account, { ex: ttl });
   }
 }

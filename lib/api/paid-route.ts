@@ -14,14 +14,30 @@
  *
  * The inner handler cannot see the settlement (it happens after it returns), which is
  * why the receipt is attached in the outer wrapper from the PAYMENT-RESPONSE header.
+ * The asset paid (USDC or EURC, ADR-024) is read from the PAYMENT-SIGNATURE payload (`accepted.asset`).
+ *
+ * Prepaid credits (ADR-025): a request with `X-Credit-Token` and no PAYMENT-SIGNATURE skips step 3:
+ *   reserve the USDC price on the token (per-token lock) → engine → 200 with receipt {method: "credits"};
+ *   engine error → refund (never charged on error); unknown/expired token or low balance → 402 with the
+ *   normal PAYMENT-REQUIRED header (the agent can still pay with x402) + details.credits.
+ * Idempotent replays are checked before either payment path, so a retried credit call is never debited twice.
  */
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { withX402 } from "@x402/next";
-import { decodePaymentRequiredHeader, decodePaymentResponseHeader } from "@x402/core/http";
+import { decodePaymentRequiredHeader, decodePaymentResponseHeader, decodePaymentSignatureHeader } from "@x402/core/http";
 import type { ClientProfile, InvoiceFingerprint } from "@/engine/types";
 import { getPayTo, getPaymentMode, type PaymentMode } from "@/lib/payments/config";
-import { getPaidEndpoint, type PaidEndpointId } from "@/lib/payments/pricing";
-import { buildReceipt } from "@/lib/payments/receipt";
+import {
+  CREDIT_REFUSAL_MESSAGES,
+  creditTokenId,
+  hashCreditToken,
+  parseCreditToken,
+  refundCredit,
+  reserveCredit,
+  type CreditRefusal,
+} from "@/lib/payments/credits";
+import { CREDITS_PATH, CREDIT_TOKEN_HEADER, atomicToUsdc, getPaidEndpoint, type PaidEndpointId } from "@/lib/payments/pricing";
+import { buildCreditReceipt, buildReceipt } from "@/lib/payments/receipt";
 import { buildRouteConfig, getResourceServer } from "@/lib/payments/server";
 import { getStore, type ReceiptRecord } from "@/lib/store";
 import { fingerprintKey } from "@/lib/store/stats";
@@ -35,6 +51,19 @@ import { newRequestId } from "./request-id";
 export const MAX_BODY_BYTES = 5_000_000;
 const PAYMENT_RESPONSE_HEADER = "PAYMENT-RESPONSE";
 const PAYMENT_REQUIRED_HEADER = "PAYMENT-REQUIRED";
+const PAYMENT_SIGNATURE_HEADER = "PAYMENT-SIGNATURE";
+export const CREDIT_BALANCE_HEADER = "X-Credit-Balance";
+
+/** Token address the payer chose (PaymentPayload.accepted.asset), or null. */
+export function paidAssetAddress(headers: Headers): string | null {
+  const sig = headers.get(PAYMENT_SIGNATURE_HEADER) ?? headers.get("X-PAYMENT");
+  if (!sig) return null;
+  try {
+    return decodePaymentSignatureHeader(sig).accepted?.asset ?? null;
+  } catch {
+    return null;
+  }
+}
 
 type RouteHandler = (req: NextRequest) => Promise<NextResponse>;
 
@@ -60,7 +89,7 @@ function mergeHistory(a: InvoiceFingerprint[] = [], b: InvoiceFingerprint[] = []
   return [...m.values()];
 }
 
-async function compute(ctx: CallContext): Promise<unknown> {
+export async function compute(ctx: CallContext): Promise<unknown> {
   if (ctx.parseError) throw ctx.parseError;
   if (ctx.endpoint === "audit") {
     const env = parseAuditEnvelope(ctx.body);
@@ -132,14 +161,14 @@ export function resetPaidRoutes(): void {
 // Response post-processing
 // ---------------------------------------------------------------------------
 
-function copyHeaders(from: Headers): Headers {
+export function copyHeaders(from: Headers): Headers {
   const h = new Headers(from);
   h.delete("content-length");
   h.delete("transfer-encoding");
   return h;
 }
 
-function jsonResponse(body: unknown, status: number, headers: Headers, requestId: string): NextResponse {
+export function jsonResponse(body: unknown, status: number, headers: Headers, requestId: string): NextResponse {
   headers.set("Content-Type", "application/json");
   headers.set("X-Request-Id", requestId);
   return new NextResponse(JSON.stringify(body), { status, headers });
@@ -150,6 +179,7 @@ function replayBody(rec: ReceiptRecord) {
 }
 
 async function finalizeSuccess(
+  req: NextRequest,
   res: NextResponse,
   ctx: CallContext,
   mode: PaymentMode,
@@ -162,7 +192,7 @@ async function finalizeSuccess(
     return errorResponse(new ApiError("INTERNAL", "Settlement response missing. Not charged."), ctx.requestId);
   }
   const settle = decodePaymentResponseHeader(header);
-  const receipt = buildReceipt({ endpoint: ctx.endpoint, settle, payTo: getPayTo(mode) ?? "", mode });
+  const receipt = buildReceipt({ endpoint: ctx.endpoint, settle, payTo: getPayTo(mode) ?? "", mode, assetAddress: paidAssetAddress(req.headers) });
   const record: ReceiptRecord = {
     request_id: ctx.requestId,
     endpoint: ctx.endpoint,
@@ -184,7 +214,7 @@ async function finalizeSuccess(
 }
 
 /** Normalises SDK-generated error bodies ({ error: "string" } or {}) into the API error envelope. */
-async function finalizeError(res: NextResponse, requestId: string): Promise<NextResponse> {
+export async function finalizeError(res: NextResponse, requestId: string): Promise<NextResponse> {
   const type = res.headers.get("content-type") ?? "";
   if (!type.includes("json")) {
     res.headers.set("X-Request-Id", requestId);
@@ -225,6 +255,118 @@ async function finalizeError(res: NextResponse, requestId: string): Promise<Next
     out = errorBody(res.status >= 500 ? "INTERNAL" : "INVALID_INPUT", reason ?? "Request failed. Not charged.", undefined, requestId);
   }
   return jsonResponse(out, res.status, copyHeaders(res.headers), requestId);
+}
+
+// ---------------------------------------------------------------------------
+// Prepaid credits path (ADR-025)
+// ---------------------------------------------------------------------------
+
+/**
+ * 402 for a credit call that cannot be paid with the token: the normal x402 challenge (PAYMENT-REQUIRED
+ * header from withX402, so the agent can pay this call with x402 instead) + details.credits.
+ */
+async function creditsRefused(
+  req: NextRequest,
+  x402: RouteHandler,
+  requestId: string,
+  endpoint: PaidEndpointId,
+  reason: CreditRefusal,
+  balanceAtomic: string | null,
+  expiresAt: string | null,
+): Promise<NextResponse> {
+  const headers = new Headers(req.headers);
+  headers.delete(CREDIT_TOKEN_HEADER);
+  headers.set("accept", "application/json");
+  const unpaid = await x402(new NextRequest(req.url, { method: "POST", headers }));
+  let details: Record<string, unknown> = {};
+  try {
+    const b = JSON.parse(await unpaid.text()) as { error?: { details?: Record<string, unknown> } };
+    details = b.error?.details ?? {};
+  } catch {
+    /* keep empty */
+  }
+  const price = getPaidEndpoint(endpoint).price_atomic;
+  const code = reason === "insufficient" ? "CREDITS_INSUFFICIENT" : "CREDIT_TOKEN_INVALID";
+  const body = errorBody(
+    code,
+    `${CREDIT_REFUSAL_MESSAGES[reason]} Nothing was debited. Pay this call with x402 (PAYMENT-REQUIRED header) or buy a pack at POST ${CREDITS_PATH}.`,
+    {
+      ...details,
+      credits: {
+        reason,
+        price_usdc: atomicToUsdc(price),
+        price_atomic: price,
+        balance_usdc: balanceAtomic !== null ? atomicToUsdc(balanceAtomic) : null,
+        balance_atomic: balanceAtomic,
+        expires_at: expiresAt,
+        buy: `POST ${CREDITS_PATH} {"pack":"starter"|"pro"} (x402)`,
+      },
+    },
+    requestId,
+  );
+  const out = jsonResponse(body, 402, copyHeaders(unpaid.headers), requestId);
+  out.headers.set("Cache-Control", "private, no-store");
+  return out;
+}
+
+async function payWithCredits(
+  req: NextRequest,
+  ctx: CallContext,
+  x402: RouteHandler,
+  mode: PaymentMode,
+  rawToken: string,
+  idemKey: string | null,
+  hash: string,
+): Promise<NextResponse> {
+  const token = parseCreditToken(rawToken);
+  if (!token) return creditsRefused(req, x402, ctx.requestId, ctx.endpoint, "unknown", null, null);
+  const tokenHash = hashCreditToken(token);
+  const price = getPaidEndpoint(ctx.endpoint).price_atomic;
+  const store = getStore();
+  const reserved = await reserveCredit(store, tokenHash, price, mode);
+  if (!reserved.ok) {
+    const showBalance = reserved.reason === "insufficient" || reserved.reason === "expired";
+    return creditsRefused(
+      req,
+      x402,
+      ctx.requestId,
+      ctx.endpoint,
+      reserved.reason,
+      showBalance ? (reserved.account?.balance_atomic ?? null) : null,
+      showBalance ? (reserved.account?.expires_at ?? null) : null,
+    );
+  }
+  try {
+    ctx.result = await compute(ctx);
+  } catch (e) {
+    await refundCredit(store, tokenHash, price).catch((err) => console.error("[api] credit refund failed:", err instanceof Error ? err.message : err));
+    return errorResponse(toApiError(e), ctx.requestId);
+  }
+  const receipt = buildCreditReceipt({
+    amountAtomic: price,
+    remainingAtomic: reserved.remaining.toString(),
+    tokenId: creditTokenId(tokenHash),
+    payTo: getPayTo(mode) ?? "",
+    mode,
+  });
+  const record: ReceiptRecord = {
+    request_id: ctx.requestId,
+    endpoint: ctx.endpoint,
+    idempotency_key: idemKey,
+    request_hash: hash,
+    receipt,
+    result: ctx.result,
+    payment_response: null,
+    created_at: receipt.paid_at,
+  };
+  try {
+    await store.saveReceipt(record);
+    if (ctx.fingerprint && ctx.profileSiren) await store.saveFingerprint(ctx.profileSiren, ctx.fingerprint);
+  } catch (e) {
+    console.error("[api] could not persist receipt:", e instanceof Error ? e.message : e);
+  }
+  const headers = new Headers({ "Cache-Control": "private, no-store", [CREDIT_BALANCE_HEADER]: receipt.remaining_balance ?? "" });
+  return jsonResponse(replayBody(record), 200, headers, ctx.requestId);
 }
 
 // ---------------------------------------------------------------------------
@@ -295,9 +437,13 @@ export function paidRoute(endpoint: PaidEndpointId): (req: NextRequest) => Promi
         throw new ApiError("SERVICE_MISCONFIGURED", "SERVICE_PAY_TO_ADDRESS is not configured for testnet mode. Not charged.");
       }
       const ctx: CallContext = { requestId, endpoint, body, parseError };
+      const creditToken = req.headers.get(CREDIT_TOKEN_HEADER);
+      if (creditToken !== null && !req.headers.has(PAYMENT_SIGNATURE_HEADER) && !req.headers.has("X-PAYMENT")) {
+        return await payWithCredits(req, ctx, x402, mode, creditToken, idemKey, hash);
+      }
       callContexts.set(req, ctx);
       const res = await x402(req);
-      if (res.status === 200 && ctx.result !== undefined) return await finalizeSuccess(res, ctx, mode, idemKey, hash);
+      if (res.status === 200 && ctx.result !== undefined) return await finalizeSuccess(req, res, ctx, mode, idemKey, hash);
       if (res.status >= 400) return await finalizeError(res, requestId);
       res.headers.set("X-Request-Id", requestId);
       return res;

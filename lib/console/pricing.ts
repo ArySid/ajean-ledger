@@ -1,5 +1,16 @@
 /** Console view of the single pricing config (lib/payments/pricing.ts). Never hardcode prices in the UI. */
-import { FREE_ENDPOINTS, NETWORK_CAIP2, PAID_ENDPOINT_LIST, USDC, type PaidEndpoint } from "@/lib/payments/pricing";
+import {
+  CREDIT_PACK_LIST,
+  CREDITS_PATH,
+  EURC,
+  FREE_ENDPOINTS,
+  FX_DEMO,
+  NETWORK_CAIP2,
+  PAID_ENDPOINT_LIST,
+  USDC,
+  assetPrices,
+  type PaidEndpoint,
+} from "@/lib/payments/pricing";
 
 export interface PriceRow {
   id: string;
@@ -9,6 +20,8 @@ export interface PriceRow {
   description: string;
   price_usdc: string;
   price_atomic: string;
+  /** Same price in EURC (fixed demo rate, ADR-024). */
+  price_eurc: string;
   mcp_tool: string;
 }
 
@@ -20,8 +33,19 @@ export const PRICE_ROWS: PriceRow[] = PAID_ENDPOINT_LIST.map((e: PaidEndpoint) =
   description: e.description,
   price_usdc: e.price_usdc,
   price_atomic: e.price_atomic,
+  price_eurc: assetPrices(e.price_atomic).find((p) => p.asset === "EURC")!.amount,
   mcp_tool: e.mcp_tool,
 }));
+
+/** Prepaid credit packs (ADR-025), with their EURC price. */
+export const PACK_ROWS = CREDIT_PACK_LIST.map((p) => ({
+  ...p,
+  price_eurc: assetPrices(p.price_atomic).find((x) => x.asset === "EURC")!.amount,
+}));
+export const CREDITS_ENDPOINT = CREDITS_PATH;
+export const EURC_ADDRESS = EURC.address;
+export const FX_NOTE = FX_DEMO.note;
+export const USDC_PER_EURC = FX_DEMO.usdc_per_eurc;
 
 export const FREE_ROWS = FREE_ENDPOINTS;
 export const PAYMENT_NETWORK = NETWORK_CAIP2;

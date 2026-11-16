@@ -77,6 +77,9 @@ const PAY_TO = privateKeyToAccount(generatePrivateKey()).address;
 const AGENT_KEY = generatePrivateKey();
 const agent = privateKeyToAccount(AGENT_KEY);
 const USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+const EURC = "0x808456652fdb597867f38412077A9182bf77359F";
+/** USDC atomic price → EURC atomic price (1 EURC = 1.08 USDC, half-up to the cent). */
+const EURC_ATOMIC: Record<string, string> = { "50000": "50000", "150000": "140000", "1000000": "930000" };
 
 const invoiceBody = { input: { format: "json", invoice: { number: "F-2026-001", lines: [] } } };
 
@@ -140,7 +143,8 @@ describe("402 Payment Required (unpaid call)", () => {
     const pr = decodePaymentRequiredHeader(header!);
     expect(pr.x402Version).toBe(2);
     expect(pr.resource.url).toBe(`${BASE}${path}`);
-    expect(pr.accepts).toHaveLength(1);
+    // Two accepts (ADR-024): USDC first (default), then EURC at the fixed demo rate.
+    expect(pr.accepts).toHaveLength(2);
     expect(pr.accepts[0]).toMatchObject({
       scheme: "exact",
       network: "eip155:84532",
@@ -149,6 +153,14 @@ describe("402 Payment Required (unpaid call)", () => {
       payTo: PAY_TO,
       maxTimeoutSeconds: 300,
       extra: { name: "USDC", version: "2" },
+    });
+    expect(pr.accepts[1]).toMatchObject({
+      scheme: "exact",
+      network: "eip155:84532",
+      amount: EURC_ATOMIC[atomic],
+      asset: EURC,
+      payTo: PAY_TO,
+      extra: { name: "EURC", version: "2" },
     });
     const body = await res.json();
     expect(body.error.code).toBe("PAYMENT_REQUIRED");
@@ -356,7 +368,7 @@ describe("rate limit (Phase 6 hardening)", () => {
 describe("store failure → memory fallback (the paid API keeps working)", () => {
   it("serves a paid call and its receipt when the primary store throws", async () => {
     const boom = () => Promise.reject(new Error("KV quota exceeded"));
-    const broken: Store = { kind: "cloudflare-kv", saveReceipt: boom, getReceipt: boom, getByIdempotencyKey: boom, listRecent: boom, stats: boom, saveFingerprint: boom, history: boom };
+    const broken: Store = { kind: "cloudflare-kv", saveReceipt: boom, getReceipt: boom, getByIdempotencyKey: boom, listRecent: boom, stats: boom, saveFingerprint: boom, history: boom, getCredit: boom, saveCredit: boom };
     const store = setStoreForTests(broken)!;
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

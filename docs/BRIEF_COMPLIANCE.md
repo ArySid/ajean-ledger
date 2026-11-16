@@ -39,7 +39,7 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | C1 | Concept note ≤ 2 pages, in the brief's structure | ✅ | `deliverables/CONCEPT_NOTE.md` → `deliverables/pdf/CONCEPT_NOTE.pdf`: **2 pages A4** (counted with pdf-lib by `npm run export:deliverables`, which fails above 2 pages), ≈ 1,020 words. It covers the problem, agent use case, innovative features, target customers, alternatives, revenue model, x402 stablecoin mechanism (incl. Cloudflare / Coinbase) and pricing illustration | 7 |
 | C2 | Presentation 8–10 min, 6–8 slides | ✅ outline · 🟡 deck | `deliverables/SLIDES_OUTLINE.md` (+ PDF): 7 slides plus backups, ≈ 8:45, with speaker notes, timing, grading criterion per slide, the "why Cloudflare" line and the live tx link. **Team:** build the actual deck from the outline, choose the speakers, fill `{{ASK}}` | 7 |
 | C3 | 2–3 min live demo that cannot fail | ✅ | TESTNET live → automatic REPLAY of real testnet recordings (network error, 45 s timeout, 5xx such as Cloudflare 1102, 429, agent error: `lib/console/source.ts`, `tests/console.test.ts`) → backup laptop (replays bundled in the page) → backup video; `/operator` falls back to replay stats; store failure → memory (`tests/api.test.ts`); `npm run warmup` READY banner | 2, 5, 6 |
-| C4 | Q&A preparation | ✅ | `deliverables/QA_PREP.md` (+ PDF): 16 questions plus rapid-fire extras, including the Cloudflare free-plan limits and mitigations, x402 created by Coinbase with Cloudflare co-founding the x402 Foundation, mainnet, liability, GDPR / 30-day receipt TTL (`lib/store/cloudflare-kv.ts`), legal references pending sign-off, and accuracy | 7 |
+| C4 | Q&A preparation | ✅ | `deliverables/QA_PREP.md` (+ PDF): 17 questions plus rapid-fire extras, including EURC / FX rate and credit packs (Q17), the Cloudflare free-plan limits and mitigations, x402 created by Coinbase with Cloudflare co-founding the x402 Foundation, mainnet, liability, GDPR / 30-day receipt TTL (`lib/store/cloudflare-kv.ts`), legal references pending sign-off, and accuracy | 7 |
 
 ## D. Grading criteria
 
@@ -72,7 +72,8 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | README quickstart (3 commands) | ✅ | `README.md` (clone + `npm ci`, `npm test`, `npm run dev`; "Try it as an agent") |
 | Fresh-clone run-through | ✅ | `npm ci` → tests → `tsc` → build → start (SIMULATED) → agent, pay, warmup, smoke, MCP check: all green without `.env` (Phase 6) |
 | Demo twice in a row from the public URL | 🟡 | Verified twice from the public URL in the Phase 5 review (Playwright, SIMULATED, 2 × 4 runs, no errors); the testnet replays were recorded from the public URL. **Team:** repeat in TESTNET during rehearsal (`npm run warmup -- --pay --expect-mode testnet`, then two full runs of 03) |
-| Bonus: credit packs, EURC | ⬜ | Not built; presented as "planned, not in the PoC" in the concept note and slides (ADR-015) |
+| Bonus: EURC as a second accepted stablecoin | ✅ | ADR-024. Every 402 lists USDC (`accepts[0]`, default) then EURC (`0x8084…359F`, EIP-712 "EURC"/"2" verified on-chain); prices derived at a fixed demo rate 1 EURC = 1.08 USDC (entry 0.14 EURC) from `lib/payments/pricing.ts`; receipt `asset` = asset paid; `/operator` revenue per asset; catalog/OpenAPI/`llms.txt`/agent.json/health list both. x402.org facilitator verify accepts EURC (balance-only failure with an unfunded key) → enabled in TESTNET too; no real EURC payment yet (agent wallet holds 0 test EURC; Circle faucet). Tests: `tests/bonus.test.ts`; `npm run pay:simulated -- --asset EURC` |
+| Bonus: prepaid credit packs | ✅ | ADR-025. `POST /api/v1/credits` (x402: starter 1.00 → 1.20 USDC, pro 10.00 → 12.00 USDC, 30 days) → bearer `X-Credit-Token` (SHA-256 only stored); every paid endpoint accepts it (`receipt.method: "credits"`, refund on error, 402 `CREDITS_INSUFFICIENT` with the normal x402 requirements); free `GET /api/v1/credits/balance`; idempotent replays never debit twice; KV consistency limit documented. Tests: `tests/bonus.test.ts`; `npm run pay:credits` (local SIMULATED: 1.20 → 1.05 → 0.90) |
 
 ## G. Traceability & safety rules (§2, §4)
 
@@ -81,7 +82,7 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | Master prompt saved verbatim | ✅ | `docs/prompts/00_MASTER_PROMPT.md`; also in the appendix of `PROMPTS_SUBMISSION.md` |
 | Prompt log entry per message | ✅ | `docs/prompts/PROMPT_LOG.md` (maintained by the orchestrator) |
 | Final prompt export | ✅ | `docs/prompts/PROMPTS_SUBMISSION.md` (French originals + English translations) |
-| Decisions log | ✅ | `docs/DECISIONS.md` (ADR-001 → ADR-023) |
+| Decisions log | ✅ | `docs/DECISIONS.md` (ADR-001 → ADR-025) |
 | Changelog | ✅ | `CHANGELOG.md` (Phases 0–7) |
 | Git, one commit per step | ✅ | `git log`; pushed to `ArySid/ajean-ledger` (ADR-009) |
 | Testnet only, no secrets committed | ✅ | Base Sepolia only; `.gitignore` ignores `.env*` except `.env.example`; `cf:build` secret scan; Worker secrets via `wrangler secret put`; scripts never print keys |
@@ -95,7 +96,7 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | `CONCEPT_NOTE.md` ≤ 2 pages | ✅ | 2 pages A4 (10 pt body, ~2 cm margins), `deliverables/pdf/CONCEPT_NOTE.pdf` |
 | `DEMO_SCRIPT.md` (2–3 min, who clicks what, fallbacks) | ✅ | Final, 2:35; team placeholders are listed at its top |
 | `SLIDES_OUTLINE.md` (6–8 slides, 8–10 min, speaker notes) | ✅ | 7 slides, ≈ 8:45 |
-| `QA_PREP.md` (12+ questions) | ✅ | 16 questions + extras |
+| `QA_PREP.md` (12+ questions) | ✅ | 17 questions + extras |
 | `PROMPTS_SUBMISSION.md` | ✅ | `docs/prompts/PROMPTS_SUBMISSION.md` |
 | Final `BRIEF_COMPLIANCE.md` | ✅ | This file |
 | PDFs of the deliverables | ✅ | `deliverables/pdf/*.pdf` + `.html`, generated by `npm run export:deliverables` (`scripts/export-deliverables.ts`); index with page counts in `deliverables/README.md` |

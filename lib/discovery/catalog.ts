@@ -8,8 +8,16 @@ import { IDEMPOTENCY_HEADER, IDEMPOTENCY_KEY_MAX, IDEMPOTENT_REPLAY_HEADER } fro
 import { rateLimitPerMinute } from "@/lib/api/rate-limit";
 import { getFacilitatorUrl, getPaymentMode, getPayTo } from "@/lib/payments/config";
 import {
+  ACCEPTED_ASSETS,
+  ASSETS,
   AUDIT_MAX_ITEMS,
   CHAIN_ID,
+  CREDIT_PACK_LIST,
+  CREDIT_TOKEN_HEADER,
+  CREDIT_TTL_DAYS,
+  CREDITS_BALANCE_PATH,
+  CREDITS_PATH,
+  FX_DEMO,
   EXPLORER_TX_BASE_URL,
   FREE_ENDPOINTS,
   MAX_TIMEOUT_SECONDS,
@@ -19,6 +27,7 @@ import {
   PAYMENT_SCHEME,
   USDC,
   X402_VERSION,
+  assetPrices,
 } from "@/lib/payments/pricing";
 import { MAX_BODY_BYTES, allErrorCodes } from "./errors";
 import { EXAMPLE_ENTRY_RESPONSE, EXAMPLE_REQUESTS } from "./examples";
@@ -51,7 +60,21 @@ export function paymentInfo() {
     network_name: NETWORK_NAME,
     chain_id: CHAIN_ID,
     testnet: true,
+    /** Default asset = accepts[0]. */
     asset: { symbol: USDC.symbol, address: USDC.address, decimals: USDC.decimals, eip712: USDC.eip712 },
+    /** Every 402 lists one `exact` option per accepted asset, in this order (ADR-024). */
+    accepted_assets: ACCEPTED_ASSETS.map((sym, i) => ({
+      symbol: sym,
+      address: ASSETS[sym].address,
+      decimals: ASSETS[sym].decimals,
+      eip712: ASSETS[sym].eip712,
+      accepts_index: i,
+      default: i === 0,
+    })),
+    fx: {
+      usdc_per_eurc: FX_DEMO.usdc_per_eurc,
+      note: FX_DEMO.note,
+    },
     payTo: getPayTo(mode),
     facilitator: mode === "testnet" ? getFacilitatorUrl() : "local simulated facilitator (no on-chain transaction)",
     mode,
@@ -71,6 +94,13 @@ export function paymentInfo() {
       "3. Retry the exact same request with the PAYMENT-SIGNATURE header (base64 JSON PaymentPayload). Optionally add an Idempotency-Key header.",
       "4. Read the 200 JSON result (request_id + receipt + result) and the PAYMENT-RESPONSE header (base64 JSON SettleResponse with the transaction hash). Failed calls (status >= 400) are never settled.",
     ],
+    multi_asset:
+      "accepts[0] is USDC (default: x402 SDK clients pick it); accepts[1] is EURC at the price in endpoints.paid[].prices.EURC. To pay in EURC, select that requirement (x402Client selector) and allow the asset (spendControls.allowedAssets) — EURC is not an SDK default asset. receipt.asset says which asset was paid.",
+    prepaid_credits: {
+      buy: `POST ${CREDITS_PATH}`,
+      header: CREDIT_TOKEN_HEADER,
+      how: `Buy a pack with one x402 payment, then send "${CREDIT_TOKEN_HEADER}: <credit_token>" instead of PAYMENT-SIGNATURE: each call debits its USDC price (receipt.method = "credits"). The token is a bearer prepaid payment — payment is still the authentication.`,
+    },
     sdk: { client: ["@x402/fetch", "@x402/evm (ExactEvmScheme)", "@x402/mcp (createx402MCPClient)"], version: "2.31.0" },
     test_funds: "Base Sepolia test USDC from https://faucet.circle.com (gas is paid by the facilitator).",
   };
@@ -99,6 +129,8 @@ export function buildCatalog(baseUrl: string) {
         price_usdc: e.price_usdc,
         price_atomic: e.price_atomic,
         currency: USDC.symbol,
+        prices: Object.fromEntries(assetPrices(e.price_atomic).map((p) => [p.asset, { amount: p.amount, amount_atomic: p.amount_atomic }])),
+        payable_with_credits: true,
         input_summary: e.input_summary,
         output_summary: e.output_summary,
         input_formats: FORMATS[e.id],
@@ -108,6 +140,28 @@ export function buildCatalog(baseUrl: string) {
         mcp_tool: e.mcp_tool,
         example_request: EXAMPLE_REQUESTS[e.id],
       })),
+      credits: {
+        id: "credits",
+        method: "POST",
+        path: CREDITS_PATH,
+        url: `${baseUrl}${CREDITS_PATH}`,
+        title: "Prepaid credit pack",
+        description: `Buy a prepaid credit pack with one x402 payment (USDC or EURC). Returns a bearer credit token (${CREDIT_TOKEN_HEADER}) valid ${CREDIT_TTL_DAYS} days whose USDC balance pays the endpoints above. Only the token's SHA-256 is stored.`,
+        body: '{ "pack": "starter" | "pro" }',
+        packs: CREDIT_PACK_LIST.map((p) => ({
+          id: p.id,
+          price_usdc: p.price_usdc,
+          price_atomic: p.price_atomic,
+          prices: Object.fromEntries(assetPrices(p.price_atomic).map((x) => [x.asset, { amount: x.amount, amount_atomic: x.amount_atomic }])),
+          credit_usdc: p.credit_usdc,
+          credit_atomic: p.credit_atomic,
+          bonus_pct: p.bonus_pct,
+        })),
+        validity_days: CREDIT_TTL_DAYS,
+        balance_url: `${baseUrl}${CREDITS_BALANCE_PATH}`,
+        insufficient_balance: "402 CREDITS_INSUFFICIENT with the normal PAYMENT-REQUIRED header (pay that call with x402 instead) + details.credits {balance, price}. Nothing debited.",
+        note: "x402 SDK clients cap a payment at $1 by default (spendControls.maxAmountPerPayment): raise it to buy the pro pack.",
+      },
       free: FREE_ENDPOINTS.map((e) => ({
         id: e.id,
         method: e.method,

@@ -14,6 +14,10 @@ export interface EndpointStat {
   endpoint: string;
   calls: number;
   usdc: number;
+  /** EURC received on this endpoint (ADR-024), when the source reports it. */
+  eurc?: number;
+  /** Calls paid with prepaid credits (ADR-025), when the source reports it. */
+  credit_calls?: number;
 }
 
 export interface RecentTx {
@@ -22,10 +26,22 @@ export interface RecentTx {
   endpoint: string;
   payer: string | null;
   amount: number;
+  /** Asset paid ("USDC" default, "EURC"). */
+  asset: string;
+  /** "x402" (default) or "credits" (prepaid token debit, no tx hash). */
+  method: string;
   tx_hash: string;
   explorer_url: string | null;
   mode: string;
   human_review_required?: boolean;
+}
+
+/** Prepaid credit packs sold in the current mode (ADR-025). */
+export interface CreditsStat {
+  packs_sold: number;
+  sold: Record<string, number>;
+  calls: number;
+  consumed_usdc: number;
 }
 
 export interface OperatorStats {
@@ -42,6 +58,10 @@ export interface OperatorStats {
   mode: string | null;
   /** Calls of the other payment mode the API left out of every figure (Phase 7 review M2); null when none. */
   hidden: { mode: string; calls: number } | null;
+  /** Cash received per asset (USDC, EURC), when the API reports it; null otherwise. */
+  earned_by_asset: Record<string, number> | null;
+  /** Credit packs sold, when the API reports it; null otherwise. */
+  credits: CreditsStat | null;
 }
 
 export const STATS_TIMEOUT_MS = 5_000;
@@ -71,6 +91,8 @@ export function normaliseStats(json: unknown): OperatorStats | null {
       endpoint: String(e.endpoint ?? e.path ?? e.id ?? "?"),
       calls: num(e.calls),
       usdc: num(e.usdc),
+      ...(e.eurc !== undefined ? { eurc: num(e.eurc) } : {}),
+      ...(e.credit_calls !== undefined ? { credit_calls: num(e.credit_calls) } : {}),
     }));
   } else if (o.revenue_per_endpoint && typeof o.revenue_per_endpoint === "object") {
     byEndpoint = Object.entries(o.revenue_per_endpoint as Record<string, Record<string, unknown>>).map(([id, e]) => ({
@@ -90,6 +112,8 @@ export function normaliseStats(json: unknown): OperatorStats | null {
     endpoint: endpointPath(String(r.endpoint ?? "")),
     payer: r.payer ? String(r.payer) : null,
     amount: num(r.amount),
+    asset: r.asset === "EURC" ? "EURC" : "USDC",
+    method: r.method === "credits" ? "credits" : "x402",
     tx_hash: String(r.tx_hash ?? ""),
     explorer_url: r.explorer_url ? String(r.explorer_url) : null,
     mode: String(r.mode ?? ""),
@@ -122,7 +146,20 @@ export function normaliseStats(json: unknown): OperatorStats | null {
     source: String(o.source ?? o.store ?? "api"),
     mode: o.mode === "testnet" || o.mode === "simulated" ? o.mode : null,
     hidden: hiddenOf(o.hidden),
+    earned_by_asset: numberMap(o.earned_by_asset),
+    credits: creditsOf(o.credits),
   };
+}
+
+function numberMap(v: unknown): Record<string, number> | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, num(x)]));
+}
+
+function creditsOf(v: unknown): CreditsStat | null {
+  if (!v || typeof v !== "object") return null;
+  const c = v as Record<string, unknown>;
+  return { packs_sold: num(c.packs_sold), sold: numberMap(c.sold) ?? {}, calls: num(c.calls), consumed_usdc: num(c.consumed_usdc) };
 }
 
 function hiddenOf(v: unknown): OperatorStats["hidden"] {
@@ -153,6 +190,8 @@ export function statsFromReplays(traces: ConsoleTrace[] = allBundledReplays()): 
       endpoint: path,
       payer: r.payer ?? t.agent?.wallet ?? null,
       amount: num(r.amount),
+      asset: "USDC",
+      method: "x402",
       tx_hash: r.tx_hash ?? "",
       explorer_url: txExplorerUrl(r),
       mode: isSimulatedTx(r) ? "simulated" : "testnet",
@@ -177,6 +216,8 @@ export function statsFromReplays(traces: ConsoleTrace[] = allBundledReplays()): 
     source: "replay",
     mode: null,
     hidden: null,
+    earned_by_asset: null,
+    credits: null,
   };
 }
 

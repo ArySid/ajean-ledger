@@ -361,7 +361,10 @@ export class AgentRun {
     }
     const client = new x402HTTPClient(new x402Client().register(NETWORK_CAIP2, new ExactEvmScheme(this.opts.wallet)));
     const paymentRequired = client.getPaymentRequiredResponse((n) => unpaid.res.headers.get(n), unpaid.body);
-    const req = paymentRequired.accepts.find((a) => a.scheme === "exact" && a.network === NETWORK_CAIP2) ?? paymentRequired.accepts[0];
+    // The 402 lists USDC (accepts[0]) and EURC (accepts[1], ADR-024): this agent pays in the asset the catalog
+    // advertised as default (USDC), selected explicitly by address rather than by position.
+    const exact = paymentRequired.accepts.filter((a) => a.scheme === "exact" && a.network === NETWORK_CAIP2);
+    const req = exact.find((a) => a.asset?.toLowerCase() === d.asset.toLowerCase()) ?? exact[0] ?? paymentRequired.accepts[0];
 
     // 4b. verify the 402 requirements against what the catalog advertised
     const checks = [

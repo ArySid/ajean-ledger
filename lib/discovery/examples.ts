@@ -6,7 +6,7 @@
  * Relative imports only (also used by the stdio bridge tests).
  */
 import fixture01 from "../../fixtures/01.json";
-import { NETWORK_CAIP2, NETWORK_NAME, PAID_ENDPOINTS, USDC } from "../payments/pricing";
+import { NETWORK_CAIP2, NETWORK_NAME, PAID_ENDPOINTS, USDC, assetPrices } from "../payments/pricing";
 import { DISCLAIMER } from "./meta";
 
 type Json = Record<string, unknown>;
@@ -21,10 +21,34 @@ export const EXAMPLE_REQUESTS = {
   audit: { items: [{ invoice: EXAMPLE_INVOICE }] },
 } as const;
 
-export const EXAMPLE_RECEIPT = {
+const eurcPrice = (usdcAtomic: string) => assetPrices(usdcAtomic).find((p) => p.asset === "EURC")!.amount;
+
+/** Example receipt of a call paid with a prepaid credit token (ADR-025). */
+export const EXAMPLE_CREDIT_RECEIPT = {
+  method: "credits",
   amount: PAID_ENDPOINTS.entry.price_usdc,
   amount_atomic: PAID_ENDPOINTS.entry.price_atomic,
   asset: USDC.symbol,
+  asset_address: USDC.address,
+  network: NETWORK_NAME,
+  network_caip2: NETWORK_CAIP2,
+  tx_hash: "",
+  payer: null,
+  pay_to: "0xServiceWallet…",
+  explorer_url: null,
+  mode: "simulated",
+  paid_at: "2026-11-16T10:05:00.000Z",
+  remaining_balance: "1.05",
+  remaining_balance_atomic: "1050000",
+  credit_token_id: "ct_3f2a9c1b7d4e",
+};
+
+export const EXAMPLE_RECEIPT = {
+  method: "x402",
+  amount: PAID_ENDPOINTS.entry.price_usdc,
+  amount_atomic: PAID_ENDPOINTS.entry.price_atomic,
+  asset: USDC.symbol,
+  asset_address: USDC.address,
   network: NETWORK_NAME,
   network_caip2: NETWORK_CAIP2,
   tx_hash: "0x5151…(64 hex)",
@@ -72,7 +96,7 @@ export function examplePaymentRequiredBody(payTo: string, mode: string) {
   return {
     error: {
       code: "PAYMENT_REQUIRED",
-      message: `Payment required: ${e.price_usdc} USDC on ${NETWORK_NAME} (x402 v2).`,
+      message: `Payment required: ${e.price_usdc} USDC or ${eurcPrice(e.price_atomic)} EURC on ${NETWORK_NAME} (x402 v2).`,
       details: {
         endpoint: e.path,
         price_usdc: e.price_usdc,

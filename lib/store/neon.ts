@@ -1,6 +1,6 @@
 import type { InvoiceFingerprint } from "@/engine/types";
 import { buildStats, type Counters } from "./stats";
-import type { ReceiptRecord, Store, StoreStats } from "./types";
+import type { CreditAccount, ReceiptRecord, Store, StoreStats } from "./types";
 
 type Row = Record<string, unknown>;
 type Sql = (strings: TemplateStringsArray, ...params: unknown[]) => Promise<Row[]>;
@@ -39,6 +39,12 @@ export class NeonStore implements Store {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (profile_siren, fp_key)
       )`;
+      await sql`CREATE TABLE IF NOT EXISTS ajean_credits (
+        token_hash TEXT PRIMARY KEY,
+        account JSONB NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`;
     })().catch((e) => {
       this.ready = null;
       throw e;
@@ -76,11 +82,15 @@ export class NeonStore implements Store {
 
   async stats(): Promise<StoreStats> {
     const sql = await this.sql();
-    const rows = await sql`SELECT mode, endpoint, COUNT(*)::int AS calls, COALESCE(SUM(amount_atomic), 0)::text AS atomic
-      FROM ajean_receipts GROUP BY mode, endpoint`;
+    // Channel = the asset paid via x402, or "credits" (rows written before ADR-024/027 read as USDC).
+    const rows = await sql`SELECT mode, endpoint,
+        CASE WHEN record->'receipt'->>'method' = 'credits' THEN 'credits'
+             ELSE COALESCE(record->'receipt'->>'asset', 'USDC') END AS channel,
+        COUNT(*)::int AS calls, COALESCE(SUM(amount_atomic), 0)::text AS atomic
+      FROM ajean_receipts GROUP BY 1, 2, 3`;
     const counters: Counters = new Map();
     for (const row of rows) {
-      counters.set(`${row.mode}:${row.endpoint}`, { calls: Number(row.calls), atomic: BigInt(String(row.atomic)) });
+      counters.set(`${row.mode}:${row.endpoint}:${row.channel}`, { calls: Number(row.calls), atomic: BigInt(String(row.atomic)) });
     }
     return buildStats(this.kind, counters, await this.listRecent(10));
   }
@@ -96,5 +106,18 @@ export class NeonStore implements Store {
     const sql = await this.sql();
     const rows = await sql`SELECT fingerprint FROM ajean_fingerprints WHERE profile_siren = ${siren} ORDER BY created_at LIMIT 1000`;
     return rows.map((r) => r.fingerprint as InvoiceFingerprint);
+  }
+
+  async getCredit(tokenHash: string): Promise<CreditAccount | null> {
+    const sql = await this.sql();
+    const rows = await sql`SELECT account FROM ajean_credits WHERE token_hash = ${tokenHash} LIMIT 1`;
+    return (rows[0]?.account as CreditAccount | undefined) ?? null;
+  }
+
+  async saveCredit(account: CreditAccount): Promise<void> {
+    const sql = await this.sql();
+    await sql`INSERT INTO ajean_credits (token_hash, account, expires_at, updated_at)
+      VALUES (${account.token_hash}, ${JSON.stringify(account)}::jsonb, ${account.expires_at}, now())
+      ON CONFLICT (token_hash) DO UPDATE SET account = EXCLUDED.account, updated_at = now()`;
   }
 }

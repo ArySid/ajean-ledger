@@ -98,6 +98,19 @@ export function OperatorDashboard() {
           </div>
           <div className="hint">pay per use, no subscription</div>
         </div>
+        {s?.earned_by_asset && ((s.earned_by_asset.EURC ?? 0) > 0 || (s.credits?.packs_sold ?? 0) > 0) && (
+          <div className="panel kpi" data-testid="kpi-assets">
+            <div className="label">Per asset · credit packs</div>
+            <div className="value money" style={{ fontSize: "1.1rem" }}>
+              {usdc(s.earned_by_asset.USDC ?? 0)} <small>USDC</small> · {usdc(s.earned_by_asset.EURC ?? 0)} <small>EURC</small>
+            </div>
+            <div className="hint">
+              {s.credits
+                ? `${s.credits.packs_sold} pack${s.credits.packs_sold === 1 ? "" : "s"} sold · ${s.credits.calls} call${s.credits.calls === 1 ? "" : "s"} paid with credits (${usdc(s.credits.consumed_usdc)} USDC used)`
+                : "cash received per stablecoin"}
+            </div>
+          </div>
+        )}
         {reviewPct !== null && s && (
           <div className="panel kpi" data-testid="kpi-review">
             <div className="label">Needing human review</div>
@@ -120,7 +133,15 @@ export function OperatorDashboard() {
                 <div className="bar-label">
                   <span className="ep">{e.endpoint}</span>
                   <span>
-                    <span className="money">{usdc(e.usdc)}</span> USDC · {e.calls} call{e.calls === 1 ? "" : "s"}
+                    <span className="money">{usdc(e.usdc)}</span> USDC
+                    {(e.eurc ?? 0) > 0 && (
+                      <>
+                        {" "}
+                        + <span className="money">{usdc(e.eurc ?? 0)}</span> EURC
+                      </>
+                    )}{" "}
+                    · {e.calls} call{e.calls === 1 ? "" : "s"}
+                    {(e.credit_calls ?? 0) > 0 && ` (${e.credit_calls} on credits)`}
                   </span>
                 </div>
                 <div className="bar-track" role="img" aria-label={`${e.endpoint}: ${usdc(e.usdc)} USDC`}>
@@ -171,9 +192,14 @@ export function OperatorDashboard() {
                           shortHex(r.payer)
                         )}
                       </td>
-                      <td className="num money">{usdc(r.amount)}</td>
+                      <td className="num money">
+                        {usdc(r.amount)}
+                        {r.asset !== "USDC" && <small> {r.asset}</small>}
+                      </td>
                       <td className="mono">
-                        {link ? (
+                        {r.method === "credits" ? (
+                          <span className="muted">prepaid credits</span>
+                        ) : link ? (
                           <a href={link} target="_blank" rel="noreferrer">
                             {shortHex(r.tx_hash, 6, 4)} ↗
                           </a>

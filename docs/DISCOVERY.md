@@ -38,7 +38,7 @@ Every error body carries `docs_url: "/llms.txt#errors"`; llms.txt has an `<a id=
   `200` with `PAYMENT-RESPONSE`, `X-Request-Id`, `Idempotent-Replay` headers and `EntryResponse` / `CheckResponse` /
   `AuditResponse` (= engine result + `request_id` + `receipt`); `402` with the `PAYMENT-REQUIRED` header whose
   `contentSchema` is the decoded `PaymentRequired` (x402 v2); 400/409/413/415/422/429/500/502/503 → `ErrorResponse`.
-- `x-x402` per operation: `{ x402Version: 2, scheme: "exact", network: "eip155:84532", asset, amount (atomic), price_usdc, payTo, maxTimeoutSeconds, extra, mode }`;
+- `x-x402` per operation: `{ x402Version: 2, scheme: "exact", network: "eip155:84532", asset, amount (atomic), price_usdc, payTo, maxTimeoutSeconds, extra, accepts: [USDC, EURC], mode }` (EURC = `accepts[1]`, ADR-024); `POST /api/v1/credits` (`buy_credits`) and `GET /api/v1/credits/balance` document the prepaid credit packs and the `X-Credit-Token` parameter (ADR-025);
   `x-payment`: `{ protocol, required, price_usdc, price_atomic, currency, network }`; `x-mcp-tool`.
 - Request schemas: `CheckInvoiceRequest`, `CreateEntryRequest`, `AuditRequest`; `EntryEngineInput` = oneOf
   `JsonInvoiceInput | FacturxInput | UblInput | BankTransactionEngineInput | DocumentInput (pdf/image)`.

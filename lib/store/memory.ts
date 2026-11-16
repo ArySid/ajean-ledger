@@ -1,6 +1,6 @@
 import type { InvoiceFingerprint } from "@/engine/types";
 import { buildStats, countersFromRecords, fingerprintKey } from "./stats";
-import type { ReceiptRecord, Store, StoreStats } from "./types";
+import type { CreditAccount, ReceiptRecord, Store, StoreStats } from "./types";
 
 const MAX_RECORDS = 5000;
 
@@ -10,6 +10,7 @@ export class MemoryStore implements Store {
   private receipts = new Map<string, ReceiptRecord>();
   private idem = new Map<string, string>();
   private fps = new Map<string, Map<string, InvoiceFingerprint>>();
+  private credits = new Map<string, CreditAccount>();
 
   async saveReceipt(r: ReceiptRecord): Promise<void> {
     this.receipts.set(r.request_id, r);
@@ -47,5 +48,15 @@ export class MemoryStore implements Store {
 
   async history(siren: string): Promise<InvoiceFingerprint[]> {
     return [...(this.fps.get(siren)?.values() ?? [])];
+  }
+
+  async getCredit(tokenHash: string): Promise<CreditAccount | null> {
+    const a = this.credits.get(tokenHash);
+    return a ? { ...a } : null;
+  }
+
+  async saveCredit(account: CreditAccount): Promise<void> {
+    this.credits.set(account.token_hash, { ...account });
+    if (this.credits.size > MAX_RECORDS) this.credits.delete(this.credits.keys().next().value as string);
   }
 }

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import pkg from "@/package.json";
 import { engineReady } from "@/lib/api/engine";
 import { getFacilitatorUrl, getPaymentMode, getPayTo } from "@/lib/payments/config";
-import { NETWORK_CAIP2, NETWORK_NAME, PAID_ENDPOINT_LIST, USDC, X402_VERSION } from "@/lib/payments/pricing";
+import { ACCEPTED_ASSETS, ASSETS, CREDITS_PATH, NETWORK_CAIP2, NETWORK_NAME, PAID_ENDPOINT_LIST, USDC, X402_VERSION } from "@/lib/payments/pricing";
 import { getStoreInfo } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -26,6 +26,8 @@ export async function GET() {
         network: NETWORK_NAME,
         network_caip2: NETWORK_CAIP2,
         asset: { symbol: USDC.symbol, address: USDC.address, decimals: USDC.decimals },
+        accepted_assets: ACCEPTED_ASSETS.map((a) => ({ symbol: a, address: ASSETS[a].address })),
+        credits: CREDITS_PATH,
         pay_to: payTo,
         facilitator: mode === "testnet" ? getFacilitatorUrl() : "local simulated facilitator (no on-chain tx)",
       },

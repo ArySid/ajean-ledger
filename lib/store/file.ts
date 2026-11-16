@@ -2,11 +2,12 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import path from "node:path";
 import type { InvoiceFingerprint } from "@/engine/types";
 import { buildStats, countersFromRecords, fingerprintKey } from "./stats";
-import type { ReceiptRecord, Store, StoreStats } from "./types";
+import type { CreditAccount, ReceiptRecord, Store, StoreStats } from "./types";
 
 interface FileData {
   receipts: ReceiptRecord[];
   fingerprints: Record<string, Record<string, InvoiceFingerprint>>;
+  credits: Record<string, CreditAccount>;
 }
 
 export const DEFAULT_FILE_PATH = "data/receipts.local.json";
@@ -25,9 +26,9 @@ export class FileStore implements Store {
   }
 
   private read(): FileData {
-    if (!existsSync(this.file)) return { receipts: [], fingerprints: {} };
+    if (!existsSync(this.file)) return { receipts: [], fingerprints: {}, credits: {} };
     const data = JSON.parse(readFileSync(this.file, "utf8")) as Partial<FileData>;
-    return { receipts: data.receipts ?? [], fingerprints: data.fingerprints ?? {} };
+    return { receipts: data.receipts ?? [], fingerprints: data.fingerprints ?? {}, credits: data.credits ?? {} };
   }
 
   private write(data: FileData): void {
@@ -70,5 +71,15 @@ export class FileStore implements Store {
 
   async history(siren: string): Promise<InvoiceFingerprint[]> {
     return Object.values(this.read().fingerprints[siren] ?? {});
+  }
+
+  async getCredit(tokenHash: string): Promise<CreditAccount | null> {
+    return this.read().credits[tokenHash] ?? null;
+  }
+
+  async saveCredit(account: CreditAccount): Promise<void> {
+    const d = this.read();
+    d.credits[account.token_hash] = account;
+    this.write(d);
   }
 }

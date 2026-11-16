@@ -7,12 +7,20 @@ import { rateLimitPerMinute } from "@/lib/api/rate-limit";
 import { getPaymentMode, getPayTo } from "@/lib/payments/config";
 import {
   AUDIT_MAX_ITEMS,
+  CREDIT_PACK_LIST,
+  CREDIT_TOKEN_HEADER,
+  CREDIT_TTL_DAYS,
+  CREDITS_BALANCE_PATH,
+  CREDITS_PATH,
+  EURC,
   FREE_ENDPOINTS,
+  FX_DEMO,
   NETWORK_CAIP2,
   NETWORK_NAME,
   PAID_ENDPOINT_LIST,
   USDC,
   X402_VERSION,
+  assetPrices,
 } from "@/lib/payments/pricing";
 import { MAX_BODY_BYTES, allErrorCodes } from "./errors";
 import { EXAMPLE_ENTRY_RESPONSE } from "./examples";
@@ -47,7 +55,7 @@ export function buildLlmsTxt(baseUrl: string): string {
   const resp = EXAMPLE_ENTRY_RESPONSE;
   const exampleResponse = {
     request_id: resp.request_id,
-    receipt: { amount: resp.receipt.amount, asset: resp.receipt.asset, network: resp.receipt.network, tx_hash: resp.receipt.tx_hash, mode: resp.receipt.mode },
+    receipt: { method: resp.receipt.method, amount: resp.receipt.amount, asset: resp.receipt.asset, network: resp.receipt.network, tx_hash: resp.receipt.tx_hash, mode: resp.receipt.mode },
     compliance: { status: resp.compliance.status, checks: ["…"] },
     entry: resp.entry,
     vat: { regime: resp.vat.regime, rate: resp.vat.rate, deductible: resp.vat.deductible },
@@ -84,21 +92,37 @@ export function buildLlmsTxt(baseUrl: string): string {
   L.push("");
   L.push(`Network \`${NETWORK_CAIP2}\` (${NETWORK_NAME}, TESTNET), asset USDC \`${USDC.address}\` (${USDC.decimals} decimals, EIP-712 domain name "${USDC.eip712.name}" version "${USDC.eip712.version}"), scheme \`exact\`, payTo \`${payTo}\`.`);
   L.push("");
+  L.push(`Also accepted: **EURC** \`${EURC.address}\` (${EURC.decimals} decimals, EIP-712 domain name "${EURC.eip712.name}" version "${EURC.eip712.version}"). Every 402 lists two \`accepts\`: \`accepts[0]\` = USDC (default; x402 SDK clients pick it), \`accepts[1]\` = EURC at a fixed demo rate (1 EURC = ${FX_DEMO.usdc_per_eurc} USDC, rounded half-up to the cent; an assumption, not a live quote). To pay in EURC, select \`accepts[1]\` and allow the asset in your client (EURC is not an x402 SDK default asset: \`spendControls.allowedAssets\`). \`receipt.asset\` says which asset was paid.`);
+  L.push("");
   L.push("1. Call the paid endpoint with your JSON body and no payment → **HTTP 402** + `PAYMENT-REQUIRED` header (base64 JSON: `x402Version`, `resource`, `accepts[0]` = {scheme, network, amount in atomic USDC, asset, payTo, maxTimeoutSeconds, extra}).");
   L.push("2. Sign an EIP-3009 `transferWithAuthorization` for `accepts[0]` with your wallet (e.g. `@x402/fetch` `wrapFetchWithPayment` + `@x402/evm` `ExactEvmScheme`). You only need test USDC; the facilitator pays gas.");
   L.push("3. Retry the same request with the `PAYMENT-SIGNATURE` header (base64 JSON PaymentPayload). Optionally send `Idempotency-Key: <uuid>`.");
   L.push("4. Read the 200 JSON (`request_id`, `receipt` with `tx_hash`, result) and the `PAYMENT-RESPONSE` header (base64 JSON SettleResponse). You are charged only when the call succeeds.");
   L.push("");
-  L.push("| Endpoint | MCP tool | Price (USDC) | Atomic units |");
-  L.push("|---|---|---|---|");
-  for (const e of PAID_ENDPOINT_LIST) L.push(`| \`${e.method} ${e.path}\` | \`${e.mcp_tool}\` | ${e.price_usdc} | ${e.price_atomic} |`);
-  for (const e of FREE_ENDPOINTS) L.push(`| \`${e.method} ${e.path}\` | ${e.id === "catalog" ? `\`${GET_CATALOG_TOOL.name}\`` : e.id === "receipts" ? `\`${GET_RECEIPT_TOOL.name}\`` : "-"} | free | 0 |`);
+  const eurc = (atomic: string) => assetPrices(atomic).find((p) => p.asset === "EURC")!;
+  L.push("| Endpoint | MCP tool | Price (USDC) | Atomic units | or EURC |");
+  L.push("|---|---|---|---|---|");
+  for (const e of PAID_ENDPOINT_LIST) L.push(`| \`${e.method} ${e.path}\` | \`${e.mcp_tool}\` | ${e.price_usdc} | ${e.price_atomic} | ${eurc(e.price_atomic).amount} |`);
+  L.push(`| \`POST ${CREDITS_PATH}\` | - | ${CREDIT_PACK_LIST.map((p) => `${p.price_usdc} (${p.id})`).join(" / ")} | ${CREDIT_PACK_LIST.map((p) => p.price_atomic).join(" / ")} | ${CREDIT_PACK_LIST.map((p) => eurc(p.price_atomic).amount).join(" / ")} |`);
+  for (const e of FREE_ENDPOINTS) L.push(`| \`${e.method} ${e.path}\` | ${e.id === "catalog" ? `\`${GET_CATALOG_TOOL.name}\`` : e.id === "receipts" ? `\`${GET_RECEIPT_TOOL.name}\`` : "-"} | free | 0 | free |`);
+  L.push("");
+  L.push("## Prepaid credits (optional)");
+  L.push("");
+  L.push(`Volume pricing without a per-call signature. The token IS a prepaid payment: payment is still the authentication, no account, no API key.`);
+  L.push("");
+  for (const p of CREDIT_PACK_LIST) L.push(`- \`${p.id}\`: pay ${p.price_usdc} USDC (or ${eurc(p.price_atomic).amount} EURC) → ${p.credit_usdc} USDC of calls (+${p.bonus_pct}%), valid ${CREDIT_TTL_DAYS} days.`);
+  L.push(`- Buy: \`POST ${baseUrl}${CREDITS_PATH}\` with \`{"pack":"starter"}\` — same 402 → pay → 200 x402 flow (send an \`Idempotency-Key\`: a replay returns the same token). x402 SDK clients cap a payment at $1 by default: raise \`spendControls.maxAmountPerPayment\` for \`pro\`.`);
+  L.push(`- The 200 contains \`credit_token\` (\`ajc_…\`, bearer secret: only its SHA-256 is stored server-side) and the balance.`);
+  L.push(`- Spend: send \`${CREDIT_TOKEN_HEADER}: <credit_token>\` instead of \`PAYMENT-SIGNATURE\` on any paid endpoint. The call's USDC price is debited; the receipt is \`{ "method": "credits", "amount", "remaining_balance", … }\` (no tx hash, no settlement) and the \`X-Credit-Balance\` header has the balance. Errors are never debited; \`Idempotency-Key\` replays are never debited twice.`);
+  L.push(`- Low balance or unknown/expired token → **402** \`CREDITS_INSUFFICIENT\` / \`CREDIT_TOKEN_INVALID\` with the normal \`PAYMENT-REQUIRED\` header (pay that call with x402 instead) and \`error.details.credits\` (balance, price). Nothing debited.`);
+  L.push(`- Balance: \`GET ${baseUrl}${CREDITS_BALANCE_PATH}\` with the header (free).`);
   L.push("");
   L.push("## Endpoints");
   L.push("");
   for (const e of PAID_ENDPOINT_LIST) {
-    L.push(`- [${e.method} ${e.path}](${baseUrl}${e.path}): ${e.price_usdc} USDC. ${e.description} Body: \`${e.input_summary}\`. Returns: ${e.output_summary}.`);
+    L.push(`- [${e.method} ${e.path}](${baseUrl}${e.path}): ${e.price_usdc} USDC (or ${eurc(e.price_atomic).amount} EURC, or prepaid credits). ${e.description} Body: \`${e.input_summary}\`. Returns: ${e.output_summary}.`);
   }
+  L.push(`- [POST ${CREDITS_PATH}](${baseUrl}${CREDITS_PATH}): ${CREDIT_PACK_LIST.map((p) => `${p.price_usdc} USDC (${p.id})`).join(" or ")}. Buys a prepaid credit pack. Body: \`{ "pack": "starter" | "pro" }\`. Returns: request_id, receipt, credit_token, balance, expires_at.`);
   for (const e of FREE_ENDPOINTS) L.push(`- [${e.method} ${e.path}](${baseUrl}${e.path.replace("{id}", "{request_id}")}): free. ${e.description}`);
   L.push("");
   L.push("## Discovery");

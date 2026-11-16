@@ -31,6 +31,8 @@ curl -i -X POST localhost:3000/api/v1/entry -H 'content-type: application/json' 
 #   → HTTP 402 + PAYMENT-REQUIRED header (base64 JSON: 0.15 USDC = "150000", payTo, asset, network eip155:84532)
 npm run agent           # the SME purchasing agent processes inbox/: discovers, checks its budget, pays, books, flags
 npm run pay:simulated   # the raw x402 flow: 402 → signed EIP-3009 payment → 200 + receipt, idempotent replay
+npm run pay:simulated -- --asset EURC   # same flow paid in EURC (accepts[1]) → receipt.asset "EURC"
+npm run pay:credits     # buy a starter credit pack (1.00 → 1.20 USDC), 2 calls with X-Credit-Token, balance 0.90
 npm run -s engine -- fixtures/03.json   # the engine alone: restaurant billed at 20% instead of 10%
 ```
 
@@ -46,6 +48,10 @@ test USDC at <https://faucet.circle.com> (Base Sepolia), then `PAYMENT_MODE=test
 - **Paid per call in USDC** with [x402 v2](https://x402.org) (`@x402/*` 2.31.0): `POST /api/v1/invoice/check`
   0.05 · `POST /api/v1/entry` 0.15 · `POST /api/v1/audit` 1.00 (up to 50 entries). Settled only on success:
   an agent is never charged for a failed call.
+- **EURC too, and prepaid credit packs** (Phase 6 bonus): every 402 also offers Circle test **EURC** (`accepts[1]`,
+  fixed demo rate 1 EURC = 1.08 USDC: entry 0.14 EURC; USDC stays the default), and `POST /api/v1/credits` sells
+  **credit packs** with one x402 payment (`starter` 1.00 → 1.20 USDC, `pro` 10.00 → 12.00 USDC of calls, 30 days):
+  the agent then sends `X-Credit-Token` instead of signing each call. Details: [`docs/PAYMENTS.md`](docs/PAYMENTS.md) §13–14.
 - **Rules first, LLM second.** A deterministic TypeScript engine (PCG accounts, VAT 20/10/5.5/2.1 %, reverse charge,
   exemptions, e-invoicing reform mentions, duplicates, fixed assets, credit notes) on JSON, Factur-X and UBL inputs.
   The optional LLM only extracts unstructured documents; ambiguous cases return `human_review_required: true`.
@@ -174,7 +180,9 @@ Testnet keys only (generate one with `npx tsx scripts/gen-wallets.ts`, fund it a
 `npx tsx` is not resolvable from Claude Desktop's working directory, use
 `"command": "/ABSOLUTE/PATH/TO/ajean-ledger/node_modules/.bin/tsx", "args": ["/ABSOLUTE/PATH/TO/ajean-ledger/mcp/server.ts"]`.
 Tools: `check_invoice` (0.05 USDC), `create_entry` (0.15), `audit_entries` (1.00), `get_catalog`, `get_receipt` (free).
-The bridge refuses any payment above `AGENT_MAX_PER_CALL_USDC` or beyond `AGENT_DAILY_BUDGET_USDC`. Local test:
+The bridge refuses any payment above `AGENT_MAX_PER_CALL_USDC` or beyond `AGENT_DAILY_BUDGET_USDC`. Optional env:
+`AJEAN_PAY_ASSET=EURC` (pay in EURC, budgeted at its USDC value) and `AJEAN_CREDIT_TOKEN=ajc_…` (spend a prepaid
+credit pack first, fall back to x402 when it runs out). Local test:
 `npm run mcp:stdio`, `npm run mcp:inspect`, or `AJEAN_LEDGER_URL=http://localhost:3000 npx tsx scripts/mcp-check.ts`.
 
 **Remote MCP (Streamable HTTP, stateless)** — for MCP clients that speak the x402 MCP transport

@@ -1,7 +1,7 @@
 /**
  * GET /.well-known/agent.json — A2A-style agent card. Skills = the paid endpoints (pricing.ts).
  */
-import { PAID_ENDPOINT_LIST, type PaidEndpointId } from "@/lib/payments/pricing";
+import { CREDIT_PACK_LIST, CREDIT_TOKEN_HEADER, CREDITS_PATH, PAID_ENDPOINT_LIST, assetPrices, type PaidEndpointId } from "@/lib/payments/pricing";
 import { paymentInfo } from "./catalog";
 import { DISCLAIMER, PROVIDER, SERVICE_NAME, SERVICE_TAGLINE, SERVICE_VERSION, discoveryLinks } from "./meta";
 
@@ -53,13 +53,19 @@ export function buildAgentCard(baseUrl: string) {
     skills: PAID_ENDPOINT_LIST.map((e) => ({
       id: e.mcp_tool,
       name: e.title,
-      description: `${e.description} Price: ${e.price_usdc} USDC per call (x402).`,
+      description: `${e.description} Price: ${assetPrices(e.price_atomic).map((p) => `${p.amount} ${p.asset}`).join(" or ")} per call (x402), or prepaid credits.`,
       tags: SKILL_META[e.id].tags,
       examples: SKILL_META[e.id].examples,
       inputModes: ["application/json"],
       outputModes: ["application/json"],
       endpoint: { method: e.method, url: `${baseUrl}${e.path}` },
-      price: { amount: e.price_usdc, amount_atomic: e.price_atomic, currency: "USDC", network: payment.network },
+      price: {
+        amount: e.price_usdc,
+        amount_atomic: e.price_atomic,
+        currency: "USDC",
+        network: payment.network,
+        alternatives: assetPrices(e.price_atomic).filter((p) => p.asset !== "USDC").map((p) => ({ amount: p.amount, amount_atomic: p.amount_atomic, currency: p.asset })),
+      },
       input_schema: `${links.openapi}#/paths/${encodeURIComponent(e.path.replace(/\//g, "~1"))}/post/requestBody`,
     })),
     x402: {
@@ -68,11 +74,23 @@ export function buildAgentCard(baseUrl: string) {
       network: payment.network,
       testnet: true,
       asset: payment.asset,
+      accepted_assets: payment.accepted_assets,
+      fx: payment.fx,
       payTo: payment.payTo,
       mode: payment.mode,
       facilitator: payment.facilitator,
       how_to_pay: payment.how_to_pay,
-      prices: Object.fromEntries(PAID_ENDPOINT_LIST.map((e) => [e.mcp_tool, { usdc: e.price_usdc, atomic: e.price_atomic, endpoint: e.path }])),
+      prices: Object.fromEntries(
+        PAID_ENDPOINT_LIST.map((e) => [
+          e.mcp_tool,
+          { usdc: e.price_usdc, atomic: e.price_atomic, endpoint: e.path, eurc: assetPrices(e.price_atomic).find((p) => p.asset === "EURC")?.amount },
+        ]),
+      ),
+      prepaid_credits: {
+        buy: `${baseUrl}${CREDITS_PATH}`,
+        header: CREDIT_TOKEN_HEADER,
+        packs: CREDIT_PACK_LIST.map((p) => ({ id: p.id, price_usdc: p.price_usdc, credit_usdc: p.credit_usdc, bonus_pct: p.bonus_pct })),
+      },
     },
     links: {
       catalog: links.catalog,

@@ -25,7 +25,7 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { x402Client, wrapFetchWithPayment } from "@x402/fetch";
 import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
-import { NETWORK_CAIP2, PAID_ENDPOINTS } from "../lib/payments/pricing";
+import { CREDITS_PATH, EURC, NETWORK_CAIP2, PAID_ENDPOINTS } from "../lib/payments/pricing";
 
 for (const f of [".env.local", ".env"]) {
   try {
@@ -152,6 +152,7 @@ async function main() {
 
   // Paid endpoint: unpaid → 402
   const entry = PAID_ENDPOINTS.entry;
+  let eurcNote = "";
   const body = JSON.stringify({ input: { format: "json", invoice: INVOICE } });
   await check(`POST ${entry.path} (unpaid)`, entry.path, {
     method: "POST",
@@ -161,12 +162,23 @@ async function main() {
     validate: (res) => {
       const hdr = res.headers.get("PAYMENT-REQUIRED");
       if (!hdr) return "no PAYMENT-REQUIRED header";
-      const a = decodePaymentRequiredHeader(hdr).accepts[0];
+      const accepts = decodePaymentRequiredHeader(hdr).accepts;
+      const a = accepts[0];
       if (a?.amount !== entry.price_atomic || a?.network !== NETWORK_CAIP2) return `unexpected accepts[0] ${JSON.stringify(a)}`;
+      // Second accepted stablecoin (ADR-024): informative only, a deployment without it is still READY.
+      eurcNote = accepts.some((x) => x.asset?.toLowerCase() === EURC.address.toLowerCase()) ? " + EURC" : " (EURC not offered)";
       return true;
     },
   });
-  rows[rows.length - 1].note ||= `${entry.price_usdc} USDC, ${NETWORK_CAIP2}`;
+  rows[rows.length - 1].note ||= `${entry.price_usdc} USDC${eurcNote}, ${NETWORK_CAIP2}`;
+  // Prepaid credit packs (ADR-025): unpaid purchase → 402 (never charged).
+  await check(`POST ${CREDITS_PATH} (unpaid)`, CREDITS_PATH, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ pack: "starter" }),
+    expect: 402,
+    validate: (res) => (res.headers.get("PAYMENT-REQUIRED") ? true : "no PAYMENT-REQUIRED header"),
+  });
   // Warm the other paid routes too (unpaid → 402, never charged)
   for (const e of [PAID_ENDPOINTS.invoice_check, PAID_ENDPOINTS.audit]) {
     await check(`POST ${e.path} (unpaid)`, e.path, {

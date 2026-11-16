@@ -10,7 +10,7 @@
  * (mcp/server.ts) imports this file through tsx from any working directory.
  */
 import { z } from "zod";
-import { AUDIT_MAX_ITEMS, NETWORK_CAIP2, NETWORK_NAME, USDC, X402_VERSION } from "../payments/pricing";
+import { AUDIT_MAX_ITEMS, EURC, NETWORK_CAIP2, NETWORK_NAME, USDC, X402_VERSION } from "../payments/pricing";
 
 /** Registry of named schemas → OpenAPI `components.schemas` entries. */
 export const contractRegistry = z.registry<{ id: string }>();
@@ -379,17 +379,25 @@ export const ReceiptSchema = named(
   "Receipt",
   z
     .looseObject({
-      amount: z.string().describe('USDC paid, e.g. "0.15"'),
+      method: z
+        .enum(["x402", "credits"])
+        .optional()
+        .describe('"x402" (one payment, settled) or "credits" (debit on a prepaid X-Credit-Token, no settlement). Absent on old receipts = "x402".'),
+      amount: z.string().describe('Amount paid in `asset`, e.g. "0.15" (USDC) or "0.14" (EURC)'),
       amount_atomic: z.string().describe('Same in atomic units (6 decimals), e.g. "150000"'),
-      asset: z.literal(USDC.symbol),
+      asset: z.enum([USDC.symbol, EURC.symbol]).describe("Asset actually paid (credit debits are USDC-denominated)"),
+      asset_address: z.string().optional().describe("Token contract of `asset` on Base Sepolia"),
       network: z.literal(NETWORK_NAME),
       network_caip2: z.literal(NETWORK_CAIP2),
-      tx_hash: z.string().describe("Settlement transaction hash (simulated mode: fake 0x5151… hash)"),
+      tx_hash: z.string().describe('Settlement transaction hash (simulated mode: fake 0x5151… hash; "" for credit debits)'),
       payer: z.string().nullable(),
       pay_to: z.string(),
-      explorer_url: z.string().nullable().describe("Base Sepolia explorer link; null in simulated mode"),
+      explorer_url: z.string().nullable().describe("Base Sepolia explorer link; null in simulated mode and for credit debits"),
       mode: z.enum(["testnet", "simulated"]),
       paid_at: z.string().describe("ISO 8601"),
+      remaining_balance: z.string().optional().describe('Credits only: USDC balance left on the token, e.g. "1.05"'),
+      remaining_balance_atomic: z.string().optional(),
+      credit_token_id: z.string().optional().describe("Credits only: non-secret token id (ct_ + 12 hex of its SHA-256)"),
     })
     .describe("Payment receipt attached to every paid response."),
 );
@@ -406,13 +414,58 @@ export const ReceiptLookupSchema = named(
   z
     .looseObject({
       request_id: requestId,
-      endpoint: z.enum(["invoice_check", "entry", "audit"]),
+      endpoint: z.enum(["invoice_check", "entry", "audit", "credits"]),
       created_at: z.string(),
       idempotency_key_used: z.boolean(),
       receipt: ReceiptSchema,
-      result: z.looseObject({}).describe("The original result (EntryResult | CheckResult | AuditResult)"),
+      result: z.looseObject({}).describe("The original result (EntryResult | CheckResult | AuditResult; for a credit pack: {kind, pack, credit_usdc, credit_token_id, expires_at} — never the token)"),
     })
     .describe("200 of GET /api/v1/receipts/{id}."),
+);
+
+// Prepaid credit packs (ADR-025)
+export const CreditPurchaseRequestSchema = named(
+  "CreditPurchaseRequest",
+  z.object({ pack: z.enum(["starter", "pro"]).describe("Credit pack id (catalog endpoints.credits.packs)") }).describe("Body of POST /api/v1/credits."),
+);
+
+const creditBalanceFields = {
+  credit_token_id: z.string().describe("Non-secret token id (ct_ + 12 hex)"),
+  pack: z.enum(["starter", "pro"]),
+  balance: z.string().describe('Remaining credit in USDC, e.g. "1.20"'),
+  balance_atomic: z.string(),
+  asset: z.literal(USDC.symbol).describe("Balances are USDC-denominated whatever asset paid for the pack"),
+  expires_at: z.string().describe("ISO 8601 (30 days after purchase)"),
+};
+
+export const CreditPurchaseResponseSchema = named(
+  "CreditPurchaseResponse",
+  z
+    .looseObject({
+      request_id: requestId,
+      receipt: ReceiptSchema,
+      credit_token: z
+        .string()
+        .nullable()
+        .describe("Bearer token for the X-Credit-Token header (ajc_…). Shown on purchase (and idempotent replay); only its SHA-256 is stored. Keep it secret."),
+      paid: z.looseObject({ amount: z.string(), asset: z.enum([USDC.symbol, EURC.symbol]) }),
+      ...creditBalanceFields,
+      usage: z.looseObject({}).describe("How to spend the token"),
+    })
+    .describe("200 of POST /api/v1/credits."),
+);
+
+export const CreditBalanceSchema = named(
+  "CreditBalance",
+  z
+    .looseObject({
+      ...creditBalanceFields,
+      initial_credit: z.string(),
+      calls_debited: z.number().int(),
+      expired: z.boolean(),
+      mode: z.enum(["testnet", "simulated"]),
+    })
+    .describe("200 of GET /api/v1/credits/balance."),
 );
 
 // x402 v2 wire objects (decoded base64 JSON headers)
@@ -421,8 +474,8 @@ export const PaymentRequirementsSchema = named(
   z.looseObject({
     scheme: z.literal("exact"),
     network: z.literal(NETWORK_CAIP2),
-    amount: z.string().describe("Price in USDC atomic units (6 decimals)"),
-    asset: z.literal(USDC.address).describe("USDC contract on Base Sepolia"),
+    amount: z.string().describe("Price in atomic units (6 decimals) of `asset`"),
+    asset: z.enum([USDC.address, EURC.address]).describe("Token contract on Base Sepolia: USDC (accepts[0], default) or EURC (accepts[1])"),
     payTo: z.string().describe("Service wallet"),
     maxTimeoutSeconds: z.number().int(),
     extra: z.looseObject({ name: z.string(), version: z.string() }).describe("EIP-712 domain of the token"),

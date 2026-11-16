@@ -18,9 +18,9 @@ import { FileStore } from "./file";
 import { MemoryStore } from "./memory";
 import { NeonStore } from "./neon";
 import { UpstashStore } from "./upstash";
-import type { ReceiptRecord, Store, StoreKind, StoreStats } from "./types";
+import type { CreditAccount, ReceiptRecord, Store, StoreKind, StoreStats } from "./types";
 
-export type { ReceiptRecord, Store, StoreKind, StoreStats, TxSummary, EndpointRevenue } from "./types";
+export type { AssetRevenue, CreditAccount, CreditStats, ReceiptEndpointId, ReceiptRecord, Store, StoreKind, StoreStats, TxSummary, EndpointRevenue } from "./types";
 export { MemoryStore } from "./memory";
 
 /** Retry the primary store this long after a failure. */
@@ -88,6 +88,13 @@ export class ResilientStore implements Store {
   }
   history(siren: string) {
     return this.run("history", (s) => s.history(siren));
+  }
+  async getCredit(tokenHash: string) {
+    const hit = await this.run("getCredit", (s) => s.getCredit(tokenHash));
+    return hit ?? (this.primary.kind !== "memory" ? this.fallback.getCredit(tokenHash) : null);
+  }
+  saveCredit(account: CreditAccount) {
+    return this.run("saveCredit", (s) => s.saveCredit(account));
   }
 }
 

@@ -16,6 +16,7 @@
     "engine": "tsx scripts/engine-cli.ts",
     "pay:simulated": "tsx scripts/pay-simulated.ts",
     "pay:testnet": "tsx scripts/pay-testnet.ts",
+    "pay:credits": "tsx scripts/pay-credits.ts",
     "smoke": "tsx scripts/smoke-api.ts",
     "mcp:stdio": "tsx mcp/server.ts",
     "mcp:inspect": "npx -y @modelcontextprotocol/inspector tsx mcp/server.ts",

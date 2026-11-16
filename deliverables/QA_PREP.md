@@ -1,6 +1,6 @@
 # Ajean Ledger — Q&A Preparation
 
-> **Final.** 16 likely jury questions with short answers; say each in 20–30 seconds. Team rule: **never quote a figure we cannot compute from our own prices or code, and label every assumption.** If you don't know an answer, say what we would check and how.
+> **Final.** 17 likely jury questions with short answers; say each in 20–30 seconds. Team rule: **never quote a figure we cannot compute from our own prices or code, and label every assumption.** If you don't know an answer, say what we would check and how.
 > The owner of each question is in brackets. These are suggestions; the team decides. The facts were checked on 2026-11-16 against the code and the live deployment <https://ajean-ledger.ary-sidoun.workers.dev> (TESTNET mode).
 
 ---
@@ -14,7 +14,7 @@ There are three reasons:
 - **Autonomy.** An agent cannot hold a card, sign up or pass 3-D Secure. It can hold a wallet with a spending policy set by its operator.
 - **Settlement.** x402 settles in seconds, with no chargebacks and no invoice to collect.
 
-USDC is dollar-denominated; EURC (planned) would let euro-based clients pay in euros.
+USDC is dollar-denominated; EURC is also accepted, so euro-based clients can pay in euros (see Q17).
 
 ### Q3. Who is liable if the entry is wrong? *(Ary)*
 The output is a proposal, not certified bookkeeping. Every response carries a confidence score, the rules applied and `human_review_required` for ambiguous cases. Every response is also labelled "not a substitute for a chartered accountant's review". The operator (SME or accounting firm) stays responsible for its books. Keeping accounts for third parties is a regulated profession in France (experts-comptables), so we position Ajean Ledger as a tool, not an accounting service. In production we would add terms of use with a liability cap and versioned rules. Each call already leaves a trace (`request_id`, rules applied, engine version, receipt) that can be used to investigate a dispute.
@@ -45,7 +45,7 @@ In the PoC all data is synthetic and the companies are fictional (unallocated `0
 Through free machine-readable files: `/api/v1/catalog` (services and prices), `/openapi.json` (with the price of each paid operation), `/llms.txt` and `/.well-known/agent.json`. There is also an MCP server with `check_invoice`, `create_entry` and `audit_entries`, available remotely at `/mcp` and as a stdio bridge for Claude Desktop. The 402 response itself describes the price, asset, network and recipient. Next steps: listing in agent and x402 discovery directories, and integration by SaaS publishers whose agents already process invoices.
 
 ### Q8. How did you set the prices? *(Yoann)*
-By value tier. A compliance check (0.05) is the cheapest. A full entry with VAT and anomalies (0.15) is the core product. An audit of up to 50 entries with two expert viewpoints (1.00) costs 0.02 per entry. On structured inputs the marginal cost is very low, because the engine is deterministic and the LLM only runs on unstructured documents. Example: 20,000 invoices a month at 0.15 is 3,000 USDC. These are PoC list prices, to be tested in pilots. Credit packs (pay 10, get 12 USDC of calls) are planned for volume.
+By value tier. A compliance check (0.05) is the cheapest. A full entry with VAT and anomalies (0.15) is the core product. An audit of up to 50 entries with two expert viewpoints (1.00) costs 0.02 per entry. On structured inputs the marginal cost is very low, because the engine is deterministic and the LLM only runs on unstructured documents. Example: 20,000 invoices a month at 0.15 is 3,000 USDC. These are PoC list prices, to be tested in pilots. Credit packs (pay 10, get 12 USDC of calls) reward volume and are live in the PoC (Q17).
 
 ### Q9. What stops a malicious agent? *(Victor)*
 - **Payment itself.** Every paid call costs money, which limits abuse. Each EIP-3009 authorisation has a nonce, so a payment cannot be replayed.
@@ -85,9 +85,12 @@ x402 was created by Coinbase (launched May 2025). Cloudflare co-founded the x402
 Yes, on testnet. The live deployment runs in TESTNET mode: the agent signs a real EIP-3009 authorisation, and the x402.org facilitator settles 0.15 test USDC on Base Sepolia. The tx hash opens on Basescan, for example the scenario 03 run [0xc155…3586](https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586), which moves 0.15 USDC from the agent wallet `0xD25E…c1BF` to the service wallet `0xCB4b…dFeC`. Test USDC has no monetary value. If the network fails, the console shows a REPLAY recorded from that same real testnet run, labelled on screen.
 
 ### Q16. Does it scale? *(Victor)*
-The engine is stateless and deterministic, so it scales horizontally on serverless workers. The only shared state is receipts and idempotency keys in a small store. Batch work goes through `/audit` (up to 50 entries per call). The main question is payment volume: one on-chain settlement per call is fine at PoC scale, and prepaid credit packs (planned) would reduce the number of transactions for high-volume customers. We would measure this in a pilot rather than claim figures now.
+The engine is stateless and deterministic, so it scales horizontally on serverless workers. The only shared state is receipts and idempotency keys in a small store. Batch work goes through `/audit` (up to 50 entries per call). The main question is payment volume: one on-chain settlement per call is fine at PoC scale, and prepaid credit packs (live in the PoC) already cut it to one transaction per pack for high-volume customers. We would measure this in a pilot rather than claim figures now.
 
 ---
+
+### Q17. How do EURC and the credit packs work, and where does the EUR/USD rate come from? *(Yoann)*
+Every 402 offers two options: USDC first (the default every x402 client picks) and EURC, Circle's euro stablecoin on the same testnet. The EURC price is derived from the USDC price with a **fixed demo rate, 1 EURC = 1.08 USDC**, rounded to the cent (an entry is 0.15 USDC or 0.14 EURC). It is a stated assumption, not a live quote: in production we would refresh it from a reference rate, or simply set a euro price list. We checked the EURC contract on-chain and the facilitator accepts it; the receipt says which asset was paid. Credit packs are bought with one x402 payment (pay 10 USDC, get 12 USDC of calls, valid 30 days). The agent receives a bearer token and sends it instead of a signature; each call debits its price, errors are never debited, and we store only a hash of the token. It is still "payment is the authentication": the token is prepaid money, not an account. Limit we state: on Cloudflare KV a balance is eventually consistent across regions, so a production version would move balances to a strongly consistent store.
 
 ## Rapid-fire extras (one sentence each)
 

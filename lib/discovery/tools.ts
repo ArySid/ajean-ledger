@@ -74,5 +74,5 @@ export const ALL_TOOL_NAMES: string[] = [...PAID_TOOLS.map((t) => t.name), GET_C
 
 export const MCP_SERVER_INSTRUCTIONS =
   "Ajean Ledger turns French invoices and bank transactions into validated accounting entries (PCG accounts, VAT treatment, " +
-  "2026 e-invoicing compliance, anomaly flags). Paid tools cost USDC per call via x402 (testnet). Call get_catalog first for prices. " +
+  "2026 e-invoicing compliance, anomaly flags). Paid tools cost USDC per call via x402 (testnet; EURC also accepted as accepts[1]). Call get_catalog first for prices. " +
   "Results with human_review_required = true must be shown to a human. PoC on synthetic data; not a substitute for a chartered accountant's review.";

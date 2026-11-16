@@ -100,7 +100,7 @@ describe("openapi.json", () => {
     expect((op.responses["200"] as { headers: Obj }).headers["PAYMENT-RESPONSE"]).toBeDefined();
     // PAYMENT-SIGNATURE + Idempotency-Key parameters
     const params = op.parameters.map((p) => resolvePointer(spec, (p as { $ref: string }).$ref) as Obj);
-    expect(params.map((p) => p.name).sort()).toEqual(["Idempotency-Key", "PAYMENT-SIGNATURE"]);
+    expect(params.map((p) => p.name).sort()).toEqual(["Idempotency-Key", "PAYMENT-SIGNATURE", "X-Credit-Token"]);
   });
 
   it("documents every free endpoint and the MCP endpoint", () => {

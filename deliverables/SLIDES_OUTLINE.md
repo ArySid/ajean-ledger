@@ -88,7 +88,7 @@ If anything stalls for more than 10 s, the driver switches to REPLAY without dis
 
 **Visual:** a sequence diagram Agent ↔ Ajean Ledger (Cloudflare Workers) ↔ x402 facilitator ↔ Base, with the three headers labelled. Beside it, the pricing table and the 20,000-invoice calculation.
 
-**Speaker notes:** Insist on who pays. The operator funds the agent's wallet and sets `max_per_call` (0.20) and `daily_budget` (2.00), and the agent enforces them itself, as the demo showed. Why stablecoins: a 0.05 call is uneconomic with card fixed fees, and an agent cannot hold a card or pass 3-D Secure. Present the 20,000-invoice example as an illustration from our own prices, not a forecast. Credit packs (pay 10 USDC, get 12 USDC of calls) and EURC are planned, not built. Optionally, add an assumption: at 2 minutes of staff time per invoice, that volume is about 667 hours a month. We do not remove review; we focus it.
+**Speaker notes:** Insist on who pays. The operator funds the agent's wallet and sets `max_per_call` (0.20) and `daily_budget` (2.00), and the agent enforces them itself, as the demo showed. Why stablecoins: a 0.05 call is uneconomic with card fixed fees, and an agent cannot hold a card or pass 3-D Secure. Present the 20,000-invoice example as an illustration from our own prices, not a forecast. Credit packs (pay 10 USDC, get 12 USDC of calls) and EURC as a second stablecoin are live in the PoC (Q&A Q17). Optionally, add an assumption: at 2 minutes of staff time per invoice, that volume is about 667 hours a month. We do not remove review; we focus it.
 
 ---
 
@@ -111,7 +111,7 @@ If anything stalls for more than 10 s, the driver switches to REPLAY without dis
 **On the slide**
 - **Today: it works.** A live API, an MCP server and real x402 payments on Base Sepolia. Proof: [0xc155…3586 on Basescan](https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586), the 0.15 test USDC paid by the agent for scenario 03. 217 automated tests, 13 synthetic fixtures, two independent reviews.
 - **Next:** a chartered accountant signs off the legal references (pending: until then none is shown to agents), a pilot with one or two accounting firms on their own agents, and listing in agent and x402 directories.
-- **Then:** mainnet (Base + USDC, later EURC), a production facilitator, terms of use with a liability cap, and a GDPR set-up.
+- **Then:** mainnet (Base + USDC and EURC), a production facilitator, terms of use with a liability cap, and a GDPR set-up.
 - **Our ask:** {{ASK}} (e.g. jury feedback, introductions to accounting firms or SaaS publishers for a pilot).
 
 **Visual:** a three-step roadmap (PoC → Pilot → Production), a QR code to `https://ajean-ledger.ary-sidoun.workers.dev`, and a small Basescan screenshot of the tx.

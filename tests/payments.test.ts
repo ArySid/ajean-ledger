@@ -7,6 +7,7 @@ import { x402Client } from "@x402/core/client";
 import type { PaymentRequirements } from "@x402/core/types";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import {
+  EURC,
   NETWORK_CAIP2,
   PAID_ENDPOINTS,
   PAID_ENDPOINT_LIST,
@@ -27,6 +28,7 @@ import { buildReceipt } from "@/lib/payments/receipt";
 import { MemoryStore, ResilientStore } from "@/lib/store";
 import { FileStore } from "@/lib/store/file";
 import type { ReceiptRecord, Store } from "@/lib/store";
+import type { PaidEndpointId } from "@/lib/payments/pricing";
 
 const PAY_TO = privateKeyToAccount(generatePrivateKey()).address;
 
@@ -95,12 +97,10 @@ describe("payment config", () => {
   it("builds the x402 route config from pricing.ts", () => {
     process.env.SERVICE_PAY_TO_ADDRESS = PAY_TO;
     const cfg = buildRouteConfig("audit", "simulated")!;
-    expect(cfg.accepts).toMatchObject({
-      scheme: "exact",
-      network: "eip155:84532",
-      payTo: PAY_TO,
-      price: { asset: USDC.address, amount: "1000000", extra: { name: "USDC", version: "2" } },
-    });
+    expect(cfg.accepts).toMatchObject([
+      { scheme: "exact", network: "eip155:84532", payTo: PAY_TO, price: { asset: USDC.address, amount: "1000000", extra: { name: "USDC", version: "2" } } },
+      { scheme: "exact", network: "eip155:84532", payTo: PAY_TO, price: { asset: EURC.address, amount: "930000", extra: { name: "EURC", version: "2" } } },
+    ]);
     expect(cfg.mimeType).toBe("application/json");
   });
 });
@@ -186,7 +186,7 @@ describe("receipt", () => {
   });
 });
 
-function record(id: string, endpoint: ReceiptRecord["endpoint"], atomic: string, key: string | null = null): ReceiptRecord {
+function record(id: string, endpoint: PaidEndpointId, atomic: string, key: string | null = null): ReceiptRecord {
   return {
     request_id: id,
     endpoint,
@@ -214,7 +214,7 @@ async function exerciseStore(store: Store) {
   const stats = await store.stats();
   expect(stats.calls_served).toBe(2);
   expect(stats.usdc_earned).toBe("1.15");
-  expect(stats.revenue_per_endpoint.entry).toEqual({ calls: 1, usdc: "0.15", usdc_atomic: "150000" });
+  expect(stats.revenue_per_endpoint.entry).toMatchObject({ calls: 1, usdc: "0.15", usdc_atomic: "150000", eurc: "0.00", credit_calls: 0 });
   expect(stats.revenue_per_endpoint.invoice_check.calls).toBe(0);
   expect(stats.by_mode.simulated.calls).toBe(2);
   expect(stats.recent_transactions[0].request_id).toBe("req_2");
@@ -250,6 +250,8 @@ describe("store", () => {
       stats: boom,
       saveFingerprint: boom,
       history: boom,
+      getCredit: boom,
+      saveCredit: boom,
     };
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const store = new ResilientStore(broken);

@@ -1,6 +1,6 @@
 import type { InvoiceFingerprint } from "@/engine/types";
-import { buildStats, fingerprintKey, type Counters } from "./stats";
-import type { ReceiptRecord, Store, StoreStats } from "./types";
+import { buildStats, counterKey, fingerprintKey, type Counters } from "./stats";
+import type { CreditAccount, ReceiptRecord, Store, StoreStats } from "./types";
 
 /** The subset of the Workers KV binding API used here (avoids a @cloudflare/workers-types dependency). */
 export interface KVNamespaceLike {
@@ -24,6 +24,12 @@ type StatsDoc = Record<string, { calls: number; atomic: string }>;
  * read-modify-write documents: KV is eventually consistent and has no transactions, so two concurrent
  * calls may lose one counter increment (acceptable for a PoC dashboard; receipts themselves are never lost).
  * Any KV error (quota, 429) is caught by ResilientStore, which serves from memory.
+ *
+ * Credit accounts (ADR-025): one key per token hash, TTL = expiry + 1 day. A credit call adds one more
+ * write (the debited balance). KV is eventually consistent across locations (up to ~60 s): the
+ * per-instance lock in lib/payments/credits.ts serialises debits inside one isolate, but two isolates in
+ * different locations could both read the same balance — a documented PoC limit (a Durable Object or a
+ * SQL `UPDATE … WHERE balance >= price` would make it strict).
  */
 export class CloudflareKVStore implements Store {
   readonly kind = "cloudflare-kv" as const;
@@ -44,7 +50,7 @@ export class CloudflareKVStore implements Store {
     const [recent, stats] = await Promise.all([this.getJson<string[]>("recent"), this.getJson<StatsDoc>("stats")]);
     const ids = [r.request_id, ...(recent ?? []).filter((id) => id !== r.request_id)].slice(0, RECENT_MAX);
     const s = stats ?? {};
-    const k = `${r.receipt.mode}:${r.endpoint}`;
+    const k = counterKey(r);
     const cur = s[k] ?? { calls: 0, atomic: "0" };
     s[k] = { calls: cur.calls + 1, atomic: (BigInt(cur.atomic) + BigInt(r.receipt.amount_atomic)).toString() };
     await Promise.all([
@@ -87,5 +93,14 @@ export class CloudflareKVStore implements Store {
 
   async history(siren: string): Promise<InvoiceFingerprint[]> {
     return Object.values((await this.getJson<Record<string, InvoiceFingerprint>>(`fp:${siren}`)) ?? {});
+  }
+
+  getCredit(tokenHash: string): Promise<CreditAccount | null> {
+    return this.getJson<CreditAccount>(`credit:${tokenHash}`);
+  }
+
+  async saveCredit(account: CreditAccount): Promise<void> {
+    const ttl = Math.max(60, Math.ceil((Date.parse(account.expires_at) - Date.now()) / 1000) + 24 * 3600);
+    await this.put(`credit:${account.token_hash}`, account, ttl);
   }
 }

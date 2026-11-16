@@ -10,6 +10,8 @@
  *   AGENT_MAX_PER_CALL_USDC   max price per call (default 0.20)
  *   AGENT_DAILY_BUDGET_USDC   max spend per UTC day (default 2.00)
  *   AGENT_SPEND_LEDGER_FILE   optional JSON file that keeps the daily spend across restarts
+ *   AJEAN_PAY_ASSET           USDC (default) | EURC — asset to pay x402 calls with (EURC budgeted at its USDC value)
+ *   AJEAN_CREDIT_TOKEN        optional prepaid credit token (ajc_…, POST /api/v1/credits): tried before x402
  *   AJEAN_MCP_DOTENV=0        do not read <repo>/.env.local (read by default; never overrides set vars)
  *
  * stdout carries MCP JSON-RPC only: every log goes to stderr.
@@ -52,11 +54,13 @@ async function main(): Promise<void> {
   else log("AGENT_PRIVATE_KEY not set: paid tools will refuse to pay (free tools still work).");
 
   const policy = new SpendingPolicy(policyFromEnv());
-  const server = createBridgeServer({ baseUrl, account, policy, log });
+  const preferAsset = process.env.AJEAN_PAY_ASSET?.trim().toUpperCase() === "EURC" ? "EURC" : "USDC";
+  const creditToken = process.env.AJEAN_CREDIT_TOKEN?.trim() || null;
+  const server = createBridgeServer({ baseUrl, account, policy, log, preferAsset, creditToken });
   await server.connect(new StdioServerTransport());
   const s = policy.summary();
   log(
-    `ready: API ${baseUrl}, agent wallet ${account ? account.address : "none"}, policy max/call ${s.max_per_call_usdc} USDC, daily budget ${s.daily_budget_usdc} USDC (spent today ${s.spent_today_usdc}).`,
+    `ready: API ${baseUrl}, agent wallet ${account ? account.address : "none"}, pays in ${preferAsset}${creditToken ? " (prepaid credit token first)" : ""}, policy max/call ${s.max_per_call_usdc} USDC, daily budget ${s.daily_budget_usdc} USDC (spent today ${s.spent_today_usdc}).`,
   );
 }
 

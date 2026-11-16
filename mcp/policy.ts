@@ -4,7 +4,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { NETWORK_CAIP2, USDC, atomicToUsdc, usdcToAtomic } from "../lib/payments/pricing";
+import { NETWORK_CAIP2, USDC, assetByAddress, atomicToUsdc, usdcEquivalentAtomic, usdcToAtomic } from "../lib/payments/pricing";
 
 export interface PolicyConfig {
   maxPerCallUsdc: string;
@@ -78,13 +78,21 @@ export class SpendingPolicy {
     return { ok: true };
   }
 
-  /** Checks the server's x402 requirements (network, asset, amount) before signing anything. */
-  checkRequirements(req: { network: string; asset: string; amount: string; scheme: string }): PolicyDecision {
+  /**
+   * Checks the server's x402 requirements (network, asset, amount) before signing anything.
+   * Test USDC, or test EURC when `allowEurc` (the bridge prefers EURC): an EURC amount is checked at its
+   * USDC value (demo rate, rounded up), so the budget stays in USDC.
+   */
+  checkRequirements(req: { network: string; asset: string; amount: string; scheme: string }, allowEurc = false): PolicyDecision & { usdcEquivalent?: bigint } {
     if (req.network !== NETWORK_CAIP2) return { ok: false, reason: `network ${req.network} refused (testnet only: ${NETWORK_CAIP2})` };
-    if (req.asset.toLowerCase() !== USDC.address.toLowerCase()) return { ok: false, reason: `asset ${req.asset} refused (only test USDC ${USDC.address})` };
+    const asset = assetByAddress(req.asset);
+    if (!asset || (asset.symbol === "EURC" && !allowEurc)) {
+      return { ok: false, reason: `asset ${req.asset} refused (only test USDC ${USDC.address}${allowEurc ? " or test EURC" : ""})` };
+    }
     if (req.scheme !== "exact") return { ok: false, reason: `scheme ${req.scheme} refused (only exact)` };
     if (!/^\d+$/.test(req.amount)) return { ok: false, reason: `invalid amount ${req.amount}` };
-    return this.check(BigInt(req.amount));
+    const usdcEquivalent = usdcEquivalentAtomic(asset.symbol, req.amount);
+    return { ...this.check(usdcEquivalent), usdcEquivalent };
   }
 
   reserve(amountAtomic: bigint): void {

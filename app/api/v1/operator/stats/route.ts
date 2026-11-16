@@ -1,11 +1,12 @@
 // GET /api/v1/operator/stats — free. The agent economy seen by the operator: calls served,
-// USDC earned, revenue per endpoint, recent transactions. Falls back to the recorded replays
+// USDC earned, revenue per endpoint and per asset (USDC / EURC, ADR-024), prepaid credit packs sold
+// (ADR-025), recent transactions. Falls back to the recorded replays
 // (source "replay") while the store has no paid call yet, so /operator is never empty.
 // The headline counts the CURRENT payment mode only (Phase 7 review M2): a TESTNET deployment never
 // adds simulated (fake-hash) calls to its revenue; the other mode is reported in `hidden`.
 import { NextResponse } from "next/server";
 import { allReplays } from "@/agent/replays";
-import { PAID_ENDPOINTS, PAID_ENDPOINT_LIST, atomicToUsdc, usdcToAtomic, type PaidEndpointId } from "@/lib/payments/pricing";
+import { ACCEPTED_ASSETS, CREDITS_PATH, PAID_ENDPOINTS, PAID_ENDPOINT_LIST, atomicToUsdc, usdcToAtomic, type AssetSymbol, type PaidEndpointId } from "@/lib/payments/pricing";
 import { getPaymentMode, type PaymentMode } from "@/lib/payments/config";
 import { getStore, type StoreStats } from "@/lib/store";
 
@@ -18,16 +19,34 @@ interface RecentRow {
   endpoint: string;
   payer: string | null;
   amount: string;
+  /** Asset paid ("USDC" | "EURC"); credit debits are USDC-denominated. */
+  asset: AssetSymbol;
+  /** "x402" or "credits" (debit on a prepaid token: no tx hash). */
+  method: "x402" | "credits";
   tx_hash: string;
   explorer_url: string | null;
   mode: string;
   human_review_required?: boolean;
 }
 
+interface CreditsSummary {
+  packs_sold: number;
+  /** Cash received for packs, per asset (decimal strings). */
+  sold: Record<AssetSymbol, string>;
+  /** Calls paid with credit tokens, and the credit they consumed (USDC). */
+  calls: number;
+  consumed_usdc: string;
+}
+
 interface OperatorStatsBody {
   calls: number;
+  /** USDC received in the current mode (x402 calls + credit packs paid in USDC). */
   usdc_earned: string;
-  by_endpoint: { endpoint: string; calls: number; usdc: string }[];
+  /** Cash received per asset in the current mode (x402 calls + packs). */
+  earned_by_asset: Record<AssetSymbol, string>;
+  /** Prepaid credit packs (null for the replay fallback). */
+  credits: CreditsSummary | null;
+  by_endpoint: { endpoint: string; calls: number; usdc: string; eurc: string; credit_calls: number }[];
   by_mode?: StoreStats["by_mode"];
   /** Payment mode the headline figures are computed for (the deployment's current mode). */
   mode: PaymentMode;
@@ -44,7 +63,8 @@ interface OperatorStatsBody {
 }
 
 function reviewWindow(recent: RecentRow[]): OperatorStatsBody["review_window"] {
-  return { calls: recent.length, review_required: recent.filter((r) => r.human_review_required === true).length };
+  const calls = recent.filter((r) => r.endpoint !== CREDITS_PATH); // pack purchases are not engine calls
+  return { calls: calls.length, review_required: calls.filter((r) => r.human_review_required === true).length };
 }
 
 function fromStore(s: StoreStats, mode: PaymentMode): OperatorStatsBody {
@@ -55,18 +75,37 @@ function fromStore(s: StoreStats, mode: PaymentMode): OperatorStatsBody {
   const recent: RecentRow[] = s.recent_transactions.filter((t) => t.mode === mode).map((t) => ({
     request_id: t.request_id,
     at: t.paid_at,
-    endpoint: PAID_ENDPOINTS[t.endpoint as PaidEndpointId]?.path ?? t.endpoint,
+    endpoint: t.endpoint === "credits" ? CREDITS_PATH : (PAID_ENDPOINTS[t.endpoint as PaidEndpointId]?.path ?? t.endpoint),
     payer: t.payer,
     amount: t.amount,
+    asset: t.asset ?? "USDC",
+    method: t.method ?? "x402",
     tx_hash: t.tx_hash,
     explorer_url: t.explorer_url,
     mode: t.mode,
     human_review_required: t.human_review_required,
   }));
+  const byAsset = s.revenue_by_asset?.[mode];
+  const cr = s.credits?.[mode];
   return {
     calls: cur?.calls ?? 0,
     usdc_earned: cur?.usdc ?? "0.00",
-    by_endpoint: PAID_ENDPOINT_LIST.map((e) => ({ endpoint: e.path, calls: perEndpoint?.[e.id]?.calls ?? 0, usdc: perEndpoint?.[e.id]?.usdc ?? "0.00" })),
+    earned_by_asset: Object.fromEntries(ACCEPTED_ASSETS.map((a) => [a, byAsset?.[a]?.amount ?? "0.00"])) as Record<AssetSymbol, string>,
+    credits: cr
+      ? {
+          packs_sold: cr.packs_sold,
+          sold: Object.fromEntries(ACCEPTED_ASSETS.map((a) => [a, cr.sold[a]?.amount ?? "0.00"])) as Record<AssetSymbol, string>,
+          calls: cr.calls,
+          consumed_usdc: cr.consumed_usdc,
+        }
+      : null,
+    by_endpoint: PAID_ENDPOINT_LIST.map((e) => ({
+      endpoint: e.path,
+      calls: perEndpoint?.[e.id]?.calls ?? 0,
+      usdc: perEndpoint?.[e.id]?.usdc ?? "0.00",
+      eurc: perEndpoint?.[e.id]?.eurc ?? "0.00",
+      credit_calls: perEndpoint?.[e.id]?.credit_calls ?? 0,
+    })),
     by_mode: s.by_mode,
     mode,
     hidden: hiddenCalls > 0 ? { mode: other, calls: hiddenCalls, usdc: s.by_mode[other].usdc } : null,
@@ -92,6 +131,8 @@ function statsFromReplays(mode: PaymentMode): OperatorStatsBody {
       endpoint,
       payer: (rc.payer as string | null) ?? t.agent.wallet ?? null,
       amount: String(rc.amount ?? "0"),
+      asset: rc.asset === "EURC" ? "EURC" : "USDC",
+      method: rc.method === "credits" ? "credits" : "x402",
       tx_hash: String(rc.tx_hash ?? ""),
       explorer_url: (rc.explorer_url as string | null) ?? null,
       mode: String(rc.mode ?? t.recorded_from ?? "simulated"),
@@ -100,12 +141,15 @@ function statsFromReplays(mode: PaymentMode): OperatorStatsBody {
   }
   recent.sort((a, b) => b.at.localeCompare(a.at));
   const sum = (rows: RecentRow[]) => atomicToUsdc(rows.reduce((s, x) => s + BigInt(usdcToAtomic(x.amount)), 0n));
+  const cash = (rows: RecentRow[], asset: AssetSymbol) => sum(rows.filter((x) => x.method === "x402" && x.asset === asset));
   return {
     calls: recent.length,
-    usdc_earned: sum(recent),
+    usdc_earned: cash(recent, "USDC"),
+    earned_by_asset: Object.fromEntries(ACCEPTED_ASSETS.map((a) => [a, cash(recent, a)])) as Record<AssetSymbol, string>,
+    credits: null,
     by_endpoint: PAID_ENDPOINT_LIST.map((e) => {
       const rows = recent.filter((x) => x.endpoint === e.path);
-      return { endpoint: e.path, calls: rows.length, usdc: sum(rows) };
+      return { endpoint: e.path, calls: rows.length, usdc: cash(rows, "USDC"), eurc: cash(rows, "EURC"), credit_calls: rows.filter((x) => x.method === "credits").length };
     }),
     // The replays are labelled recordings (source "replay"), all made on TESTNET; `mode` still names the
     // deployment's current mode so the client can say which calls a live store would show.

@@ -5,6 +5,11 @@
  * Ajean Ledger API, paid with @x402/fetch + ExactEvmScheme using the agent wallet, under a spending
  * policy (AGENT_MAX_PER_CALL_USDC, AGENT_DAILY_BUDGET_USDC). Logs go to stderr only; keys are never logged.
  *
+ * Asset: USDC by default (accepts[0]); `preferAsset: "EURC"` (env AJEAN_PAY_ASSET=EURC) selects the EURC
+ * requirement instead, budgeted at its USDC value (ADR-024). Prepaid credits: with `creditToken`
+ * (env AJEAN_CREDIT_TOKEN) each call first tries X-Credit-Token; on a 402 CREDITS_INSUFFICIENT /
+ * CREDIT_TOKEN_INVALID it falls back to a normal x402 payment under the policy (ADR-025).
+ *
  * Relative imports only: Claude Desktop runs this file with tsx from an arbitrary working directory.
  */
 import { randomUUID } from "node:crypto";
@@ -12,7 +17,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { decodePaymentResponseHeader, x402Client, wrapFetchWithPayment } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import type { PrivateKeyAccount } from "viem/accounts";
-import { NETWORK_CAIP2, PAID_ENDPOINTS, atomicToUsdc } from "../lib/payments/pricing";
+import { CREDIT_TOKEN_HEADER, EURC, NETWORK_CAIP2, PAID_ENDPOINTS, assetByAddress, atomicToUsdc, type AssetSymbol } from "../lib/payments/pricing";
 import { SERVICE_SLUG, SERVICE_VERSION } from "../lib/discovery/meta";
 import { GET_CATALOG_TOOL, GET_RECEIPT_TOOL, MCP_SERVER_INSTRUCTIONS, PAID_TOOLS, type PaidToolDef } from "../lib/discovery/tools";
 import { SpendingPolicy } from "./policy";
@@ -28,6 +33,10 @@ export interface BridgeOptions {
   policy: SpendingPolicy;
   fetchImpl?: typeof fetch;
   log?: (msg: string) => void;
+  /** Asset to pay x402 calls with when the server offers it (default USDC). */
+  preferAsset?: AssetSymbol;
+  /** Prepaid credit token (ajc_…) tried before any x402 payment. */
+  creditToken?: string | null;
 }
 
 function result(body: Json, isError = false, note?: string): CallResult {
@@ -60,8 +69,43 @@ export function createBridgeServer(opts: BridgeOptions): McpServer {
     { instructions: MCP_SERVER_INSTRUCTIONS },
   );
 
+  const preferEurc = opts.preferAsset === "EURC";
+
+  /** Tries the prepaid credit token; null = not usable (fall back to x402). */
+  async function callWithCredits(tool: PaidToolDef, args: Json): Promise<CallResult | null> {
+    const endpoint = PAID_ENDPOINTS[tool.endpoint];
+    const url = `${baseUrl}${endpoint.path}`;
+    let res: Response;
+    try {
+      res = await fetchImpl(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": randomUUID(), [CREDIT_TOKEN_HEADER]: opts.creditToken! },
+        body: JSON.stringify(args),
+      });
+    } catch (e) {
+      log(`${tool.name} credits call failed: ${(e as Error).message}`);
+      return null;
+    }
+    const body = await readJson(res);
+    if (res.status === 200) {
+      const receipt = body.receipt as { remaining_balance?: string } | undefined;
+      log(`${tool.name} paid with prepaid credits (${endpoint.price_usdc} USDC), remaining ${receipt?.remaining_balance ?? "?"} USDC`);
+      return result(body, false, `Paid ${endpoint.price_usdc} USDC from prepaid credits (no on-chain payment). Remaining balance ${receipt?.remaining_balance ?? "?"} USDC. request_id ${String(body.request_id)}.`);
+    }
+    const code = (body.error as { code?: string } | undefined)?.code;
+    if (res.status === 402 && (code === "CREDITS_INSUFFICIENT" || code === "CREDIT_TOKEN_INVALID")) {
+      log(`${tool.name}: credits not usable (${code}), falling back to x402`);
+      return null;
+    }
+    return result({ http_status: res.status, ...body }, true, `HTTP ${res.status}: not charged (errors are never debited).`);
+  }
+
   async function callPaid(tool: PaidToolDef, args: Json): Promise<CallResult> {
     const endpoint = PAID_ENDPOINTS[tool.endpoint];
+    if (opts.creditToken) {
+      const viaCredits = await callWithCredits(tool, args);
+      if (viaCredits) return viaCredits;
+    }
     if (!opts.account) {
       return policyError("AGENT_WALLET_MISSING", "AGENT_PRIVATE_KEY is not set for the MCP bridge, so it cannot pay. Set a TESTNET wallet key in the MCP server env.", {
         tool: tool.name,
@@ -79,15 +123,23 @@ export function createBridgeServer(opts: BridgeOptions): McpServer {
     // 2) Authoritative check on the server's x402 requirements, right before signing.
     let reservedAmount = 0n;
     let refusal: string | undefined;
+    let paidAsset: AssetSymbol = "USDC";
     const client = x402Client
-      .fromConfig({ schemes: [{ network: NETWORK_CAIP2, client: new ExactEvmScheme(opts.account) }], spendControls: { maxAmountPerPayment: false } })
+      .fromConfig({
+        schemes: [{ network: NETWORK_CAIP2, client: new ExactEvmScheme(opts.account) }],
+        // EURC is not an x402 SDK default asset: allow it explicitly when preferred (the policy still caps the spend).
+        spendControls: preferEurc ? { maxAmountPerPayment: false, allowedAssets: [{ network: NETWORK_CAIP2, asset: EURC.address }] } : { maxAmountPerPayment: false },
+        paymentRequirementsSelector: (_v, reqs) =>
+          (preferEurc ? reqs.find((r) => r.asset.toLowerCase() === EURC.address.toLowerCase()) : undefined) ?? reqs[0],
+      })
       .onBeforePaymentCreation(async ({ selectedRequirements }) => {
-        const d = policy.checkRequirements(selectedRequirements);
+        const d = policy.checkRequirements(selectedRequirements, preferEurc);
         if (!d.ok) {
           refusal = d.reason;
           return { abort: true as const, reason: d.reason! };
         }
-        reservedAmount = BigInt(selectedRequirements.amount);
+        paidAsset = assetByAddress(selectedRequirements.asset)?.symbol ?? "USDC";
+        reservedAmount = d.usdcEquivalent ?? BigInt(selectedRequirements.amount);
         policy.reserve(reservedAmount);
       });
     const payFetch = wrapFetchWithPayment(fetchImpl, client);
@@ -118,22 +170,27 @@ export function createBridgeServer(opts: BridgeOptions): McpServer {
     const replay = res.headers.get("Idempotent-Replay") === "true";
     if (res.status === 200 && settledHeader && !replay && reservedAmount) {
       let paid = reservedAmount;
+      let paidLabel = `${atomicToUsdc(paid)} USDC`;
       try {
         const s = decodePaymentResponseHeader(settledHeader);
-        if (s.amount && /^\d+$/.test(s.amount)) paid = BigInt(s.amount);
+        if (s.amount && /^\d+$/.test(s.amount)) {
+          // Budget in USDC: an EURC payment counts at its USDC value (reserved above).
+          if (paidAsset === "USDC") paid = BigInt(s.amount);
+          paidLabel = `${atomicToUsdc(s.amount)} ${paidAsset}`;
+        }
       } catch {
         /* keep the reserved amount */
       }
       policy.release(reservedAmount);
       policy.commit(paid);
       const receipt = body.receipt as { tx_hash?: string; mode?: string } | undefined;
-      log(`${tool.name} paid ${atomicToUsdc(paid)} USDC (${receipt?.mode ?? "?"}) tx ${receipt?.tx_hash ?? "?"}; spent today ${policy.summary().spent_today_usdc} USDC`);
+      log(`${tool.name} paid ${paidLabel} (${receipt?.mode ?? "?"}) tx ${receipt?.tx_hash ?? "?"}; spent today ${policy.summary().spent_today_usdc} USDC`);
       const s = policy.summary();
       return {
         ...result(
           body,
           false,
-          `Paid ${atomicToUsdc(paid)} USDC via x402 (${String(receipt?.mode ?? "").toUpperCase()}), tx ${receipt?.tx_hash}. Spent today ${s.spent_today_usdc}/${s.daily_budget_usdc} USDC. request_id ${String(body.request_id)}.`,
+          `Paid ${paidLabel} via x402 (${String(receipt?.mode ?? "").toUpperCase()}), tx ${receipt?.tx_hash}. Spent today ${s.spent_today_usdc}/${s.daily_budget_usdc} USDC. request_id ${String(body.request_id)}.`,
         ),
         _meta: { "ajean/spending": s },
       };

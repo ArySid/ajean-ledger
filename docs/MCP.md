@@ -84,12 +84,14 @@ npm run mcp:inspect        # MCP Inspector UI (downloads @modelcontextprotocol/i
 | `AGENT_MAX_PER_CALL_USDC` | `0.20` | refuse any call priced above this |
 | `AGENT_DAILY_BUDGET_USDC` | `2.00` | refuse once the UTC-day spend would exceed this |
 | `AGENT_SPEND_LEDGER_FILE` | — (in memory) | optional JSON file keeping the daily spend across restarts |
+| `AJEAN_PAY_ASSET` | `USDC` | `EURC` selects the EURC requirement (`accepts[1]`, ADR-024); the policy counts it at its USDC value (1.08, rounded up) |
+| `AJEAN_CREDIT_TOKEN` | — | prepaid credit token (`ajc_…`, ADR-025): each paid tool first tries `X-Credit-Token`, falls back to x402 on `CREDITS_INSUFFICIENT` / `CREDIT_TOKEN_INVALID` |
 | `AJEAN_MCP_DOTENV` | `1` | read `<repo>/.env.local` (never overrides variables already set); `0` disables |
 
 Spending policy (master prompt §6) — enforced twice:
 1. before calling, against the published price (`pricing.ts`);
 2. right before signing, in an `x402Client.onBeforePaymentCreation` hook, against the server's actual requirements:
-   network must be `eip155:84532`, asset must be test USDC, scheme `exact`, amount ≤ max per call, spent today +
+   network must be `eip155:84532`, asset must be test USDC (or test EURC when `AJEAN_PAY_ASSET=EURC`, counted at its USDC value), scheme `exact`, amount ≤ max per call, spent today +
    in-flight + amount ≤ daily budget. Otherwise the payment is aborted and the tool returns
    `isError: true` with `SPENDING_POLICY_REFUSED` and the reason. Only settled payments count (idempotent replays and
    failed calls are not charged and not counted).
