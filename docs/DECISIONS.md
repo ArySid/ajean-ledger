@@ -35,13 +35,13 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - **Rejected:** v1 packages (legacy, lagging); hand-rolled 402 logic (risk of spec drift, the brief says "follow the current spec exactly").
 
 ## ADR-003 — Stack: one Next.js 16 app + a framework-free engine package
-- **Status:** proposed (awaiting validation)
+- **Status:** accepted (team validation, prompt #02)
 - **Decision:** Next.js 16 App Router + TypeScript, deployed on Vercel. The accounting engine lives in `/engine` as pure TypeScript with zero Next.js imports, so the API routes, the MCP server, the CLI (`npm run engine`) and the demo agent all call the same functions. Tests with Vitest.
 - **Why:** One deployable, one URL for the jury, one language end to end (§3).
 - **Rejected:** Separate backend (Express/Hono) + frontend (two deployments for no gain); Python engine (breaks "TypeScript end to end").
 
 ## ADR-004 — Receipts, idempotency and operator stats storage
-- **Status:** proposed — see blocking question Q2
+- **Status:** superseded by ADR-010 (no Supabase)
 - **Context:** Vercel serverless functions have no persistent filesystem and requests can hit different instances. `/api/v1/receipts/{id}`, idempotency keys and the `/operator` dashboard need shared state.
 - **Decision (proposed):** A tiny `Store` interface with two adapters: `file` (local dev, `data/*.local.json`) and one hosted adapter for the public URL. Recommended hosted adapter: **one Supabase table** (`receipts`), because the Supabase connector is already available in this workspace.
 - **Rejected:** In-memory only (receipts vanish between instances, so the idempotency demo is not credible); SQLite on Vercel (not persistent).
@@ -61,10 +61,49 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - **Context:** The x402 `exact` EVM scheme uses EIP-3009 `transferWithAuthorization`: the agent signs an off-chain authorisation and the facilitator submits the transaction and pays gas.
 - **Decision:** The demo agent wallet needs **test USDC only** (Circle faucet), no Base Sepolia ETH. The service `payTo` wallet needs nothing; its private key is never needed by the server.
 
-## ADR-008 — Accounting defaults (to confirm in Phase 1)
-- **Status:** needs-review (Ary) — see blocking question Q5
+## ADR-008 — Accounting defaults
+- **Status:** accepted (prompt #02). Legal citations remain gated by `docs/LEGAL_REVIEW.md`.
 - Low-value fixed-asset threshold: **€500 excl. VAT** (French administrative tolerance). Above it, IT equipment → `2183` + VAT on fixed assets `44562`; below → expense `6063`/`6064`.
 - Supplier accounts: general account `401` + auxiliary code, e.g. `401BURO` (shown as `401XXXX` in §5.4).
 - Purchase journal code `HA`; bank journal `BQ`.
 - Restaurant: on-site meals are 10%, alcohol 20%. A restaurant invoice at 20% on food → `VAT_RATE_MISMATCH` warning + `human_review_required: true`. The engine **never** silently corrects the VAT amount: it books what was invoiced and flags it.
 - Legal bases: only from a curated table in `engine/rules/legal-basis.ts`, each entry with `id`, `label`, `reference` and a `reviewed_by` field (empty until Ary signs it off). No article number is shown to an agent until it is reviewed.
+
+---
+
+## ADR-009 — GitHub repository: user creates it once, then push after every step
+- **Status:** accepted (workaround)
+- **Context:** Prompt #02 asks for a new private repo `ajean-ledger` on the user's account. The account was identified as `ArySid` (`gh api user`). This cloud session's GitHub credential is scoped to configured repositories only: the repo-creation API path is blocked (HTTP 403) and `add_repo` cannot attach a repo that does not exist.
+- **Decision:** The user creates the empty private repo `ArySid/ajean-ledger` once (Action required). The session then attaches it with push access and pushes the full local history; every later step is pushed. Until then, commits are kept locally.
+- **Rejected:** Pushing to another existing repo (forbidden: never touch existing assets).
+
+## ADR-010 — Storage: optional, Neon → Upstash → memory (no Supabase)
+- **Status:** accepted (prompt #02)
+- **Decision:** `lib/store` exposes one `Store` interface with adapters `neon` (`DATABASE_URL`/`POSTGRES_URL`, table `ajean_receipts` created on first use), `upstash` (REST URL/token), `file` (local dev) and `memory`. Any store error falls back to memory, so the API and demo keep working; `/operator` falls back to recorded replays. Nothing is created on Supabase.
+- **Note:** The Neon marketplace integration (free plan) is already installed on the Vercel team, but the Vercel MCP exposes no "create integration resource" call, so the database is attached from the Vercel dashboard (Storage → Neon) once the project exists.
+
+## ADR-011 — Vercel: team blocked for fair-use → deployment pending, fallbacks prepared
+- **Status:** accepted (workaround)
+- **Context:** Creating project `ajean-ledger` on team "arysidoun-5003's projects" (Hobby) returned `402 resource_creation_blocked: Your Team exceeded our fair use limits and has been blocked`. Changing plan/billing is out of bounds (free tiers only) and existing projects (e.g. `ajeanai`) must not be touched.
+- **Decision:** Keep building and verifying locally (all flows run from this container: x402.org facilitator and Base Sepolia RPC are reachable). Ask the user to check the block in the Vercel dashboard (Usage). As a guaranteed fallback for the shareable link, the demo console is designed to also run as a static page in **REPLAY / SIMULATED** mode (engine is pure TypeScript and can run in the browser), clearly labelled.
+- **Rejected:** Upgrading the Vercel plan (paid); deploying under another account without the user.
+
+## ADR-012 — Throwaway testnet wallets
+- **Status:** accepted
+- **Decision:** `scripts/gen-wallets.ts` generates two Base Sepolia wallets (service `payTo`, demo agent) into `.env.local` (gitignored, mode 600); keys are never printed. Public addresses: service `0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC`, agent `0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF`. The agent needs only test USDC (ADR-007). If the container is recycled before keys are stored in Vercel env vars, new wallets are generated (only faucet funds are lost).
+
+## ADR-013 — Anthropic key optional; scripted mode first
+- **Status:** accepted (prompt #02)
+- **Decision:** Everything is built and tested without an LLM (structured inputs, scripted demo agent). The key is requested once via the secure form; when present, `createAnthropicAdapter()` enables LLM extraction/classification and the agent's LLM reasoning. Default model `claude-sonnet-5-5` (env `ANTHROPIC_MODEL`).
+
+## ADR-014 — Fixture 9: the lawyer is the BNC client whose books we keep
+- **Status:** accepted (prompt #02)
+- **Decision:** Client profile `activity: "bnc"`, `accounting_basis: "cash"`. The engine proposes the entry but returns `human_review_required: true` (reason `CASH_BASIS_CLIENT`), since a recettes-dépenses ledger records it at payment date.
+
+## ADR-015 — Fictional demo SME and language
+- **Status:** accepted (prompt #02)
+- **Decision:** Demo client "Atelier Lumen SAS (fictional)", fictional SIREN. Course deliverables (concept note, slides, demo script, Q&A) in English. Bonuses (credit packs, EURC) only after Phases 1–7 are complete and verified.
+
+## ADR-016 — Autonomous orchestrator mode
+- **Status:** accepted (prompt #02)
+- **Decision:** No more stops between phases. Independent workstreams are delegated to subagents with explicit file ownership (engine / payments-API / deliverables first; then discovery+MCP, demo agent, console). Independent reviewer subagents (that did not write the code) after Phases 1, 5 and 7 check accounting correctness of the 12 fixtures, brief compliance and an error-free demo from the public URL. User reports in French, ≤ 15 lines; technical detail stays in `docs/`.
