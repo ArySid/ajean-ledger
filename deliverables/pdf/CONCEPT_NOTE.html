@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Ajean Ledger — Concept Note</title>
+<style>
+  :root { --ink:#16181d; --muted:#5b6170; --rule:#d9dce3; --accent:#1f4fd1; --soft:#f3f5f9; }
+  @page { size: A4; margin: 18mm 20mm 18mm 20mm; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; background:#fff; color: var(--ink); font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+         font-size: 10pt; line-height: 1.32; }
+  main { max-width: 170mm; margin: 0 auto; }
+  h1 { font-size: 17pt; margin: 0 0 3pt; letter-spacing: -0.01em; }
+  h2 { font-size: 12pt; margin: 9pt 0 3pt; color: var(--accent); break-after: avoid; }
+  h3 { font-size: 10.75pt; margin: 8pt 0 2pt; break-after: avoid; }
+  h4 { font-size: 10pt; margin: 6pt 0 2pt; }
+  p { margin: 0 0 4.5pt; }
+  ul, ol { margin: 0 0 4.5pt; padding-left: 15pt; }
+  li { margin: 0 0 1.5pt; }
+  ul.checklist { list-style: none; padding-left: 4pt; }
+  a { color: var(--accent); text-decoration: none; word-break: break-word; }
+  code { font-family: "JetBrains Mono", Menlo, Consolas, monospace; font-size: 0.86em; background: var(--soft);
+         padding: 0 2pt; border-radius: 2pt; word-break: break-word; }
+  pre { background: var(--soft); padding: 5pt 7pt; border-radius: 3pt; white-space: pre-wrap; font-size: 0.86em; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 3pt 0 6pt; font-size: 0.92em; break-inside: auto; }
+  th, td { border: 0.6pt solid var(--rule); padding: 2.2pt 4pt; vertical-align: top; text-align: left; }
+  th { background: var(--soft); font-weight: 600; }
+  tr { break-inside: avoid; }
+  blockquote { margin: 3pt 0 6pt; padding: 3pt 8pt; border-left: 2.5pt solid var(--accent); background: var(--soft); color: #2b2f38; }
+  blockquote p:last-child { margin-bottom: 0; }
+  hr { border: none; border-top: 0.6pt solid var(--rule); margin: 7pt 0; }
+  .pagebreak { break-after: page; }
+  @media screen { body { padding: 16px; } main { max-width: 820px; } }
+</style></head>
+<body><main>
+<h1 id="ajean-ledger-concept-note">Ajean Ledger — Concept Note</h1>
+<p><strong>An accounting API for AI agents, paid per call in stablecoins.</strong> Team: Ary SIDOUN, Victor BONNAPETIT, Yoann POMMEROLLE, Leo COUTURIER. <strong>Live PoC:</strong> <a href="https://ajean-ledger.ary-sidoun.workers.dev">https://ajean-ledger.ary-sidoun.workers.dev</a> (agent console <code>/live</code>), in <strong>TESTNET</strong> mode on Cloudflare Workers: real x402 payments in test USDC, settled on Base Sepolia. Synthetic data only; not a substitute for a chartered accountant's review.</p>
+<p>An AI agent sends a French invoice or bank transaction and gets back, in one HTTP exchange, a validated machine-readable accounting entry: PCG accounts, VAT treatment, e-invoicing compliance and anomaly flags. It pays per call in USDC through x402. No sign-up, no API key: <strong>payment is the authentication.</strong></p>
+<h2 id="1-economic-problem">1. Economic problem</h2>
+<p>SMEs and accounting firms are handing purchasing, expense and pre-bookkeeping work to AI agents. They read invoices well but do not reliably apply French rules: wrong PCG account, wrong VAT regime (standard, intra-EU reverse charge, exempt), wrong deductible VAT, missing mandatory mentions. These errors come back later as manual corrections, rejected VAT deductions or audit findings.</p>
+<p>The French e-invoicing reform raises the stakes. Since 1 September 2026 every company must be able to receive e-invoices; large and mid-size companies issue them from that date, SMEs from 1 September 2027. New mandatory mentions appear (buyer SIREN, nature of the operation, delivery address, VAT-on-debits option). Invoices become structured data that agents will process at scale, if they apply the rules correctly.</p>
+<h2 id="2-ai-agent-use-case-what-the-demo-shows">2. AI-agent use case (what the demo shows)</h2>
+<p>The direct user is an agent. The purchasing agent of <em>Atelier Lumenor SAS (fictional)</em> receives a restaurant invoice for 175.20 EUR. The meal was billed at 20% VAT instead of 10%. The agent:</p>
+<ol><li>discovers Ajean Ledger through free discovery files (catalog, <code>llms.txt</code>, OpenAPI, agent card, MCP);</li><li>checks the price (0.15 USDC) against its operator's spending policy (<code>max_per_call</code> 0.20, <code>daily_budget</code> 2.00 USDC); the same policy makes it refuse a 1.00 USDC audit before paying anything (demo scenario 90);</li><li>calls <code>POST /api/v1/entry</code>, gets <code>HTTP 402 Payment Required</code>, signs a USDC payment and retries, with no human involved;</li><li>receives a balanced entry: debit 6257 160.60, debit 44566 14.60, credit 401BOUCHON 175.20. Only the VAT legally due (10%) is deducted. The 14.60 EUR excess stays in the expense, flagged as <code>VAT_RATE_MISMATCH</code> with <code>human_review_required: true</code>;</li><li>posts the entry to its ERP and sends only this invoice to a human, to request a corrected invoice.</li></ol>
+<h2 id="3-innovative-features">3. Innovative features</h2>
+<ul><li><strong>Machine-first.</strong> JSON only, strict schemas, machine-readable error codes, idempotency keys, free receipts, discovery files and an MCP server (<code>check_invoice</code>, <code>create_entry</code>, <code>audit_entries</code>). The web console only observes agent traffic; no human screen sits in the product path.</li><li><strong>Payment is the authentication.</strong> x402 over plain HTTP: no account, no key, no invoice to chase; the agent pays only if the call succeeds.</li><li><strong>Rules first, LLM second.</strong> A deterministic engine decides accounts, amounts and VAT, with a stable <code>rule_id</code> per rule. An optional LLM only extracts unstructured documents or classifies ambiguous descriptions, and the response says so. Uncertain cases return <code>human_review_required: true</code> instead of a guess.</li><li><strong>Expert viewpoints.</strong> <code>/audit</code> returns structured statutory-auditor and tax-inspector findings, inherited from the expert agents of Ajean, our AI-agent platform for SMEs and accounting firms.</li><li><strong>Tested.</strong> 217 automated tests and 13 synthetic fixtures (reverse charge, credit note, fixed asset, duplicate, Factur-X, UBL, bank matching); two independent reviews (engine, live demo).</li></ul>
+<h2 id="4-target-customers">4. Target customers</h2>
+<p>The <strong>caller</strong> is the agent; the <strong>payer</strong> is its operator, who funds its wallet and sets its policy: accounting firms running pre-bookkeeping agents; SaaS publishers (ERP, spend, expenses) whose agents need French accounting logic; SMEs and freelancers whose assistants do their admin.</p>
+<h2 id="5-existing-alternatives">5. Existing alternatives</h2>
+<table><thead><tr><th>Alternative</th><th>Strength</th><th>Limit for agent use (our assessment)</th></tr></thead><tbody><tr><td>Pennylane</td><td>Full accounting platform with automated pre-bookkeeping</td><td>Built for its subscribers' ledgers and human users; account and subscription</td></tr><tr><td>Dext</td><td>Document capture and extraction for bookkeepers</td><td>Account and subscription; extraction, then export to accounting software</td></tr><tr><td>Generic LLMs</td><td>Read any document, low cost</td><td>No deterministic validation, no stable rule references; can invent accounts or VAT rates</td></tr><tr><td>Manual work in firms</td><td>Expert judgement, professional liability</td><td>Time-consuming; staff are scarce at peak periods</td></tr></tbody></table>
+<p>Ajean Ledger complements them: a per-call building block whose JSON output can feed any of them.</p>
+<h2 id="6-revenue-model">6. Revenue model</h2>
+<p>Pay per call by value tier (one config file, published in the catalog). Discovery and receipts are free.</p>
+<table><thead><tr><th>Endpoint</th><th>What the agent gets</th><th>Price (USDC)</th></tr></thead><tbody><tr><td><code>POST /api/v1/invoice/check</code></td><td>E-invoice compliance check (mentions, VAT consistency)</td><td>0.05</td></tr><tr><td><code>POST /api/v1/entry</code></td><td>Entry + VAT treatment + compliance + anomalies</td><td>0.15</td></tr><tr><td><code>POST /api/v1/audit</code></td><td>Up to 50 entries, auditor and tax-inspector viewpoints</td><td>1.00</td></tr></tbody></table>
+<p><em>Planned, not in the PoC:</em> prepaid credit packs (pay 10 USDC, get 12 of calls); EURC for euro clients.</p>
+<h2 id="7-stablecoin-revenue-mechanism-x402-on-cloudflare">7. Stablecoin revenue mechanism (x402 on Cloudflare)</h2>
+<ol><li>The agent calls a paid endpoint without paying. The server answers <code>402</code> with a <code>PAYMENT-REQUIRED</code> header that gives the price in atomic USDC units (0.15 USDC = 150000), the asset, the network (Base Sepolia, <code>eip155:84532</code>) and the recipient <code>0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC</code>.</li><li>The agent signs an EIP-3009 USDC authorisation and retries with a <code>PAYMENT-SIGNATURE</code> header.</li><li>The x402 facilitator verifies the payment. The server runs the engine and settles <strong>only if the call succeeds</strong>. It then returns <code>200</code> with a <code>PAYMENT-RESPONSE</code> header carrying the transaction hash, for example <a href="https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586">0xc155…3586 on Basescan</a> (0.15 test USDC, live demo).</li></ol>
+<p>The facilitator pays the gas, so the agent's wallet only needs USDC. Revenue settles in seconds, with no chargebacks and no collection. x402 was co-created by Coinbase and Cloudflare, so we host the service on Cloudflare Workers (free plan), in the protocol's own ecosystem. Mainnet means switching the network (Base) and the asset (real USDC); the code path stays the same.</p>
+<h2 id="8-pricing-illustration">8. Pricing illustration</h2>
+<p><em>Illustrative volume: an accounting firm whose agents process 20,000 supplier invoices a month.</em></p>
+<table><thead><tr><th>Item</th><th>Calculation</th><th>USDC / month</th></tr></thead><tbody><tr><td>Journal entries</td><td>20,000 × 0.15</td><td>3,000</td></tr><tr><td>Monthly audit of all entries</td><td>20,000 ÷ 50 = 400 batches × 1.00</td><td>400</td></tr><tr><td><strong>Total at list price</strong></td><td>3,400 ÷ 20,000 = 0.17 per invoice</td><td><strong>3,400</strong></td></tr></tbody></table>
+<p><em>Assumption, for comparison only:</em> at two minutes of staff time per invoice, 20,000 invoices take about 667 hours a month. We do not remove human review; we focus it on flagged invoices. Illustration from our list prices, not a projection.</p>
+</main></body></html>

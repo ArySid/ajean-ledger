@@ -26,7 +26,8 @@
     "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy",
     "cf:typegen": "node -e \"require('fs').mkdirSync('.wrangler/types',{recursive:true})\" && wrangler types --env-interface CloudflareEnv .wrangler/types/cloudflare-env.d.ts",
     "warmup": "tsx scripts/warmup.ts",
-    "cf:deploy:embedded": "npm run cf:build && node scripts/cf-embed-assets.mjs && wrangler deploy -c wrangler.embedded.jsonc"
+    "cf:deploy:embedded": "npm run cf:build && node scripts/cf-embed-assets.mjs && wrangler deploy -c wrangler.embedded.jsonc",
+    "export:deliverables": "tsx scripts/export-deliverables.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
