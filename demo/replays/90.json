@@ -1,10 +1,10 @@
 {
-  "id": "trace_90_20261116115029_d74342",
+  "id": "trace_90_20261116115540_e392d0",
   "scenario": "90",
   "scenario_label": "90 · Audit request 1.00 USDC > max_per_call 0.20 → REFUSED by policy",
   "mode": "REPLAY",
-  "recorded_from": "simulated",
-  "recorded_at": "2026-11-16T11:50:29.434Z",
+  "recorded_from": "testnet",
+  "recorded_at": "2026-11-16T11:55:40.231Z",
   "agent": {
     "name": "Atelier Lumenor purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
@@ -16,7 +16,7 @@
   "service_url": "https://ajean-ledger.ary-sidoun.workers.dev",
   "steps": [
     {
-      "t_ms": 0,
+      "t_ms": 1,
       "kind": "reasoning",
       "title": "Request from the CFO: batch audit of 3 October purchase invoices",
       "detail": "I am the purchasing agent of Atelier Lumenor SAS (fictional). cfo@atelier-lumenor.example (fictional) asks: \"Can the agent run a batch audit of October purchases before closing?\". A batch audit (duplicates, VAT inconsistencies, statutory-auditor and tax-inspector viewpoints) is beyond what I can do myself, so I will look for a paid service — within my spending policy.",
@@ -33,7 +33,7 @@
       }
     },
     {
-      "t_ms": 8,
+      "t_ms": 29,
       "kind": "discovery",
       "title": "Discovered Ajean Ledger through its machine-readable catalog",
       "detail": "Free machine-readable catalog, no sign-up, no API key. I need a batch audit: POST /api/v1/audit does exactly that for 1.00 USDC, paid per call over HTTP 402 (x402) on Base Sepolia.",
@@ -69,9 +69,9 @@
               }
             },
             "payTo": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-            "facilitator": "local simulated facilitator (no on-chain transaction)",
-            "mode": "simulated",
-            "mode_label": "SIMULATED",
+            "facilitator": "https://x402.org/facilitator",
+            "mode": "testnet",
+            "mode_label": "TESTNET",
             "max_timeout_seconds": 300,
             "explorer_tx_base_url": "https://sepolia.basescan.org/tx/",
             "authentication": "none — payment is the authentication (no sign-up, no API key)",
@@ -403,10 +403,10 @@
       }
     },
     {
-      "t_ms": 19,
+      "t_ms": 71,
       "kind": "discovery",
-      "title": "Service status: SIMULATED payments",
-      "detail": "The server decides the payment mode. Same x402 flow and real signatures, but the facilitator is simulated: no on-chain transfer. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
+      "title": "Service status: TESTNET (real test-USDC on Base Sepolia)",
+      "detail": "The server decides the payment mode. Real x402 settlement on Base Sepolia through the facilitator. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
       "http": {
         "method": "GET",
         "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/health",
@@ -420,8 +420,8 @@
           "version": "0.1.0",
           "payment": {
             "protocol": "x402 v2",
-            "mode": "simulated",
-            "label": "SIMULATED",
+            "mode": "testnet",
+            "label": "TESTNET",
             "scheme": "exact",
             "network": "base-sepolia",
             "network_caip2": "eip155:84532",
@@ -431,7 +431,7 @@
               "decimals": 6
             },
             "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-            "facilitator": "local simulated facilitator (no on-chain tx)"
+            "facilitator": "https://x402.org/facilitator"
           },
           "prices": {
             "/api/v1/invoice/check": "0.05",
@@ -439,22 +439,22 @@
             "/api/v1/audit": "1.00"
           },
           "store": {
-            "kind": "memory",
-            "configured": "memory",
+            "kind": "cloudflare-kv",
+            "configured": "cloudflare-kv",
             "degraded": false
           },
           "engine_ready": true,
           "llm_configured": false,
-          "time": "2026-11-16T11:50:29.451Z"
+          "time": "2026-11-16T11:55:40.287Z"
         }
       },
       "data": {
-        "server_mode": "simulated",
+        "server_mode": "testnet",
         "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC"
       }
     },
     {
-      "t_ms": 19,
+      "t_ms": 71,
       "kind": "policy",
       "title": "Spending policy check: REFUSE",
       "detail": "Price 1.00 USDC > max per call 0.20 USDC set by my operator → refused.",
@@ -470,7 +470,7 @@
       }
     },
     {
-      "t_ms": 19,
+      "t_ms": 71,
       "kind": "review",
       "title": "Not paying: escalated to my operator",
       "detail": "/api/v1/audit costs 1.00 USDC, above the 0.20 USDC per-call limit my operator gave me. A human must either approve this one-off spend or raise my limit. Nothing was signed, nothing was paid.",
@@ -482,6 +482,6 @@
       }
     }
   ],
-  "duration_ms": 19,
+  "duration_ms": 72,
   "outcome": "refused_by_policy"
 }

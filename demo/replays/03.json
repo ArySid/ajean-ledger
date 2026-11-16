@@ -1,10 +1,10 @@
 {
-  "id": "trace_03_20261116115029_210d04",
+  "id": "trace_03_20261116115536_2df0cf",
   "scenario": "03",
   "scenario_label": "03 · Restaurant: 20% vs 10% VAT",
   "mode": "REPLAY",
-  "recorded_from": "simulated",
-  "recorded_at": "2026-11-16T11:50:29.280Z",
+  "recorded_from": "testnet",
+  "recorded_at": "2026-11-16T11:55:36.441Z",
   "agent": {
     "name": "Atelier Lumenor purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
@@ -31,7 +31,7 @@
       }
     },
     {
-      "t_ms": 11,
+      "t_ms": 41,
       "kind": "discovery",
       "title": "Discovered Ajean Ledger through its machine-readable catalog",
       "detail": "Free machine-readable catalog, no sign-up, no API key. I need a full journal entry (PCG accounts + VAT treatment + compliance + anomalies): POST /api/v1/entry does exactly that for 0.15 USDC, paid per call over HTTP 402 (x402) on Base Sepolia.",
@@ -67,9 +67,9 @@
               }
             },
             "payTo": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-            "facilitator": "local simulated facilitator (no on-chain transaction)",
-            "mode": "simulated",
-            "mode_label": "SIMULATED",
+            "facilitator": "https://x402.org/facilitator",
+            "mode": "testnet",
+            "mode_label": "TESTNET",
             "max_timeout_seconds": 300,
             "explorer_tx_base_url": "https://sepolia.basescan.org/tx/",
             "authentication": "none — payment is the authentication (no sign-up, no API key)",
@@ -401,10 +401,10 @@
       }
     },
     {
-      "t_ms": 22,
+      "t_ms": 84,
       "kind": "discovery",
-      "title": "Service status: SIMULATED payments",
-      "detail": "The server decides the payment mode. Same x402 flow and real signatures, but the facilitator is simulated: no on-chain transfer. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
+      "title": "Service status: TESTNET (real test-USDC on Base Sepolia)",
+      "detail": "The server decides the payment mode. Real x402 settlement on Base Sepolia through the facilitator. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
       "http": {
         "method": "GET",
         "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/health",
@@ -418,8 +418,8 @@
           "version": "0.1.0",
           "payment": {
             "protocol": "x402 v2",
-            "mode": "simulated",
-            "label": "SIMULATED",
+            "mode": "testnet",
+            "label": "TESTNET",
             "scheme": "exact",
             "network": "base-sepolia",
             "network_caip2": "eip155:84532",
@@ -429,7 +429,7 @@
               "decimals": 6
             },
             "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-            "facilitator": "local simulated facilitator (no on-chain tx)"
+            "facilitator": "https://x402.org/facilitator"
           },
           "prices": {
             "/api/v1/invoice/check": "0.05",
@@ -437,22 +437,22 @@
             "/api/v1/audit": "1.00"
           },
           "store": {
-            "kind": "memory",
-            "configured": "memory",
+            "kind": "cloudflare-kv",
+            "configured": "cloudflare-kv",
             "degraded": false
           },
           "engine_ready": true,
           "llm_configured": false,
-          "time": "2026-11-16T11:50:29.300Z"
+          "time": "2026-11-16T11:55:36.510Z"
         }
       },
       "data": {
-        "server_mode": "simulated",
+        "server_mode": "testnet",
         "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC"
       }
     },
     {
-      "t_ms": 22,
+      "t_ms": 84,
       "kind": "policy",
       "title": "Spending policy check: ALLOW",
       "detail": "Price 0.15 USDC ≤ max per call 0.20 USDC. Spent today 0.00 + 0.15 = 0.15 USDC ≤ daily budget 2.00 USDC → allowed.",
@@ -467,7 +467,7 @@
       }
     },
     {
-      "t_ms": 33,
+      "t_ms": 216,
       "kind": "http_request",
       "title": "POST /api/v1/entry (no payment attached)",
       "detail": "First attempt without payment: the service will answer with its price in machine-readable form.",
@@ -476,7 +476,7 @@
         "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "210d0420-97ff-43f6-a392-faf8e76ee3b3",
+          "Idempotency-Key": "2df0cf7f-7c95-4b35-8dc0-ea822a0b6b46",
           "accept": "application/json"
         },
         "body": {
@@ -545,7 +545,7 @@
       }
     },
     {
-      "t_ms": 33,
+      "t_ms": 216,
       "kind": "http_response",
       "title": "402 Payment Required: 0.15 USDC on Base Sepolia",
       "detail": "The PAYMENT-REQUIRED header carries the price (150000 atomic units = 0.15 USDC), the asset, the network and the payTo wallet. Everything matches what discovery advertised (/api/v1/catalog).",
@@ -556,7 +556,7 @@
         "headers": {
           "content-type": "application/json",
           "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIuYXJ5LXNpZG91bi53b3JrZXJzLmRldi9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkZ1bGwgRnJlbmNoIGpvdXJuYWwgZW50cnkgcHJvcG9zYWwgKFBDRyBhY2NvdW50cykgKyBWQVQgdHJlYXRtZW50ICsgZS1pbnZvaWNpbmcgY29tcGxpYW5jZSArIGFub21hbHkgZmxhZ3MgZm9yIG9uZSBpbnZvaWNlLCBjcmVkaXQgbm90ZSBvciBiYW5rIHRyYW5zYWN0aW9uLiIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiIsInNlcnZpY2VOYW1lIjoiQWplYW4gTGVkZ2VyIiwidGFncyI6WyJhY2NvdW50aW5nIiwiZnJhbmNlIiwiZS1pbnZvaWNpbmciLCJ2YXQiLCJjcmVhdGVfZW50cnkiXX0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImV4YWN0IiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImFzc2V0IjoiMHgwMzZDYkQ1Mzg0MmM1NDI2NjM0ZTc5Mjk1NDFlQzIzMThmM2RDRjdlIiwicGF5VG8iOiIweENCNGI4NDA3OUIxZGQxOTgyOGMzZDU3MzNmOWUwRDJEY0IyNmRGZUMiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MzAwLCJleHRyYSI6eyJuYW1lIjoiVVNEQyIsInZlcnNpb24iOiIyIn19XX0=",
-          "X-Request-Id": "req_01M7J33H5XRH4ZPQKA8M8PPAV8"
+          "X-Request-Id": "req_01M7J3CX7AHA7NXQYRZMYRBSDW"
         },
         "body": {
           "error": {
@@ -569,12 +569,12 @@
               "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
               "network": "eip155:84532",
               "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-              "mode": "simulated",
+              "mode": "testnet",
               "how_to_pay": "Decode the base64 PAYMENT-REQUIRED header, sign the EIP-3009 authorization for accepts[0] (exact scheme), retry the same request with the PAYMENT-SIGNATURE header. You are charged only if the call succeeds."
             },
             "docs_url": "/llms.txt#errors"
           },
-          "request_id": "req_01M7J33H5XRH4ZPQKA8M8PPAV8"
+          "request_id": "req_01M7J3CX7AHA7NXQYRZMYRBSDW"
         },
         "decoded": {
           "header": "PAYMENT-REQUIRED",
@@ -647,7 +647,7 @@
       }
     },
     {
-      "t_ms": 36,
+      "t_ms": 218,
       "kind": "payment",
       "title": "Signed a 0.15 USDC payment authorisation (EIP-3009)",
       "detail": "transferWithAuthorization from my wallet to Ajean Ledger's payTo wallet, valid for a few minutes. Off-chain signature: no gas, no account, no API key. The facilitator submits the transfer only if the call succeeds.",
@@ -660,12 +660,12 @@
         "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
         "value": "150000",
         "validAfter": "0",
-        "validBefore": "1794830129",
-        "nonce": "0x078d2507517f59df8ad6851101a2ec3d134238e6c111b196af4263d80e412124"
+        "validBefore": "1794830436",
+        "nonce": "0x5e77fce8523f05bdc409112c065f1ce6db13937aa695c90b738af5d0f8ae4bc0"
       }
     },
     {
-      "t_ms": 58,
+      "t_ms": 1096,
       "kind": "http_request",
       "title": "POST /api/v1/entry with PAYMENT-SIGNATURE",
       "detail": "Same request, retried with the signed payment attached. Payment is the authentication.",
@@ -674,8 +674,8 @@
         "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "210d0420-97ff-43f6-a392-faf8e76ee3b3",
-          "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicGF5bG9hZCI6eyJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5… (1372 chars, decoded below)",
+          "Idempotency-Key": "2df0cf7f-7c95-4b35-8dc0-ea822a0b6b46",
+          "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicGF5bG9hZCI6eyJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5… (1404 chars, decoded below)",
           "accept": "application/json"
         },
         "body": {
@@ -751,10 +751,10 @@
                 "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
                 "value": "150000",
                 "validAfter": "0",
-                "validBefore": "1794830129",
-                "nonce": "0x078d2507517f59df8ad6851101a2ec3d134238e6c111b196af4263d80e412124"
+                "validBefore": "1794830436",
+                "nonce": "0x5e77fce8523f05bdc409112c065f1ce6db13937aa695c90b738af5d0f8ae4bc0"
               },
-              "signature": "0xbe640b316a…67078a1b (redacted)"
+              "signature": "0xc1ca24436b…a1e1f41c (redacted)"
             },
             "resource": {
               "url": "https://ajean-ledger.ary-sidoun.workers.dev/api/v1/entry",
@@ -786,7 +786,7 @@
       }
     },
     {
-      "t_ms": 58,
+      "t_ms": 1096,
       "kind": "http_response",
       "title": "200 OK: entry received (invoice mentions compliant, review required)",
       "detail": "The PAYMENT-RESPONSE header confirms settlement and carries the transaction hash.",
@@ -796,23 +796,23 @@
         "status": 200,
         "headers": {
           "content-type": "application/json",
-          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHg1MTUxNDEwMmQ0MzE4YmM1MmVlNTJmYmUyNmM5MTE2NzBjNTc1MDZjN2MzYTE4NjU5M2YzODg3YzEzNGFmNjNhIiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ==",
-          "X-Request-Id": "req_01M7J33H6D4CWF20J6RW5YDECC"
+          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHhjMTU1NDc3MmY1YjljZWY2OTU2NGY2ZjYyMWQxYTEyYWU1YWYxMTNkMTcyM2NjZWVlYzY4NWIyOGU1YjIzNTg2IiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiJ9",
+          "X-Request-Id": "req_01M7J3CXBTXRW2ZCNCN4XE5P9B"
         },
         "body": {
-          "request_id": "req_01M7J33H6D4CWF20J6RW5YDECC",
+          "request_id": "req_01M7J3CXBTXRW2ZCNCN4XE5P9B",
           "receipt": {
             "amount": "0.15",
             "amount_atomic": "150000",
             "asset": "USDC",
             "network": "base-sepolia",
             "network_caip2": "eip155:84532",
-            "tx_hash": "0x51514102d4318bc52ee52fbe26c911670c57506c7c3a186593f3887c134af63a",
+            "tx_hash": "0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
             "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-            "explorer_url": null,
-            "mode": "simulated",
-            "paid_at": "2026-11-16T11:50:29.335Z"
+            "explorer_url": "https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
+            "mode": "testnet",
+            "paid_at": "2026-11-16T11:55:37.068Z"
           },
           "invoice": {
             "document_type": "invoice",
@@ -1110,40 +1110,35 @@
           "value": {
             "success": true,
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
-            "transaction": "0x51514102d4318bc52ee52fbe26c911670c57506c7c3a186593f3887c134af63a",
-            "network": "eip155:84532",
-            "amount": "150000",
-            "extra": {
-              "simulated": true,
-              "note": "SIMULATED settlement: no on-chain transaction was broadcast."
-            }
+            "transaction": "0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
+            "network": "eip155:84532"
           }
         }
       }
     },
     {
-      "t_ms": 58,
+      "t_ms": 1096,
       "kind": "settlement",
-      "title": "Payment settled: 0.15 USDC (simulated transaction)",
-      "detail": "Transaction 0x51514102d431… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_01M7J33H6D4CWF20J6RW5YDECC kept for idempotency.",
+      "title": "Payment settled: 0.15 USDC on Base Sepolia",
+      "detail": "Transaction 0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586 confirmed on Base Sepolia. Receipt req_01M7J3CXBTXRW2ZCNCN4XE5P9B kept for idempotency. Explorer: https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
       "data": {
-        "tx_hash": "0x51514102d4318bc52ee52fbe26c911670c57506c7c3a186593f3887c134af63a",
+        "tx_hash": "0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
         "network": "eip155:84532",
         "amount_usdc": "0.15",
-        "request_id": "req_01M7J33H6D4CWF20J6RW5YDECC",
-        "explorer_url": null,
-        "simulated": true,
+        "request_id": "req_01M7J3CXBTXRW2ZCNCN4XE5P9B",
+        "explorer_url": "https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
+        "simulated": false,
         "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF"
       }
     },
     {
-      "t_ms": 58,
+      "t_ms": 1096,
       "kind": "erp",
       "title": "ERP: entry HA LBL-2026-1187 posted (flagged for review)",
-      "detail": "3 lines written to the mock ERP, debits = credits = 175.20 EUR, linked to receipt req_01M7J33H6D4CWF20J6RW5YDECC.",
+      "detail": "3 lines written to the mock ERP, debits = credits = 175.20 EUR, linked to receipt req_01M7J3CXBTXRW2ZCNCN4XE5P9B.",
       "data": {
         "erp": "mock ERP (in memory)",
-        "erp_id": "ERP-20261116-52E058",
+        "erp_id": "ERP-20261116-EEAE91",
         "status": "posted_review_pending",
         "journal": "HA",
         "reference": "LBL-2026-1187",
@@ -1168,12 +1163,12 @@
           }
         ],
         "balanced": true,
-        "request_id": "req_01M7J33H6D4CWF20J6RW5YDECC",
-        "tx_hash": "0x51514102d4318bc52ee52fbe26c911670c57506c7c3a186593f3887c134af63a"
+        "request_id": "req_01M7J3CXBTXRW2ZCNCN4XE5P9B",
+        "tx_hash": "0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586"
       }
     },
     {
-      "t_ms": 59,
+      "t_ms": 1097,
       "kind": "review",
       "title": "Human review requested: VAT_RATE_MISMATCH",
       "detail": "Message to the bookkeeper: 'Le Bouchon Lumière SARL invoice LBL-2026-1187 applies 20% VAT where 10% is expected for this expense (14.60 EUR of VAT too much). Only the VAT legally due was deducted and the excess sits in the expense: please ask the supplier for a corrected invoice to recover it.'",
@@ -1200,10 +1195,10 @@
       }
     },
     {
-      "t_ms": 59,
+      "t_ms": 1097,
       "kind": "reasoning",
       "title": "Done: entry prepared, a human must confirm",
-      "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.15 / 2.00 USDC. Service explanation relayed to my operator: \"Purchase invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional) (175.20 EUR incl. VAT): proposed entry in journal HA, pending review: debit 6257 160.60, debit 44566 14.60, credit 401BOUCHON 175.20. VAT treatment: invoiced at 20%, only 10% legally due and deductible; excess 14.60 EUR booked to expense pending a corrected invoice. All mandatory invoice mentions checked are present. Attention: Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. Only the VAT legally due is deducted; the excess is added to the expense — request a corrected invoice to recover it. Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. Only the VAT legally due is deducted; the excess is added to the expense — request a corrected invoice to recover it. Human review required (VAT_RATE_MISMATCH); confidence 0.86.\"",
+      "detail": "Cost of this call: 0.15 USDC. Spent today: 0.15 / 2.00 USDC. Service explanation relayed to my operator: \"Purchase invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional) (175.20 EUR incl. VAT): proposed entry in journal HA, pending review: debit 6257 160.60, debit 44566 14.60, credit 401BOUCHON 175.20. VAT treatment: invoiced at 20%, only 10% legally due and deductible; excess 14.60 EUR booked to expense pending a corrected invoice. All mandatory invoice mentions checked are present. Attention: Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. Only the VAT legally due is deducted; the excess is added to the expense — request a corrected invoice to recover it. Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. Only the VAT legally due is deducted; the excess is added to the expense — request a corrected invoice to recover it. Human review required (VAT_RATE_MISMATCH); confidence 0.86.\"",
       "data": {
         "outcome": "posted_with_review",
         "spent_today_usdc": "0.15",
@@ -1214,19 +1209,19 @@
     }
   ],
   "result": {
-    "request_id": "req_01M7J33H6D4CWF20J6RW5YDECC",
+    "request_id": "req_01M7J3CXBTXRW2ZCNCN4XE5P9B",
     "receipt": {
       "amount": "0.15",
       "amount_atomic": "150000",
       "asset": "USDC",
       "network": "base-sepolia",
       "network_caip2": "eip155:84532",
-      "tx_hash": "0x51514102d4318bc52ee52fbe26c911670c57506c7c3a186593f3887c134af63a",
+      "tx_hash": "0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
       "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
       "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-      "explorer_url": null,
-      "mode": "simulated",
-      "paid_at": "2026-11-16T11:50:29.335Z"
+      "explorer_url": "https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586",
+      "mode": "testnet",
+      "paid_at": "2026-11-16T11:55:37.068Z"
     },
     "invoice": {
       "document_type": "invoice",
@@ -1519,6 +1514,6 @@
     },
     "disclaimer": "Proof of concept on synthetic data. Not a substitute for a chartered accountant's review."
   },
-  "duration_ms": 59,
+  "duration_ms": 1097,
   "outcome": "posted_with_review"
 }
