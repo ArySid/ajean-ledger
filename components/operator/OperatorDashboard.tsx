@@ -77,7 +77,9 @@ export function OperatorDashboard() {
             {s ? usdc(s.usdc_earned) : "…"}
             <small>USDC</small>
           </div>
-          <div className="hint">testnet (Base Sepolia)</div>
+          <div className="hint">
+            {s && s.recent.length > 0 && s.recent.every((r) => r.mode === "simulated") ? "simulated: no on-chain transfer" : "test USDC on Base Sepolia"}
+          </div>
         </div>
         <div className="panel kpi">
           <div className="label">Average price / call</div>
@@ -160,10 +162,10 @@ export function OperatorDashboard() {
                       <td className="mono">
                         {link ? (
                           <a href={link} target="_blank" rel="noreferrer">
-                            {shortHex(r.tx_hash, 8, 6)} ↗
+                            {shortHex(r.tx_hash, 6, 4)} ↗
                           </a>
                         ) : (
-                          <>{shortHex(r.tx_hash, 8, 6)}</>
+                          <>{shortHex(r.tx_hash, 6, 4)}</>
                         )}
                       </td>
                       <td>

@@ -512,7 +512,7 @@ export async function checkInvoice(input: EngineInput, ctx: EngineContext = {}):
   const explanation = [
     `Invoice ${a.invoice.number} from ${a.invoice.supplier.name}: compliance ${a.compliance.status.replace("_", "-")}` +
       (failed.length ? ` — failing rules: ${failed.map((c) => c.rule_id).join(", ")}.` : " — all mandatory mentions checked are present."),
-    `VAT consistency: ${a.vat_consistency.passed ? "passed" : "failed"} (${a.vat_consistency.detail}).`,
+    `VAT consistency: ${a.vat_consistency.passed ? "passed" : "failed"} (${a.vat_consistency.detail.replace(/\.$/, "")}).`,
     important.length ? `Attention: ${important.map((x) => x.detail).join(" ")}` : "",
   ].filter(Boolean).join(" ");
   return {

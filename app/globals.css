@@ -1320,7 +1320,7 @@ pre,
 }
 .op-grid {
   display: grid;
-  grid-template-columns: 1fr 1.6fr;
+  grid-template-columns: 0.85fr 2fr;
   gap: 14px;
   margin-bottom: 30px;
 }
@@ -1342,6 +1342,12 @@ pre,
   gap: 10px;
   font-size: 0.85rem;
   margin-bottom: 4px;
+}
+.bar-row .bar-label {
+  flex-wrap: wrap;
+}
+.bar-row .bar-label > span:last-child {
+  white-space: nowrap;
 }
 .bar-row .bar-label .ep {
   font-family: var(--mono);
@@ -1366,6 +1372,10 @@ pre,
 }
 .tx-table .mono {
   font-size: 0.8rem;
+}
+.tx-table .pill {
+  font-size: 0.7rem;
+  padding: 2px 8px;
 }
 .table-wrap {
   overflow-x: auto;
