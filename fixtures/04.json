@@ -1,0 +1,46 @@
+{
+  "description": "B2B consulting services from a German supplier (fictional), no VAT invoiced, reverse-charge mention -> reverse_charge_intra_eu, VAT self-assessed (44566 / 4452).",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "invoice",
+      "number": "KB-2026-077",
+      "issue_date": "2026-10-14",
+      "due_date": "2026-11-13",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Kranich Beratung GmbH (fictional)",
+        "vat_id": "DE298765431",
+        "country": "DE",
+        "address": "Lindenstraße 14, 10969 Berlin"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "services",
+      "lines": [
+        {
+          "description": "Strategy consulting services — e-invoicing readiness assessment (2 days)",
+          "quantity": 2,
+          "unit_price_excl_vat": 1100.0,
+          "vat_rate": 0,
+          "total_excl_vat": 2200.0,
+          "kind": "services"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 2200.0,
+        "total_vat": 0,
+        "total_incl_vat": 2200.0
+      },
+      "payment_terms": "Payment within 30 days by bank transfer.",
+      "legal_mentions": [
+        "Reverse charge — VAT due by the customer (Article 196, Council Directive 2006/112/EC) / Autoliquidation"
+      ]
+    }
+  }
+}

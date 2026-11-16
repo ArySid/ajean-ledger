@@ -1,0 +1,55 @@
+{
+  "description": "Restaurant invoice (business lunch, food and coffee consumed on site) billed at 20% instead of 10% -> VAT_RATE_MISMATCH + human review.",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "invoice",
+      "number": "LBL-2026-1187",
+      "issue_date": "2026-10-08",
+      "due_date": "2026-10-08",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Le Bouchon Lumière SARL (fictional)",
+        "siren": "904521978",
+        "vat_id": "FR64904521978",
+        "country": "FR",
+        "address": "5 rue Mercière, 69002 Lyon"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "services",
+      "lines": [
+        {
+          "description": "Déjeuner d'affaires — menu du jour",
+          "quantity": 4,
+          "unit_price_excl_vat": 34.0,
+          "vat_rate": 0.2,
+          "total_excl_vat": 136.0,
+          "kind": "services"
+        },
+        {
+          "description": "Cafés",
+          "quantity": 4,
+          "unit_price_excl_vat": 2.5,
+          "vat_rate": 0.2,
+          "total_excl_vat": 10.0,
+          "kind": "services"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 146.0,
+        "total_vat": 29.2,
+        "total_incl_vat": 175.2
+      },
+      "payment_terms": "Payable à réception par carte bancaire.",
+      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+      "fixed_recovery_indemnity_mention": true,
+      "legal_mentions": []
+    }
+  }
+}

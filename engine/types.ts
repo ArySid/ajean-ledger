@@ -104,6 +104,8 @@ export interface InvoiceFingerprint {
   number: string;
   issue_date: string;
   total_incl_vat: number;
+  /** Optional: documents of different types (invoice vs credit note) are never flagged as duplicates of each other. */
+  document_type?: "invoice" | "credit_note";
 }
 
 export type EngineInput =
@@ -119,6 +121,8 @@ export interface EngineContext {
   history?: InvoiceFingerprint[];
   /** Optional LLM hook; when absent the engine is fully deterministic. */
   llm?: LlmAdapter;
+  /** Optional override of the statutory-auditor materiality threshold used by audit (EUR, default 5000). */
+  materiality_threshold?: number;
 }
 
 export interface LlmAdapter {

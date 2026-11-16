@@ -1,0 +1,74 @@
+{
+  "description": "Duplicate of fixture 01 (same supplier and number, re-sent): context.history holds the fingerprint of #1 -> DUPLICATE_SUSPECTED.",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "invoice",
+      "number": "BE-2026-0412",
+      "issue_date": "2026-10-05",
+      "due_date": "2026-11-04",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Buro Express SARL (fictional)",
+        "siren": "903182640",
+        "vat_id": "FR81903182640",
+        "country": "FR",
+        "address": "48 boulevard Voltaire, 75011 Paris"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "goods",
+      "lines": [
+        {
+          "description": "Ramettes papier A4 80 g (carton de 5)",
+          "quantity": 4,
+          "unit_price_excl_vat": 22.5,
+          "vat_rate": 0.2,
+          "total_excl_vat": 90.0,
+          "kind": "goods"
+        },
+        {
+          "description": "Stylos bille bleus (boîte de 50)",
+          "quantity": 1,
+          "unit_price_excl_vat": 18.4,
+          "vat_rate": 0.2,
+          "total_excl_vat": 18.4,
+          "kind": "goods"
+        },
+        {
+          "description": "Classeurs à levier dos 80 mm",
+          "quantity": 10,
+          "unit_price_excl_vat": 3.16,
+          "vat_rate": 0.2,
+          "total_excl_vat": 31.6,
+          "kind": "goods"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 140.0,
+        "total_vat": 28.0,
+        "total_incl_vat": 168.0
+      },
+      "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+      "fixed_recovery_indemnity_mention": true,
+      "legal_mentions": []
+    }
+  },
+  "context": {
+    "history": [
+      {
+        "supplier_key": "SIREN:903182640",
+        "number": "BE-2026-0412",
+        "issue_date": "2026-10-05",
+        "total_incl_vat": 168.0,
+        "document_type": "invoice"
+      }
+    ]
+  }
+}

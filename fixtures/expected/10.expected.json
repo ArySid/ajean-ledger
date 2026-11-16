@@ -1,0 +1,40 @@
+{
+  "note": "Mixed goods + services: operation nature mixed (declared and derived), 6064 + 6156.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "6064",
+        "debit": 190.0,
+        "credit": 0
+      },
+      {
+        "account": "6156",
+        "debit": 210.0,
+        "credit": 0
+      },
+      {
+        "account": "44566",
+        "debit": 80.0,
+        "credit": 0
+      },
+      {
+        "account": "401COPILAB",
+        "debit": 0,
+        "credit": 480.0
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "standard",
+    "rate": 0.2
+  },
+  "anomaly_codes": [],
+  "human_review_required": false,
+  "review_reasons": [],
+  "extraction_method": "structured_json",
+  "operation_nature": "mixed"
+}

@@ -1,0 +1,46 @@
+{
+  "note": "Laptop 1,450.00 >= 500 -> 2183 + 44562; mouse 29.00 -> 6063 + 44566.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "2183",
+        "debit": 1450.0,
+        "credit": 0
+      },
+      {
+        "account": "6063",
+        "debit": 29.0,
+        "credit": 0
+      },
+      {
+        "account": "44562",
+        "debit": 290.0,
+        "credit": 0
+      },
+      {
+        "account": "44566",
+        "debit": 5.8,
+        "credit": 0
+      },
+      {
+        "account": "401NUMERIA",
+        "debit": 0,
+        "credit": 1774.8
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "standard",
+    "rate": 0.2
+  },
+  "anomaly_codes": [
+    "FIXED_ASSET_CAPITALISED"
+  ],
+  "human_review_required": false,
+  "review_reasons": [],
+  "extraction_method": "structured_json"
+}

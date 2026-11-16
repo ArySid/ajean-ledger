@@ -1,0 +1,38 @@
+{
+  "note": "Buyer SIREN missing (reform mention) -> non_compliant; entry still proposed.",
+  "compliance_status": "non_compliant",
+  "failing_rule_ids": [
+    "FR-EINV-SIREN-BUYER"
+  ],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "6064",
+        "debit": 140.0,
+        "credit": 0
+      },
+      {
+        "account": "44566",
+        "debit": 28.0,
+        "credit": 0
+      },
+      {
+        "account": "401BURO",
+        "debit": 0,
+        "credit": 168.0
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "standard",
+    "rate": 0.2
+  },
+  "anomaly_codes": [],
+  "human_review_required": true,
+  "review_reasons": [
+    "NON_COMPLIANT_INVOICE"
+  ],
+  "extraction_method": "structured_json"
+}

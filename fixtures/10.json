@@ -1,0 +1,64 @@
+{
+  "description": "Mixed invoice: toner and paper (goods) + copier maintenance contract (services) -> operation nature mixed, 6064 + 6156.",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "invoice",
+      "number": "COP-2026-0098",
+      "issue_date": "2026-11-03",
+      "due_date": "2026-12-03",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Copilab Services SARL (fictional)",
+        "siren": "909461824",
+        "vat_id": "FR39909461824",
+        "country": "FR",
+        "address": "9 rue de la République, 69001 Lyon"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "mixed",
+      "vat_on_debits_option": false,
+      "lines": [
+        {
+          "description": "Cartouches de toner noir",
+          "quantity": 3,
+          "unit_price_excl_vat": 48.0,
+          "vat_rate": 0.2,
+          "total_excl_vat": 144.0,
+          "kind": "goods"
+        },
+        {
+          "description": "Ramettes papier A4",
+          "quantity": 10,
+          "unit_price_excl_vat": 4.6,
+          "vat_rate": 0.2,
+          "total_excl_vat": 46.0,
+          "kind": "goods"
+        },
+        {
+          "description": "Contrat de maintenance copieur — 4e trimestre 2026",
+          "quantity": 1,
+          "unit_price_excl_vat": 210.0,
+          "vat_rate": 0.2,
+          "total_excl_vat": 210.0,
+          "kind": "services"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 400.0,
+        "total_vat": 80.0,
+        "total_incl_vat": 480.0
+      },
+      "payment_terms": "Paiement à 30 jours par virement.",
+      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+      "fixed_recovery_indemnity_mention": true,
+      "legal_mentions": []
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "note": "Bank payment of #1 matched (score 1): BQ 401BURO / 512000.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "BQ",
+    "lines": [
+      {
+        "account": "401BURO",
+        "debit": 168.0,
+        "credit": 0
+      },
+      {
+        "account": "512000",
+        "debit": 0,
+        "credit": 168.0
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "out_of_scope",
+    "rate": 0
+  },
+  "anomaly_codes": [],
+  "human_review_required": false,
+  "review_reasons": [],
+  "extraction_method": "bank_transaction",
+  "match": {
+    "matched_invoice_number": "BE-2026-0412",
+    "score": 1
+  }
+}

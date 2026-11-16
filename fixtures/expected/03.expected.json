@@ -1,0 +1,38 @@
+{
+  "note": "Restaurant at 20% instead of 10%: VAT booked as invoiced (29.20), flagged; 6257 Réceptions.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "6257",
+        "debit": 146.0,
+        "credit": 0
+      },
+      {
+        "account": "44566",
+        "debit": 29.2,
+        "credit": 0
+      },
+      {
+        "account": "401BOUCHON",
+        "debit": 0,
+        "credit": 175.2
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "standard",
+    "rate": 0.2
+  },
+  "anomaly_codes": [
+    "VAT_RATE_MISMATCH"
+  ],
+  "human_review_required": true,
+  "review_reasons": [
+    "VAT_RATE_MISMATCH"
+  ],
+  "extraction_method": "structured_json"
+}

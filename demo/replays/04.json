@@ -1,0 +1,794 @@
+{
+  "id": "trace_04_sample",
+  "scenario": "04",
+  "scenario_label": "Intra-EU SaaS supplier (reverse charge)",
+  "mode": "REPLAY",
+  "recorded_from": "simulated",
+  "recorded_at": "2026-11-16T09:42:30.000Z",
+  "sample": true,
+  "agent": {
+    "name": "Atelier Lumen purchasing agent",
+    "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+    "policy": {
+      "max_per_call_usdc": "0.20",
+      "daily_budget_usdc": "2.00"
+    }
+  },
+  "service_url": "https://ajean-ledger.vercel.app",
+  "steps": [
+    {
+      "t_ms": 0,
+      "kind": "reasoning",
+      "title": "New invoice CW-2026-0457 from CloudWerk GmbH (fictional)",
+      "detail": "I am the purchasing agent of Atelier Lumen SAS (fictional). I received invoice CW-2026-0457 (1200.00 EUR incl. VAT) from CloudWerk GmbH (fictional). I must book it in our ERP, but I do not know the French e-invoicing rules, the PCG chart of accounts or the VAT treatment. A German supplier invoicing without VAT needs a reverse-charge treatment I am not sure about → I need a specialised accounting service.",
+      "data": {
+        "inbox_file": "inbox/04-cloudwerk-saas.json"
+      }
+    },
+    {
+      "t_ms": 380,
+      "kind": "discovery",
+      "title": "Discovered Ajean Ledger through its machine-readable catalog",
+      "detail": "Free endpoint, no sign-up. POST /api/v1/entry returns a full journal entry, VAT treatment, compliance and anomalies for 0.15 USDC, paid over HTTP 402 (x402).",
+      "http": {
+        "method": "GET",
+        "url": "https://ajean-ledger.vercel.app/api/v1/catalog",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "service": "Ajean Ledger",
+          "description": "French invoice → validated PCG accounting entry, VAT treatment, e-invoicing compliance, anomalies. Paid per call in USDC via x402.",
+          "payment": {
+            "protocol": "x402",
+            "x402Version": 2,
+            "network": "eip155:84532",
+            "asset": "USDC",
+            "sign_up": "none",
+            "api_key": "none"
+          },
+          "endpoints": [
+            {
+              "method": "POST",
+              "path": "/api/v1/invoice/check",
+              "price_usdc": "0.05",
+              "summary": "E-invoice compliance check"
+            },
+            {
+              "method": "POST",
+              "path": "/api/v1/entry",
+              "price_usdc": "0.15",
+              "summary": "Journal entry + VAT + compliance + anomalies"
+            },
+            {
+              "method": "POST",
+              "path": "/api/v1/audit",
+              "price_usdc": "1.00",
+              "summary": "Batch audit (up to 50 entries)"
+            }
+          ],
+          "discovery": [
+            "/llms.txt",
+            "/openapi.json",
+            "/.well-known/agent.json",
+            "/mcp"
+          ]
+        }
+      }
+    },
+    {
+      "t_ms": 560,
+      "kind": "policy",
+      "title": "Spending policy check: ALLOW",
+      "detail": "Price 0.15 USDC ≤ max per call 0.20 USDC. Spent today 0.30 + 0.15 = 0.45 USDC ≤ daily budget 2.00 USDC → allowed.",
+      "data": {
+        "decision": "allow",
+        "price_usdc": "0.15",
+        "max_per_call_usdc": "0.20",
+        "spent_today_usdc": "0.30",
+        "daily_budget_usdc": "2.00"
+      }
+    },
+    {
+      "t_ms": 610,
+      "kind": "http_request",
+      "title": "POST /api/v1/entry (no payment attached)",
+      "detail": "First attempt without payment: the service will tell me its price in machine-readable form.",
+      "http": {
+        "method": "POST",
+        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "headers": {
+          "content-type": "application/json",
+          "Idempotency-Key": "idem-83cff86ae24a900f"
+        },
+        "body": {
+          "input": {
+            "format": "json",
+            "invoice": {
+              "document_type": "invoice",
+              "number": "CW-2026-0457",
+              "issue_date": "2026-11-03",
+              "due_date": "2026-11-17",
+              "currency": "EUR",
+              "supplier": {
+                "name": "CloudWerk GmbH (fictional)",
+                "vat_id": "DE999000123",
+                "country": "DE",
+                "address": "Beispielstrasse 1, 10115 Berlin, Germany"
+              },
+              "customer": {
+                "name": "Atelier Lumen SAS (fictional)",
+                "siren": "999000116",
+                "vat_id": "FR90999000116",
+                "country": "FR",
+                "address": "12 rue des Ateliers, 69002 Lyon, France"
+              },
+              "operation_nature": "services",
+              "lines": [
+                {
+                  "description": "Project-management SaaS, November 2026, 12 seats",
+                  "quantity": 12,
+                  "unit_price_excl_vat": 100,
+                  "vat_rate": 0,
+                  "total_excl_vat": 1200,
+                  "kind": "services"
+                }
+              ],
+              "totals": {
+                "total_excl_vat": 1200,
+                "total_vat": 0,
+                "total_incl_vat": 1200
+              },
+              "payment_terms": "Payment within 14 days",
+              "late_payment_penalties": "Late-payment interest as per contract",
+              "fixed_recovery_indemnity_mention": true,
+              "legal_mentions": [
+                "Reverse charge: VAT to be accounted for by the recipient"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "t_ms": 840,
+      "kind": "http_response",
+      "title": "402 Payment Required: 0.15 USDC on Base Sepolia",
+      "detail": "The PAYMENT-REQUIRED header carries the price (150000 atomic units = 0.15 USDC), the asset, the network and the payTo wallet.",
+      "http": {
+        "method": "POST",
+        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "status": 402,
+        "headers": {
+          "content-type": "application/json",
+          "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIudmVyY2VsLmFwcC9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkFqZWFuIExlZGdlcjogam91cm5hbCBlbnRyeSArIFZBVCArIGNvbXBsaWFuY2UgKyBhbm9tYWxpZXMgZm9yIG9uZSBGcmVuY2ggaW52b2ljZSIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiJ9LCJhY2NlcHRzIjpbeyJzY2hlbWUiOiJleGFjdCIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJhbW91bnQiOiIxNTAwMDAiLCJhc3NldCI6IjB4MDM2Q2JENTM4NDJjNTQyNjYzNGU3OTI5NTQxZUMyMzE4ZjNkQ0Y3ZSIsInBheVRvIjoiMHhDQjRiODQwNzlCMWRkMTk4MjhjM2Q1NzMzZjllMEQyRGNCMjZkRmVDIiwibWF4VGltZW91dFNlY29uZHMiOjMwMCwiZXh0cmEiOnsibmFtZSI6IlVTREMiLCJ2ZXJzaW9uIjoiMiJ9fV19"
+        },
+        "body": {},
+        "decoded": {
+          "header": "PAYMENT-REQUIRED",
+          "value": {
+            "x402Version": 2,
+            "error": "Payment required",
+            "resource": {
+              "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+              "description": "Ajean Ledger: journal entry + VAT + compliance + anomalies for one French invoice",
+              "mimeType": "application/json"
+            },
+            "accepts": [
+              {
+                "scheme": "exact",
+                "network": "eip155:84532",
+                "amount": "150000",
+                "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                "payTo": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+                "maxTimeoutSeconds": 300,
+                "extra": {
+                  "name": "USDC",
+                  "version": "2"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "t_ms": 990,
+      "kind": "payment",
+      "title": "Signed a 0.15 USDC payment authorisation (EIP-3009)",
+      "detail": "transferWithAuthorization from the agent wallet to Ajean Ledger's payTo wallet. Off-chain signature: no gas, no account, no API key. The facilitator submits the transfer.",
+      "data": {
+        "scheme": "exact",
+        "network": "eip155:84532",
+        "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        "amount_usdc": "0.15",
+        "from": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+        "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+        "value": "150000",
+        "validAfter": "1794821550",
+        "validBefore": "1794822450",
+        "nonce": "0xb43ee93bac8fd0fd080894346caaa4f5c76b9e855ecab40a4980b3cf24795d05"
+      }
+    },
+    {
+      "t_ms": 1060,
+      "kind": "http_request",
+      "title": "POST /api/v1/entry with PAYMENT-SIGNATURE",
+      "detail": "Same request, retried with the signed payment attached. Payment is the authentication.",
+      "http": {
+        "method": "POST",
+        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "headers": {
+          "content-type": "application/json",
+          "Idempotency-Key": "idem-83cff86ae24a900f",
+          "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIudmVyY2VsLmFwcC9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkFqZWFuIExlZGdlcjogam91cm5hbCBlbnRyeSArIFZBVCArIGNvbXBsaWFuY2UgKyBhbm9tYWxpZXMgZm9yIG9uZSBGcmVuY2ggaW52b2ljZSIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiJ9LCJhY2NlcHRlZCI6eyJzY2hlbWUiOiJleGFjdCIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJhbW91bnQiOiIxNTAwMDAiLCJhc3NldCI6IjB4MDM2Q2JENTM4NDJjNTQyNjYzNGU3OTI5NTQxZUMyMzE4ZjNkQ0Y3ZSIsInBheVRvIjoiMHhDQjRiODQwNzlCMWRkMTk4MjhjM2Q1NzMzZjllMEQyRGNCMjZkRmVDIiwibWF4VGltZW91dFNlY29uZHMiOjMwMCwiZXh0cmEiOnsibmFtZSI6IlVTREMiLCJ2ZXJzaW9uIjoiMiJ9fSwicGF5bG9hZCI6eyJzaWduYXR1cmUiOiIweGZlYzc2OTFkYWE1NGQ2ODI0MmE2YzM0YWNiMmExNzc5YzM5YzY2YzcyNTdjNWJlNGZjNTU4NmI4YjczMGQ1ODVmZWM3NjkxZGFhNTRkNjgyNDJhNmMzNGFjYjJhMTc3OWMzOWM2NmM3MjU3YzViZTRmYzU1ODZiOGI3MzBkNTg1ZmUiLCJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5ODI4YzNkNTczM2Y5ZTBEMkRjQjI2ZEZlQyIsInZhbHVlIjoiMTUwMDAwIiwidmFsaWRBZnRlciI6IjE3OTQ4MjE1NTAiLCJ2YWxpZEJlZm9yZSI6IjE3OTQ4MjI0NTAiLCJub25jZSI6IjB4YjQzZWU5M2JhYzhmZDBmZDA4MDg5NDM0NmNhYWE0ZjVjNzZiOWU4NTVlY2FiNDBhNDk4MGIzY2YyNDc5NWQwNSJ9fX0="
+        },
+        "body": {
+          "input": {
+            "format": "json",
+            "invoice": {
+              "document_type": "invoice",
+              "number": "CW-2026-0457",
+              "issue_date": "2026-11-03",
+              "due_date": "2026-11-17",
+              "currency": "EUR",
+              "supplier": {
+                "name": "CloudWerk GmbH (fictional)",
+                "vat_id": "DE999000123",
+                "country": "DE",
+                "address": "Beispielstrasse 1, 10115 Berlin, Germany"
+              },
+              "customer": {
+                "name": "Atelier Lumen SAS (fictional)",
+                "siren": "999000116",
+                "vat_id": "FR90999000116",
+                "country": "FR",
+                "address": "12 rue des Ateliers, 69002 Lyon, France"
+              },
+              "operation_nature": "services",
+              "lines": [
+                {
+                  "description": "Project-management SaaS, November 2026, 12 seats",
+                  "quantity": 12,
+                  "unit_price_excl_vat": 100,
+                  "vat_rate": 0,
+                  "total_excl_vat": 1200,
+                  "kind": "services"
+                }
+              ],
+              "totals": {
+                "total_excl_vat": 1200,
+                "total_vat": 0,
+                "total_incl_vat": 1200
+              },
+              "payment_terms": "Payment within 14 days",
+              "late_payment_penalties": "Late-payment interest as per contract",
+              "fixed_recovery_indemnity_mention": true,
+              "legal_mentions": [
+                "Reverse charge: VAT to be accounted for by the recipient"
+              ]
+            }
+          }
+        },
+        "decoded": {
+          "header": "PAYMENT-SIGNATURE",
+          "value": {
+            "x402Version": 2,
+            "resource": {
+              "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+              "description": "Ajean Ledger: journal entry + VAT + compliance + anomalies for one French invoice",
+              "mimeType": "application/json"
+            },
+            "accepted": {
+              "scheme": "exact",
+              "network": "eip155:84532",
+              "amount": "150000",
+              "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              "payTo": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+              "maxTimeoutSeconds": 300,
+              "extra": {
+                "name": "USDC",
+                "version": "2"
+              }
+            },
+            "payload": {
+              "signature": "0xfec7691daa54d68242a6c34acb2a1779c39c66c7257c5be4fc5586b8b730d585fec7691daa54d68242a6c34acb2a1779c39c66c7257c5be4fc5586b8b730d585fe",
+              "authorization": {
+                "from": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+                "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+                "value": "150000",
+                "validAfter": "1794821550",
+                "validBefore": "1794822450",
+                "nonce": "0xb43ee93bac8fd0fd080894346caaa4f5c76b9e855ecab40a4980b3cf24795d05"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "t_ms": 3480,
+      "kind": "http_response",
+      "title": "200 OK: entry received (compliant)",
+      "detail": "The PAYMENT-RESPONSE header confirms settlement and carries the transaction hash.",
+      "http": {
+        "method": "POST",
+        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJ0cmFuc2FjdGlvbiI6IjB4NTE1MWFlMDZkODU2MTg5MmFjMmNhY2E4NGExM2YyMjU3MjFiN2FmMDdmZmE4ZWYzYTliMWVmYmJiYTUzZWI2NSIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ=="
+        },
+        "body": {
+          "request_id": "req_4458169edf632c11bdf9",
+          "receipt": {
+            "amount": "0.15",
+            "amount_atomic": "150000",
+            "asset": "USDC",
+            "network": "base-sepolia",
+            "network_caip2": "eip155:84532",
+            "tx_hash": "0x5151ae06d8561892ac2caca84a13f225721b7af07ffa8ef3a9b1efbbba53eb65",
+            "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+            "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "explorer_url": null,
+            "mode": "simulated",
+            "paid_at": "2026-11-16T09:42:33.480Z"
+          },
+          "invoice": {
+            "document_type": "invoice",
+            "number": "CW-2026-0457",
+            "date": "2026-11-03",
+            "supplier": {
+              "name": "CloudWerk GmbH (fictional)",
+              "vat_id": "DE999000123",
+              "country": "DE",
+              "address": "Beispielstrasse 1, 10115 Berlin, Germany"
+            },
+            "customer": {
+              "name": "Atelier Lumen SAS (fictional)",
+              "siren": "999000116",
+              "vat_id": "FR90999000116",
+              "country": "FR",
+              "address": "12 rue des Ateliers, 69002 Lyon, France"
+            },
+            "operation_nature": "services",
+            "totals": {
+              "total_excl_vat": 1200,
+              "total_vat": 0,
+              "total_incl_vat": 1200
+            }
+          },
+          "compliance": {
+            "status": "compliant",
+            "checks": [
+              {
+                "rule_id": "FR-EINV-NUMBER",
+                "label": "Unique, sequential invoice number",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-DATE",
+                "label": "Issue date",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-SUPPLIER-ID",
+                "label": "Supplier name, address and EU identification (non-French supplier)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-SUPPLIER-VAT",
+                "label": "Supplier intra-EU VAT number",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-SIREN-BUYER",
+                "label": "Buyer SIREN (e-invoicing reform)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-BUYER-VAT",
+                "label": "Buyer VAT number",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-OPERATION-NATURE",
+                "label": "Nature of the operation: goods / services / mixed (reform)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-DELIVERY-ADDRESS",
+                "label": "Delivery address, if different (reform)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-VAT-DEBITS-OPTION",
+                "label": "Option for VAT on debits, if any (reform)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-LINES",
+                "label": "Description, quantity and unit price excl. VAT per line",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-VAT-BREAKDOWN",
+                "label": "No VAT invoiced: reverse-charge mention required",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-TOTALS",
+                "label": "Totals consistent (excl. VAT + VAT = incl. VAT)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-PAYMENT-TERMS",
+                "label": "Payment terms and late-payment penalties",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-EINV-RECOVERY-40",
+                "label": "EUR 40 fixed recovery indemnity mention (B2B)",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "FR-VAT-RATE-CONSISTENCY",
+                "label": "VAT rate consistent with the goods or services",
+                "passed": true,
+                "severity": "error"
+              },
+              {
+                "rule_id": "EU-VAT-REVERSE-CHARGE-MENTION",
+                "label": "Reverse-charge mention present (intra-EU B2B service)",
+                "passed": true,
+                "severity": "error"
+              }
+            ]
+          },
+          "entry": {
+            "journal": "HA",
+            "date": "2026-11-03",
+            "reference": "CW-2026-0457",
+            "lines": [
+              {
+                "account": "6135",
+                "label": "Locations mobilières (abonnement SaaS)",
+                "debit": 1200,
+                "credit": 0
+              },
+              {
+                "account": "44566",
+                "label": "TVA déductible autoliquidée 20%",
+                "debit": 240,
+                "credit": 0
+              },
+              {
+                "account": "4452",
+                "label": "TVA due intracommunautaire",
+                "debit": 0,
+                "credit": 240
+              },
+              {
+                "account": "401CLOU",
+                "label": "Fournisseur CloudWerk GmbH",
+                "debit": 0,
+                "credit": 1200
+              }
+            ],
+            "balanced": true
+          },
+          "vat": {
+            "regime": "reverse_charge_intra_eu",
+            "rate": 0.2,
+            "deductible": true,
+            "breakdown": [
+              {
+                "rate": 0.2,
+                "base": 1200,
+                "vat": 240
+              }
+            ],
+            "note": "Intra-EU B2B service: the French buyer self-assesses 20% VAT (due and deductible in the same return). Net VAT cost: 0.00 EUR."
+          },
+          "anomalies": [
+            {
+              "code": "REVERSE_CHARGE_APPLIED",
+              "detail": "No VAT invoiced by an EU supplier for a B2B service: 240.00 EUR VAT self-assessed by the buyer (4452 due / 44566 deductible). Report the operation on the VAT return.",
+              "severity": "info"
+            }
+          ],
+          "confidence": 0.93,
+          "human_review_required": false,
+          "review_reasons": [],
+          "explanation": "SaaS subscription from CloudWerk GmbH (fictional, Germany) is an intra-EU B2B service, so the French buyer self-assesses VAT (reverse charge). 1,200.00 EUR is booked to 6135, and 240.00 EUR of VAT is both due (4452) and deductible (44566), so the net VAT cost is zero. The supplier is credited 1,200.00 EUR, with no VAT invoiced. Remember to report the operation on the VAT return.",
+          "engine": {
+            "version": "0.1.0",
+            "rules_applied": [
+              "PCG-MAP-SAAS",
+              "VAT-REVERSE-CHARGE-INTRA-EU",
+              "FR-EINV-MANDATORY-MENTIONS",
+              "DUPLICATE-CHECK",
+              "BALANCE-CHECK"
+            ],
+            "llm_used": false,
+            "extraction_method": "structured_json"
+          },
+          "disclaimer": "Proof of concept on synthetic data. Not a substitute for a chartered accountant's review."
+        },
+        "decoded": {
+          "header": "PAYMENT-RESPONSE",
+          "value": {
+            "success": true,
+            "transaction": "0x5151ae06d8561892ac2caca84a13f225721b7af07ffa8ef3a9b1efbbba53eb65",
+            "network": "eip155:84532",
+            "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+            "extra": {
+              "simulated": true,
+              "note": "SIMULATED settlement: no on-chain transaction was broadcast."
+            }
+          }
+        }
+      }
+    },
+    {
+      "t_ms": 3500,
+      "kind": "settlement",
+      "title": "Payment settled: 0.15 USDC (simulated transaction)",
+      "detail": "Transaction 0x5151ae06d856… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_4458169edf632c11bdf9 stored for idempotency.",
+      "data": {
+        "tx_hash": "0x5151ae06d8561892ac2caca84a13f225721b7af07ffa8ef3a9b1efbbba53eb65",
+        "network": "eip155:84532",
+        "amount_usdc": "0.15",
+        "request_id": "req_4458169edf632c11bdf9",
+        "explorer_url": null,
+        "simulated": true
+      }
+    },
+    {
+      "t_ms": 3590,
+      "kind": "erp",
+      "title": "ERP: entry HA CW-2026-0457 posted (validated)",
+      "detail": "4 lines written to the mock ERP (erp.json), debits = credits = 1440.00 EUR.",
+      "data": {
+        "erp_file": "erp.json",
+        "status": "posted",
+        "journal": "HA",
+        "reference": "CW-2026-0457",
+        "lines": 4
+      }
+    },
+    {
+      "t_ms": 3620,
+      "kind": "reasoning",
+      "title": "Done: invoice booked, no human needed",
+      "detail": "Cost of this call: 0.15 USDC. Daily spend: 0.45 / 2.00 USDC."
+    }
+  ],
+  "result": {
+    "request_id": "req_4458169edf632c11bdf9",
+    "receipt": {
+      "amount": "0.15",
+      "amount_atomic": "150000",
+      "asset": "USDC",
+      "network": "base-sepolia",
+      "network_caip2": "eip155:84532",
+      "tx_hash": "0x5151ae06d8561892ac2caca84a13f225721b7af07ffa8ef3a9b1efbbba53eb65",
+      "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+      "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+      "explorer_url": null,
+      "mode": "simulated",
+      "paid_at": "2026-11-16T09:42:33.480Z"
+    },
+    "invoice": {
+      "document_type": "invoice",
+      "number": "CW-2026-0457",
+      "date": "2026-11-03",
+      "supplier": {
+        "name": "CloudWerk GmbH (fictional)",
+        "vat_id": "DE999000123",
+        "country": "DE",
+        "address": "Beispielstrasse 1, 10115 Berlin, Germany"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "999000116",
+        "vat_id": "FR90999000116",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon, France"
+      },
+      "operation_nature": "services",
+      "totals": {
+        "total_excl_vat": 1200,
+        "total_vat": 0,
+        "total_incl_vat": 1200
+      }
+    },
+    "compliance": {
+      "status": "compliant",
+      "checks": [
+        {
+          "rule_id": "FR-EINV-NUMBER",
+          "label": "Unique, sequential invoice number",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-DATE",
+          "label": "Issue date",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-SUPPLIER-ID",
+          "label": "Supplier name, address and EU identification (non-French supplier)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-SUPPLIER-VAT",
+          "label": "Supplier intra-EU VAT number",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-SIREN-BUYER",
+          "label": "Buyer SIREN (e-invoicing reform)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-BUYER-VAT",
+          "label": "Buyer VAT number",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-OPERATION-NATURE",
+          "label": "Nature of the operation: goods / services / mixed (reform)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-DELIVERY-ADDRESS",
+          "label": "Delivery address, if different (reform)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-VAT-DEBITS-OPTION",
+          "label": "Option for VAT on debits, if any (reform)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-LINES",
+          "label": "Description, quantity and unit price excl. VAT per line",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-VAT-BREAKDOWN",
+          "label": "No VAT invoiced: reverse-charge mention required",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-TOTALS",
+          "label": "Totals consistent (excl. VAT + VAT = incl. VAT)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-PAYMENT-TERMS",
+          "label": "Payment terms and late-payment penalties",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-EINV-RECOVERY-40",
+          "label": "EUR 40 fixed recovery indemnity mention (B2B)",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "FR-VAT-RATE-CONSISTENCY",
+          "label": "VAT rate consistent with the goods or services",
+          "passed": true,
+          "severity": "error"
+        },
+        {
+          "rule_id": "EU-VAT-REVERSE-CHARGE-MENTION",
+          "label": "Reverse-charge mention present (intra-EU B2B service)",
+          "passed": true,
+          "severity": "error"
+        }
+      ]
+    },
+    "entry": {
+      "journal": "HA",
+      "date": "2026-11-03",
+      "reference": "CW-2026-0457",
+      "lines": [
+        {
+          "account": "6135",
+          "label": "Locations mobilières (abonnement SaaS)",
+          "debit": 1200,
+          "credit": 0
+        },
+        {
+          "account": "44566",
+          "label": "TVA déductible autoliquidée 20%",
+          "debit": 240,
+          "credit": 0
+        },
+        {
+          "account": "4452",
+          "label": "TVA due intracommunautaire",
+          "debit": 0,
+          "credit": 240
+        },
+        {
+          "account": "401CLOU",
+          "label": "Fournisseur CloudWerk GmbH",
+          "debit": 0,
+          "credit": 1200
+        }
+      ],
+      "balanced": true
+    },
+    "vat": {
+      "regime": "reverse_charge_intra_eu",
+      "rate": 0.2,
+      "deductible": true,
+      "breakdown": [
+        {
+          "rate": 0.2,
+          "base": 1200,
+          "vat": 240
+        }
+      ],
+      "note": "Intra-EU B2B service: the French buyer self-assesses 20% VAT (due and deductible in the same return). Net VAT cost: 0.00 EUR."
+    },
+    "anomalies": [
+      {
+        "code": "REVERSE_CHARGE_APPLIED",
+        "detail": "No VAT invoiced by an EU supplier for a B2B service: 240.00 EUR VAT self-assessed by the buyer (4452 due / 44566 deductible). Report the operation on the VAT return.",
+        "severity": "info"
+      }
+    ],
+    "confidence": 0.93,
+    "human_review_required": false,
+    "review_reasons": [],
+    "explanation": "SaaS subscription from CloudWerk GmbH (fictional, Germany) is an intra-EU B2B service, so the French buyer self-assesses VAT (reverse charge). 1,200.00 EUR is booked to 6135, and 240.00 EUR of VAT is both due (4452) and deductible (44566), so the net VAT cost is zero. The supplier is credited 1,200.00 EUR, with no VAT invoiced. Remember to report the operation on the VAT return.",
+    "engine": {
+      "version": "0.1.0",
+      "rules_applied": [
+        "PCG-MAP-SAAS",
+        "VAT-REVERSE-CHARGE-INTRA-EU",
+        "FR-EINV-MANDATORY-MENTIONS",
+        "DUPLICATE-CHECK",
+        "BALANCE-CHECK"
+      ],
+      "llm_used": false,
+      "extraction_method": "structured_json"
+    },
+    "disclaimer": "Proof of concept on synthetic data. Not a substitute for a chartered accountant's review."
+  },
+  "duration_ms": 3640,
+  "outcome": "posted"
+}

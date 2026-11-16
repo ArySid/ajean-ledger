@@ -1,0 +1,34 @@
+{
+  "note": "Factur-X PDF of #1: same entry as fixture 01, extracted from the embedded CII XML.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "6064",
+        "debit": 140.0,
+        "credit": 0
+      },
+      {
+        "account": "44566",
+        "debit": 28.0,
+        "credit": 0
+      },
+      {
+        "account": "401BURO",
+        "debit": 0,
+        "credit": 168.0
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "standard",
+    "rate": 0.2
+  },
+  "anomaly_codes": [],
+  "human_review_required": false,
+  "review_reasons": [],
+  "extraction_method": "facturx_cii"
+}

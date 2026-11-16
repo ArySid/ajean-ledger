@@ -1,0 +1,55 @@
+{
+  "description": "Laptop at 1,450.00 EUR excl. VAT (above the 500 EUR low-value threshold) + a 29.00 EUR mouse -> 2183 + 44562 for the laptop, 6063 + 44566 for the mouse.",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "invoice",
+      "number": "NS-2026-5521",
+      "issue_date": "2026-10-22",
+      "due_date": "2026-11-21",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Numeria Solutions SAS (fictional)",
+        "siren": "906294517",
+        "vat_id": "FR44906294517",
+        "country": "FR",
+        "address": "3 avenue de l'Europe, 38000 Grenoble"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "goods",
+      "lines": [
+        {
+          "description": "Ordinateur portable 14 pouces — 32 Go RAM, 1 To SSD",
+          "quantity": 1,
+          "unit_price_excl_vat": 1450.0,
+          "vat_rate": 0.2,
+          "total_excl_vat": 1450.0,
+          "kind": "goods"
+        },
+        {
+          "description": "Souris sans fil",
+          "quantity": 1,
+          "unit_price_excl_vat": 29.0,
+          "vat_rate": 0.2,
+          "total_excl_vat": 29.0,
+          "kind": "goods"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 1479.0,
+        "total_vat": 295.8,
+        "total_incl_vat": 1774.8
+      },
+      "payment_terms": "Paiement à 30 jours par virement.",
+      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+      "fixed_recovery_indemnity_mention": true,
+      "legal_mentions": []
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "description": "Partial credit note on fixture 01 (2 damaged paper cartons returned) -> reversed entry.",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "credit_note",
+      "number": "BE-AV-2026-0031",
+      "issue_date": "2026-10-15",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Buro Express SARL (fictional)",
+        "siren": "903182640",
+        "vat_id": "FR81903182640",
+        "country": "FR",
+        "address": "48 boulevard Voltaire, 75011 Paris"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "goods",
+      "original_invoice_number": "BE-2026-0412",
+      "lines": [
+        {
+          "description": "Retour : ramettes papier A4 80 g (carton de 5) — 2 cartons endommagés",
+          "quantity": 2,
+          "unit_price_excl_vat": 22.5,
+          "vat_rate": 0.2,
+          "total_excl_vat": 45.0,
+          "kind": "goods"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 45.0,
+        "total_vat": 9.0,
+        "total_incl_vat": 54.0
+      },
+      "payment_terms": "Avoir imputable sur la facture BE-2026-0412.",
+      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+      "fixed_recovery_indemnity_mention": true,
+      "legal_mentions": [
+        "Avoir sur facture BE-2026-0412 du 05/10/2026"
+      ]
+    }
+  }
+}

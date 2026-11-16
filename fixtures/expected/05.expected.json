@@ -1,0 +1,30 @@
+{
+  "note": "Exempt training (CGI 261-4-4° a mention present): no VAT line.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "6228",
+        "debit": 1200.0,
+        "credit": 0
+      },
+      {
+        "account": "401FORMACOM",
+        "debit": 0,
+        "credit": 1200.0
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "exempt",
+    "rate": 0
+  },
+  "anomaly_codes": [],
+  "human_review_required": false,
+  "review_reasons": [],
+  "extraction_method": "structured_json",
+  "vat_legal_basis_id": "LB-VAT-EXEMPT-TRAINING"
+}

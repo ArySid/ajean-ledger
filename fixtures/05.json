@@ -1,0 +1,49 @@
+{
+  "description": "VAT-exempt vocational training invoice with the exemption mention -> exempt, no VAT line.",
+  "input": {
+    "format": "json",
+    "invoice": {
+      "document_type": "invoice",
+      "number": "FCI-2026-0233",
+      "issue_date": "2026-10-20",
+      "due_date": "2026-11-19",
+      "currency": "EUR",
+      "supplier": {
+        "name": "Formacompta Institut SAS (fictional)",
+        "siren": "905736187",
+        "vat_id": "FR50905736187",
+        "country": "FR",
+        "address": "21 quai Saint-Antoine, 69002 Lyon"
+      },
+      "customer": {
+        "name": "Atelier Lumen SAS (fictional)",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
+        "country": "FR",
+        "address": "12 rue des Ateliers, 69002 Lyon"
+      },
+      "operation_nature": "services",
+      "lines": [
+        {
+          "description": "Formation « Facturation électronique 2026 » — 2 jours, 1 participant",
+          "quantity": 1,
+          "unit_price_excl_vat": 1200.0,
+          "vat_rate": 0,
+          "total_excl_vat": 1200.0,
+          "kind": "services"
+        }
+      ],
+      "totals": {
+        "total_excl_vat": 1200.0,
+        "total_vat": 0,
+        "total_incl_vat": 1200.0
+      },
+      "payment_terms": "Paiement à 30 jours par virement.",
+      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+      "fixed_recovery_indemnity_mention": true,
+      "legal_mentions": [
+        "Exonération de TVA — article 261-4-4° a du CGI (formation professionnelle continue)"
+      ]
+    }
+  }
+}

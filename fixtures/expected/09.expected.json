@@ -1,0 +1,38 @@
+{
+  "note": "Lawyer client (BNC, cash basis): fee invoice proposed on 6226/44566/401, human review CASH_BASIS_CLIENT.",
+  "compliance_status": "compliant",
+  "failing_rule_ids": [],
+  "entry": {
+    "journal": "HA",
+    "lines": [
+      {
+        "account": "6226",
+        "debit": 800.0,
+        "credit": 0
+      },
+      {
+        "account": "44566",
+        "debit": 160.0,
+        "credit": 0
+      },
+      {
+        "account": "401VASSEUR",
+        "debit": 0,
+        "credit": 960.0
+      }
+    ],
+    "balanced": true
+  },
+  "vat": {
+    "regime": "standard",
+    "rate": 0.2
+  },
+  "anomaly_codes": [
+    "CASH_BASIS_CLIENT"
+  ],
+  "human_review_required": true,
+  "review_reasons": [
+    "CASH_BASIS_CLIENT"
+  ],
+  "extraction_method": "structured_json"
+}
