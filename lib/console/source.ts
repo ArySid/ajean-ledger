@@ -102,7 +102,24 @@ async function fetchJson(url: string, init: RequestInit, timeoutMs: number, fetc
   outer?.addEventListener("abort", onOuterAbort);
   try {
     const res = await fetchImpl(url, { ...init, signal: ctrl.signal, cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url, "http://x").pathname}`);
+    if (!res.ok) {
+      // Keep the server's machine-readable code (DEMO_BUSY, RATE_LIMITED…) or a 1102 body in the reason.
+      let why = "";
+      try {
+        const text = (await res.text()).trim();
+        let code: unknown;
+        try {
+          const j = JSON.parse(text) as { error?: { code?: unknown } };
+          code = j?.error?.code;
+        } catch {
+          /* not JSON */
+        }
+        why = typeof code === "string" ? ` ${code}` : text && text.length <= 80 && !text.startsWith("<") ? ` (${text})` : "";
+      } catch {
+        /* body unreadable */
+      }
+      throw new Error(`HTTP ${res.status}${why} from ${new URL(url, "http://x").pathname}`);
+    }
     return await res.json();
   } catch (e) {
     if (ctrl.signal.aborted && ctrl.signal.reason instanceof Error) throw ctrl.signal.reason;
@@ -111,6 +128,23 @@ async function fetchJson(url: string, init: RequestInit, timeoutMs: number, fetc
     clearTimeout(timer);
     outer?.removeEventListener("abort", onOuterAbort);
   }
+}
+
+/**
+ * "agent run ended in error: <title>: <detail>" from the trace's last error step (or the route's
+ * `error` field), so the presenter and the team can tell a facilitator refusal from a deadline or a
+ * 1102 on a nested call (Phase 7 review M3).
+ */
+export function runErrorReason(json: unknown, trace: ConsoleTrace): string {
+  const errStep = [...trace.steps].reverse().find((st) => st.kind === "error");
+  const top = json && typeof json === "object" ? ((json as { error?: { title?: unknown; detail?: unknown } }).error ?? null) : null;
+  const title = errStep?.title ?? (typeof top?.title === "string" ? top.title : "");
+  const detail = errStep?.detail ?? (typeof top?.detail === "string" ? top.detail : "");
+  const lastHttp = [...trace.steps].reverse().find((st) => st.kind === "http_response" && st.http?.status);
+  const http = lastHttp?.http?.status && lastHttp.http.status !== 200 && lastHttp.http.status !== 402 ? ` [last HTTP ${lastHttp.http.status}]` : "";
+  const text = [title, detail].filter(Boolean).join(": ");
+  const clipped = text.length > 220 ? `${text.slice(0, 217)}…` : text;
+  return `agent run ended in error${clipped ? `: ${clipped}` : ""}${http}`;
 }
 
 function errMsg(e: unknown): string {
@@ -157,7 +191,11 @@ export async function runScenario(scenario: ScenarioId, mode: RunMode, opts: Sou
     );
     const trace = extractTrace(json, scenario);
     if (!trace) throw new Error("malformed trace from /api/demo/run");
-    if (trace.outcome === "error") throw new Error("agent run ended in error");
+    if (trace.outcome === "error") {
+      const reason = runErrorReason(json, trace);
+      console.warn(`[live] ${reason}`);
+      throw new Error(reason);
+    }
     const fallbackMode = mode === "testnet" ? "TESTNET" : "SIMULATED";
     return { trace: normalise({ ...trace, mode: trace.mode || fallbackMode }), origin: "live" };
   } catch (e) {

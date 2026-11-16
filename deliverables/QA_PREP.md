@@ -6,7 +6,7 @@
 ---
 
 ### Q1. Why would an agent pay instead of just asking an LLM? *(Leo)*
-An LLM can propose an entry, but it cannot guarantee it. It may invent an account, apply the wrong VAT rate or miss a mandatory mention, and it gives no stable reference for its answer. We return a deterministic, balanced entry with stable `rule_id`s, a confidence score and an explicit `human_review_required` flag. For 0.15 USDC the agent buys a result it can act on, and a trace its operator can audit. In the demo, a generic model would book the 20% restaurant VAT without a warning; we deduct only the 10% legally due and flag the rest.
+An LLM can propose an entry, but it cannot guarantee it. It may invent an account, apply the wrong VAT rate or miss a mandatory mention, and it gives no stable reference for its answer. We return a deterministic, balanced entry with stable `rule_id`s, a confidence score and an explicit `human_review_required` flag. For 0.15 USDC the agent buys a result it can act on, and a trace its operator can audit. In the demo's restaurant invoice, a generic model may well book the 20% VAT as invoiced; we deduct only the 10% legally due and flag the rest, every time. (We have not benchmarked general-purpose models, so we do not quote an error rate.)
 
 ### Q2. Why stablecoins rather than card payments? *(Yoann)*
 There are three reasons:
@@ -56,7 +56,7 @@ Settlement happens only after a successful response, so honest agents are never 
 
 ### Q10. How accurate is it, and how do you validate it? *(Ary)*
 The engine is rules first, LLM second. Accounts, amounts and VAT come from deterministic tables: PCG mapping, VAT rates of 20 / 10 / 5.5 / 2.1%, regimes including intra-EU reverse charge, and the mandatory mentions. Debits always equal credits. Validation:
-- **217 automated tests** (`npm test`), all green.
+- **226 automated tests** (`npm test`), all green.
 - **13 synthetic fixtures** with expected outputs: reverse charge, credit note, fixed asset in 2183 with VAT in 44562, duplicate, Factur-X, UBL, bank matching…
 - **Two independent reviews** by reviewers who did not write the code. The Phase 1 review checked the engine as an expert-comptable would and found 2 blocking issues, both fixed: the excess-VAT deduction on fixture 03, and fictional SIRENs that were real. The Phase 5 review checked the live demo and found 0 blocking issues; its major findings were fixed.
 
@@ -79,7 +79,7 @@ No, and we don't claim to be. Approved platforms are registered with the tax adm
 In production we would move to a paid Workers plan and a database for receipts. That is a configuration change, not a redesign. Measurements are in `docs/HOSTING.md` §4–5.
 
 ### Q14. Why Cloudflare? *(Yoann)*
-x402 was co-created by Coinbase and Cloudflare. Running an agent-payment service on Cloudflare Workers puts it inside the protocol's own ecosystem. There are practical reasons too: a free plan for the PoC, global edge hosting, KV storage and a one-command deploy. Our first plan was another host, which became unavailable. Cloudflare was the first host we tested, and it ran the full demo from a public URL, so we kept it (`docs/DECISIONS.md` ADR-017, ADR-020).
+x402 was created by Coinbase (launched May 2025). Cloudflare co-founded the x402 Foundation with Coinbase (announced September 2025) and supports x402 in its Agents SDK and MCP tooling. Running an agent-payment service on Cloudflare Workers puts it inside the protocol's own ecosystem. There are practical reasons too: a free plan for the PoC, global edge hosting, KV storage and a one-command deploy. Our first plan was another host, which became unavailable. Cloudflare was the first host we tested, and it ran the full demo from a public URL, so we kept it (`docs/DECISIONS.md` ADR-017, ADR-020).
 
 ### Q15. Is the payment in the demo real? *(Victor)*
 Yes, on testnet. The live deployment runs in TESTNET mode: the agent signs a real EIP-3009 authorisation, and the x402.org facilitator settles 0.15 test USDC on Base Sepolia. The tx hash opens on Basescan, for example the scenario 03 run [0xc155…3586](https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586), which moves 0.15 USDC from the agent wallet `0xD25E…c1BF` to the service wallet `0xCB4b…dFeC`. Test USDC has no monetary value. If the network fails, the console shows a REPLAY recorded from that same real testnet run, labelled on screen.

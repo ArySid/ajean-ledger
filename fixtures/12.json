@@ -1,5 +1,5 @@
 {
-  "description": "Bank transaction paying fixture 01 (-168.00 EUR, label contains the invoice number) matched against candidate_invoices [#1] -> BQ entry 401BURO / 512000.",
+  "description": "Bank transaction paying fixture 01 (-168.00 EUR, label contains the invoice number) matched against candidate_invoices [#1] -> BQ entry 401BURO / 512.",
   "input": {
     "format": "bank_transaction",
     "transaction": {

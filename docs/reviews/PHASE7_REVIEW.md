@@ -185,3 +185,22 @@ Deliverables against the engine: DEMO_SCRIPT (160.60 / 14.60 / 175.20, 13.60 + 1
   - `p{1,2}-landing`, `-live03`, `-run90`, `-replay0{1,3,4,6}`, `-operator`, `-office`;
   - `p2-*-simtag.png` (M1);
   - `p2-*-ledger.png`. These were meant to capture the ledger, but they only scrolled the left timeline. They are kept because they show the right column with the ledger below the fold (m1).
+
+## Resolution (fix workstream, 2026-11-16)
+
+Not redeployed by this workstream (the orchestrator deploys). `npx vitest run`: **226 / 226** green (8 files); `npx tsc --noEmit` clean; `npm run export:deliverables`: concept note **2 pages**. Checked locally in SIMULATED mode (scratch copy, Playwright 1280×720), no paid call on the public site.
+
+| # | Status | What changed |
+|---|---|---|
+| M1 | **Fixed** | Tx label decided per hash, never per page: `stepTxExplorerUrl()` (`lib/console/format.ts`) used by `DataChips`: `explorer_url` wins; `simulated: true` / `mode: "simulated"` / `0x5151…` = SIMULATED; any other 32-byte hash → `https://sepolia.basescan.org/tx/<hash>`. The result panel uses the receipt only (no more page-level `trace.mode` rule). `agent/core.ts` ERP step now carries `explorer_url` and `simulated`. The 4 testnet replays' ERP steps were patched by script with the same two fields (amounts untouched). Tests: console (helper + every replay's settlement/ERP step links to Basescan), agent (ERP step data). |
+| M2 | **Fixed (server side)** | `/api/v1/operator/stats` computes `calls`, `usdc_earned`, `by_endpoint` and `recent` for the deployment's current mode only (`getPaymentMode()`), from the new `revenue_per_endpoint_by_mode` of `buildStats`; the other mode goes to `hidden: {mode, calls, usdc}` (`by_mode` kept). `/operator` shows "showing TESTNET calls only (N simulated calls hidden)". Tests in `api.test.ts` and `console.test.ts`. The team may still reset the KV keys (`{{OPERATOR_RESET_DECISION}}`). |
+| M3 | **Fixed (diagnosis + mitigation)** | The REPLAY notice now gives `agent run ended in error: <title>: <detail> [last HTTP n]` (or `HTTP 429 DEMO_BUSY …`); `/api/demo/run` returns `error: {code, title, detail}` and logs it. One automatic retry when nothing was signed (no `payment`/`settlement` step), same Idempotency-Key, ≥ 15 s budget left; the agent accepts an `Idempotent-Replay` 200 as "already paid" without signing. Likely cause (unconfirmed): 1102 CPU limit on a nested self-call landing on a cold isolate; then facilitator refusal; analysis in `docs/AGENT.md`. DEMO_SCRIPT: dry run ≤ 2 min before going on stage, narrator briefed that REPLAY is expected. |
+| M4 | **Fixed** | "Coinbase created x402; Cloudflare co-founded the x402 Foundation with Coinbase (Sept. 2025) and supports x402 in its Agents SDK / MCP tooling" in README, CONCEPT_NOTE §7, SLIDES slide 5, QA Q14, BRIEF_COMPLIANCE C4/E; correction note under ADR-017 and in PROMPTS_SUBMISSION's context line (verbatim prompts untouched). |
+| m1 | **Fixed** | Journal entry card moved right under the receipt (before the review banner and anomalies); header compacted (request id in the receipt line, shorter Basescan link). Measured: the whole ledger including totals fits at 1280×720, 100% zoom (DEMO_SCRIPT notes the small scroll at 125–150%). |
+| m2 | **Fixed** | DEMO_SCRIPT tab 1 and SLIDES use `/live?scenario=03&speed=0.5` (≈ 30 s animation). |
+| m3 | **Fixed** | QA Q1 softened ("may well book"; no benchmark claimed). |
+| m4 | **Fixed** | CONCEPT_NOTE §7: Base mainnet, real USDC and a production facilitator (e.g. Coinbase CDP). |
+| m6 | **Fixed** | Bank account `512000` → `512` (engine, fixture 12 + expected, tests, ENGINE.md); no replay uses it. |
+| m7 | **Fixed** | Plain `GET /mcp` → 200 JSON usage document (POST JSON-RPC example, tools, discovery links); `GET` with `Accept: text/event-stream` and `DELETE` keep the spec's 405. |
+| m9 | **Fixed** | PROMPT_LOG #01: "242 lines". |
+| m5, m8, m10, m11, B1 | Open (team / not in this workstream's scope) | Unchanged. |

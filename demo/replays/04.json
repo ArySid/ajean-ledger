@@ -1108,7 +1108,9 @@
         ],
         "balanced": true,
         "request_id": "req_01M7J3CYB9JGWEBF5V4ZKE8EZA",
-        "tx_hash": "0x5c01600eb9ec856f2c14e76c731427e532183744ca6bd5dbb4e70c9f60a4aea9"
+        "tx_hash": "0x5c01600eb9ec856f2c14e76c731427e532183744ca6bd5dbb4e70c9f60a4aea9",
+        "explorer_url": "https://sepolia.basescan.org/tx/0x5c01600eb9ec856f2c14e76c731427e532183744ca6bd5dbb4e70c9f60a4aea9",
+        "simulated": false
       }
     },
     {

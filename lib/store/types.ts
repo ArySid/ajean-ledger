@@ -47,6 +47,8 @@ export interface StoreStats {
   usdc_earned_atomic: string;
   by_mode: Record<Receipt["mode"], EndpointRevenue>;
   revenue_per_endpoint: Record<PaidEndpointId, EndpointRevenue>;
+  /** Same split per payment mode, so the operator view can show one mode only (Phase 7 review M2). */
+  revenue_per_endpoint_by_mode: Record<Receipt["mode"], Record<PaidEndpointId, EndpointRevenue>>;
   recent_transactions: TxSummary[];
 }
 

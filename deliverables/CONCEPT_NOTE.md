@@ -28,7 +28,7 @@ The direct user is an agent. The purchasing agent of *Atelier Lumenor SAS (ficti
 - **Payment is the authentication.** x402 over plain HTTP: no account, no key, no invoice to chase; the agent pays only if the call succeeds.
 - **Rules first, LLM second.** A deterministic engine decides accounts, amounts and VAT, with a stable `rule_id` per rule. An optional LLM only extracts unstructured documents or classifies ambiguous descriptions, and the response says so. Uncertain cases return `human_review_required: true` instead of a guess.
 - **Expert viewpoints.** `/audit` returns structured statutory-auditor and tax-inspector findings, inherited from the expert agents of Ajean, our AI-agent platform for SMEs and accounting firms.
-- **Tested.** 217 automated tests and 13 synthetic fixtures (reverse charge, credit note, fixed asset, duplicate, Factur-X, UBL, bank matching); two independent reviews (engine, live demo).
+- **Tested.** 226 automated tests and 13 synthetic fixtures (reverse charge, credit note, fixed asset, duplicate, Factur-X, UBL, bank matching); two independent reviews (engine, live demo).
 
 ## 4. Target customers
 
@@ -63,7 +63,7 @@ Pay per call by value tier (one config file, published in the catalog). Discover
 2. The agent signs an EIP-3009 USDC authorisation and retries with a `PAYMENT-SIGNATURE` header.
 3. The x402 facilitator verifies the payment. The server runs the engine and settles **only if the call succeeds**. It then returns `200` with a `PAYMENT-RESPONSE` header carrying the transaction hash, for example [0xc155…3586 on Basescan](https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586) (0.15 test USDC, live demo).
 
-The facilitator pays the gas, so the agent's wallet only needs USDC. Revenue settles in seconds, with no chargebacks and no collection. x402 was co-created by Coinbase and Cloudflare, so we host the service on Cloudflare Workers (free plan), in the protocol's own ecosystem. Mainnet means switching the network (Base) and the asset (real USDC); the code path stays the same.
+The facilitator pays the gas, so the agent's wallet only needs USDC. Revenue settles in seconds, with no chargebacks and no collection. x402 was created by Coinbase; Cloudflare co-founded the x402 Foundation with it (Sept. 2025), so we host on Cloudflare Workers (free plan), in the protocol's own ecosystem. Mainnet means Base mainnet, real USDC and a production facilitator (e.g. Coinbase CDP); same code path.
 
 ## 8. Pricing illustration
 

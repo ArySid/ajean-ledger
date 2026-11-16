@@ -65,7 +65,7 @@
 - Discover → check budget → 402 → pay 0.15 USDC → entry + warning.
 - Modes: TESTNET (live) · REPLAY (recorded from a real testnet run) · SIMULATED (offline development).
 
-**Visual:** switch to `https://ajean-ledger.ary-sidoun.workers.dev/live?scenario=03`.
+**Visual:** switch to `https://ajean-ledger.ary-sidoun.workers.dev/live?scenario=03&speed=0.5`.
 
 **Speaker notes:** Follow `DEMO_SCRIPT.md` exactly. The moments to land are:
 - the **402**: payment is the authentication;
@@ -83,7 +83,7 @@ If anything stalls for more than 10 s, the driver switches to REPLAY without dis
 - Pay per call: check 0.05 USDC · entry 0.15 USDC · audit (≤ 50 entries, auditor and tax-inspector viewpoints) 1.00 USDC. Discovery and receipts are free.
 - The x402 flow: `PAYMENT-REQUIRED` → the agent signs an EIP-3009 USDC authorisation → `PAYMENT-SIGNATURE` → verify, run, settle only on success → `PAYMENT-RESPONSE` with the tx hash.
 - The facilitator pays the gas. The agent is never charged for a failed call. There are no chargebacks and nothing to collect.
-- **Why Cloudflare:** x402 was co-created by Coinbase and Cloudflare, so we run the service on Cloudflare Workers, in the protocol's own ecosystem (free plan for the PoC).
+- **Why Cloudflare:** x402 was created by Coinbase, and Cloudflare co-founded the x402 Foundation with Coinbase (Sept. 2025) and supports x402 in its Agents SDK and MCP tooling, so we run the service on Cloudflare Workers, in the protocol's own ecosystem (free plan for the PoC).
 - Example: a firm whose agents process 20,000 invoices a month pays 20,000 × 0.15 = 3,000 USDC, plus 400 audits × 1.00 = 400 USDC. That is **3,400 USDC a month, or 0.17 per invoice**.
 
 **Visual:** a sequence diagram Agent ↔ Ajean Ledger (Cloudflare Workers) ↔ x402 facilitator ↔ Base, with the three headers labelled. Beside it, the pricing table and the 20,000-invoice calculation.

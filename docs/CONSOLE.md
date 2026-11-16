@@ -58,7 +58,10 @@ runScenario(scenario, mode)                       loadReplay(scenario)
 ```
 
 "Any failure" = network error, timeout, non-2xx, a payload that is not an `AgentTrace`, or a trace
-with `outcome: "error"`. Replays are always displayed with `mode: "REPLAY"`, and the notice line says
+with `outcome: "error"`. The notice's `reason:` names the cause (Phase 7 review M3): the failing step of an
+error trace (`agent run ended in error: <title>: <detail> [last HTTP 503]`), or the HTTP status with the
+server's code (`HTTP 429 DEMO_BUSY from /api/demo/run`). `/api/demo/run` itself retries once a failure
+that happened before any payment was signed (docs/AGENT.md). Replays are always displayed with `mode: "REPLAY"`, and the notice line says
 where the trace came from (replay API or bundled file), when it was recorded and whether it is a sample.
 
 The API returns the whole trace at once; the console animates it client side (it does not need a stream).
@@ -67,6 +70,9 @@ The API returns the whole trace at once; the console animates it client side (it
 1. `GET /api/v1/operator/stats` (5 s timeout);
 2. if it fails, has an unexpected shape, or reports **0 calls** (fresh deployment), the stats are
    computed from the bundled replays and labelled **"source: recorded replays"**.
+3. The API counts the deployment's **current payment mode only** (Phase 7 review M2): a TESTNET deployment
+   never adds simulated calls to "Paid calls served" / "USDC earned"; a note above the tiles says
+   "showing TESTNET calls only (N simulated calls hidden)" when the store holds calls of the other mode.
 
 ## How replays are loaded
 
@@ -84,6 +90,13 @@ USDC `0x036C…CF7e`, payTo `0xCB4b…dFeC`, agent `0xD25E…c1BF`) and the rece
 `lib/payments/receipt.ts`. Overwrite them with real recorded runs (same file names, `AgentTrace` JSON);
 nothing else needs to change. A real testnet receipt (`mode: "testnet"`, `explorer_url` set) shows a
 Base Sepolia explorer link instead of the "SIMULATED tx" label.
+
+The tx label is decided **per hash**, never per page (`stepTxExplorerUrl` / `txExplorerUrl` in
+`lib/console/format.ts`, Phase 7 review M1): `explorer_url` wins; `simulated: true`, `mode: "simulated"` or a
+`0x5151…` hash (simulated facilitator) means SIMULATED; any other 32-byte hash is a real Base Sepolia tx and
+gets `https://sepolia.basescan.org/tx/<hash>` even when `explorer_url` is missing. The agent's ERP step now
+carries `explorer_url` and `simulated` too, and the recorded replays' ERP steps were patched with the same
+fields (amounts untouched).
 
 ## Contracts the other workstreams provide
 

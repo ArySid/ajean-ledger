@@ -97,6 +97,11 @@ export interface RunAgentOptions {
   agentName?: string;
   /** Label of the trace ("01 · Office supplies …"); defaults to a label built from the item. */
   scenarioLabel?: string;
+  /**
+   * Idempotency-Key for the paid call (default: a fresh UUID). /api/demo/run passes the SAME key to its
+   * single automatic retry, so a call that did settle is answered from the stored receipt, never paid twice.
+   */
+  idempotencyKey?: string;
 }
 
 export type { AgentTrace, TraceStep };

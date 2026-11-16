@@ -28,7 +28,7 @@ No detours: one invoice, one payment, one result. Scenario **03 · Restaurant VA
 
 ## Tabs open before you start (in this order)
 
-1. `https://ajean-ledger.ary-sidoun.workers.dev/live?scenario=03`: scenario **03 · Restaurant VAT anomaly** selected, badge **TESTNET**. The console reads the mode from the server; the SIMULATED button is greyed out on a testnet deployment. Clicking the badge (ⓘ) opens the legend of the three modes.
+1. `https://ajean-ledger.ary-sidoun.workers.dev/live?scenario=03&speed=0.5`: scenario **03 · Restaurant VAT anomaly** selected, badge **TESTNET**, animation at **0.5×** (the 13 steps take ≈ 30 s instead of ≈ 15 s, so the 402 and the payment are still on screen when the narrator reaches them). The console reads the mode from the server; the SIMULATED button is greyed out on a testnet deployment. Clicking the badge (ⓘ) opens the legend of the three modes.
 2. `https://ajean-ledger.ary-sidoun.workers.dev/operator`
 3. Basescan, service wallet: `https://sepolia.basescan.org/address/0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC` (token transfers tab)
 4. Proof tab, kept for Q&A: the recorded scenario 03 payment, `https://sepolia.basescan.org/tx/0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586` (0.15 USDC, agent `0xD25E…c1BF` → service `0xCB4b…dFeC`)
@@ -50,7 +50,7 @@ That leaves **25 s of slack** within 3 minutes. Do not say a number that is not 
 
 **Optional: scenario 90 (≈ 15 s, only with slack, or in Q&A when someone asks "can the agent overspend?").** Select **90 · Audit request 1.00 USDC > max_per_call 0.20 → REFUSED by policy**, tick **Skip animation**, click **▶ Run scenario**. Narrator: "The CFO asks the same agent for a batch audit. Our catalog says 1.00 USDC, but its operator capped it at 0.20 per call. It refuses before paying anything and asks a human." Screen: a red **REFUSED BY POLICY — no payment made** panel, the policy step "Price 1.00 USDC > max per call 0.20 USDC", only `GET /api/v1/catalog` and `GET /api/health` calls, 0.00 USDC spent. This scenario signs nothing, so it costs nothing and works in any mode.
 
-> At the end of a run the timeline scrolls to the last step. To point at the 402 step at 0:35, the driver scrolls the left column back up, or ticks **Skip animation** before running.
+> At 0.5× the 402 appears ≈ 12 s after the click and the run ends ≈ 30 s after it. The timeline follows the last step: if the 402 has scrolled out of view at 0:35, the driver scrolls the left column back up. The journal entry is now the first card under the receipt in the right column: fully visible without scrolling at 1280×720 and 100% zoom; at 125–150% zoom the driver scrolls the right column down a little at 1:20.
 
 ## Fallback ladder (one click per level; never debug on stage)
 
@@ -94,7 +94,7 @@ It targets the public URL by default. It checks the 17 things the demo needs: th
 - [ ] The policy shown on screen matches the script (`max_per_call` 0.20, `daily_budget` 2.00)
 - [ ] The Worker's demo agent counts its spend in memory per isolate against 2.00 USDC a day (about 13 paid runs). After a heavy rehearsal day a run may say "refused by policy": a redeploy resets it (`docs/HOSTING.md` §7, notes)
 - [ ] Backup video recorded and copied to both laptops: `{{BACKUP_VIDEO_PATH}}`
-- [ ] `/operator`: {{OPERATOR_RESET_DECISION}}. The totals are cumulative and include the SIMULATED calls made before the testnet switch; each row has a **testnet** / **simulated** pill. To reset, delete the KV keys `ajean:stats` and `ajean:recent` with wrangler (team decision, needs Cloudflare access). Otherwise the narrator talks only about the newest row ("+1 call, +0.15 USDC").
+- [ ] `/operator`: {{OPERATOR_RESET_DECISION}}. The headline tiles and the table count **TESTNET calls only**; the SIMULATED calls made before the testnet switch are left out and a small line says "showing TESTNET calls only (N simulated calls hidden)". The testnet totals are still cumulative (rehearsals included). To start from zero, delete the KV keys `ajean:stats` and `ajean:recent` with wrangler (team decision, needs Cloudflare access). Otherwise the narrator talks only about the newest row ("+1 call, +0.15 USDC").
 
 ### At the venue (T-15 min)
 
@@ -103,7 +103,8 @@ It targets the public URL by default. It checks the 17 things the demo needs: th
 - [ ] The tabs above open in order; `/live` shows **TESTNET** with scenario 03 selected
 - [ ] Venue Wi-Fi tested on the public URL; phone hotspot ready as a second network
 - [ ] Backup laptop open on `/live`, replay of 03 loaded
-- [ ] One dry run of scenario **01** (0.15 test USDC), so 03 stays fresh for the jury; then reload `/live?scenario=03`
+- [ ] One dry run of scenario **01** (0.15 test USDC) **no more than 2 minutes before going on stage** (it warms the Worker isolates; they cool down between T-1h and the demo), so 03 stays fresh for the jury; then reload `/live?scenario=03&speed=0.5`
+- [ ] Brief the narrator: a REPLAY is an expected, labelled outcome, not a failure. The notice now gives the reason (e.g. `agent run ended in error: … [last HTTP 503]`); the server already retried once if nothing had been paid
 
 ### Right before going on stage
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { addressUrl, isRealTxHash, shortHex, SIMULATED_TX_PREFIX, usdc, utcTime } from "@/lib/console/format";
-import { loadOperatorStats, type OperatorStats } from "@/lib/console/stats";
+import { loadOperatorStats, modeFilterNote, type OperatorStats } from "@/lib/console/stats";
 
 const SOURCE_LABEL: Record<string, string> = {
   neon: "source: Neon Postgres (live receipts)",
@@ -38,6 +38,8 @@ export function OperatorDashboard() {
   const reviewWin = s?.review_window ?? null;
   const reviewPct = s && s.review_required !== null && reviewWin ? Math.round((s.review_required / reviewWin) * 100) : null;
   const maxUsdc = s ? Math.max(...s.by_endpoint.map((e) => e.usdc), 0.000001) : 1;
+  const filterNote = s ? modeFilterNote(s) : null;
+  const simulatedOnly = s ? (s.mode ? s.mode === "simulated" : s.recent.length > 0 && s.recent.every((r) => r.mode === "simulated")) : false;
 
   return (
     <>
@@ -64,13 +66,19 @@ export function OperatorDashboard() {
         </p>
       )}
 
+      {filterNote && (
+        <p className="faint" style={{ fontSize: "0.8rem", margin: "0 0 4px" }} data-testid="mode-filter-note">
+          {filterNote}
+        </p>
+      )}
+
       <div className="kpis">
         <div className="panel kpi">
           <div className="label">Paid calls served</div>
           <div className="value" data-testid="kpi-calls">
             {s ? s.calls : "…"}
           </div>
-          <div className="hint">each one settled over HTTP 402</div>
+          <div className="hint">{simulatedOnly ? "each one paid over HTTP 402 (simulated settlement)" : "each one settled over HTTP 402"}</div>
         </div>
         <div className="panel kpi">
           <div className="label">USDC earned</div>
@@ -79,7 +87,7 @@ export function OperatorDashboard() {
             <small>USDC</small>
           </div>
           <div className="hint">
-            {s && s.recent.length > 0 && s.recent.every((r) => r.mode === "simulated") ? "simulated: no on-chain transfer" : "test USDC on Base Sepolia"}
+            {simulatedOnly ? "simulated: no on-chain transfer" : "test USDC on Base Sepolia"}
           </div>
         </div>
         <div className="panel kpi">

@@ -1,5 +1,5 @@
 {
-  "note": "Bank payment of #1 matched (score 1): BQ 401BURO / 512000.",
+  "note": "Bank payment of #1 matched (score 1): BQ 401BURO / 512.",
   "compliance_status": "compliant",
   "failing_rule_ids": [],
   "entry": {
@@ -11,7 +11,7 @@
         "credit": 0
       },
       {
-        "account": "512000",
+        "account": "512",
         "debit": 0,
         "credit": 168.0
       }

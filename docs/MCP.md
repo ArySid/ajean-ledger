@@ -19,7 +19,7 @@ ones published in openapi.json). Paid tool descriptions state the price. Results
 
 [`app/mcp/route.ts`](../app/mcp/route.ts) → [`lib/discovery/mcp-remote.ts`](../lib/discovery/mcp-remote.ts).
 One `McpServer` + `WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })`
-per HTTP request (stateless, serverless-friendly). `GET`/`DELETE` → 405 with a small JSON info body. Rate-limited like the API.
+per HTTP request (stateless, serverless-friendly). `GET` with `Accept: text/event-stream` (an MCP client opening an SSE stream) and `DELETE` → 405 with a small JSON info body, as the spec requires from a server without SSE; any other `GET` (a browser, the landing page's link) → **200** with a JSON usage document (how to POST JSON-RPC, an example, the tools, the discovery links; Phase 7 review m7). Rate-limited like the API.
 
 **Payment is real x402, through the official `@x402/mcp` `createPaymentWrapper`**, with the same
 `x402ResourceServer` (`getResourceServer()`: simulated or HTTP facilitator) and the same requirements
@@ -124,7 +124,7 @@ All MCP checks passed.
 `npx vitest run tests/mcp*` (11 tests, in-process, real engine, simulated facilitator): tools/list + price in
 descriptions + envelope input schemas; unpaid → PaymentRequired identical to the HTTP 402 requirements; paid via
 `createx402MCPClient` → receipt persisted + `get_receipt`; engine error after payment → not settled; schema-invalid
-arguments → rejected before payment; `/mcp` route initialize + tools/list over Streamable HTTP, GET 405; bridge pays the
+arguments → rejected before payment; `/mcp` route initialize + tools/list over Streamable HTTP, GET 405 for SSE and 200 usage info otherwise; bridge pays the
 real route handlers via `@x402/fetch`, max-per-call and daily-budget refusals, requirement checks, no wallet.
 
 `npx @modelcontextprotocol/inspector --cli` was not run: the package is not installed and `npx` would download it

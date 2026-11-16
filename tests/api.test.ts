@@ -65,6 +65,7 @@ import { POST as checkPOST } from "@/app/api/v1/invoice/check/route";
 import { POST as auditPOST } from "@/app/api/v1/audit/route";
 import { GET as receiptGET } from "@/app/api/v1/receipts/[id]/route";
 import { GET as healthGET } from "@/app/api/health/route";
+import { GET as operatorStatsGET } from "@/app/api/v1/operator/stats/route";
 import { resetPaidRoutes } from "@/lib/api/paid-route";
 import { checkRateLimit, clientKey, demoRunRateLimitPerMinute, resetRateLimit } from "@/lib/api/rate-limit";
 import { resetResourceServers } from "@/lib/payments/server";
@@ -449,5 +450,69 @@ describe("free endpoints", () => {
     expect(h.engine_ready).toBe(true);
     expect(text).not.toContain(AGENT_KEY.slice(2));
     expect(text.toLowerCase()).not.toContain("private");
+  });
+});
+
+describe("operator stats show the current payment mode only (Phase 7 review M2)", () => {
+  const rec = (i: number, mode: "testnet" | "simulated", endpoint: "entry" | "audit" = "entry") => {
+    const tx = (mode === "simulated" ? "0x5151" : "0xabcd") + String(i).padStart(60, "0");
+    return {
+      request_id: `req_${mode}_${i}`,
+      endpoint,
+      idempotency_key: null,
+      request_hash: `h${i}`,
+      receipt: {
+        amount: endpoint === "audit" ? "1.00" : "0.15",
+        amount_atomic: endpoint === "audit" ? "1000000" : "150000",
+        asset: "USDC" as const,
+        network: "base-sepolia" as const,
+        network_caip2: "eip155:84532" as const,
+        tx_hash: tx,
+        payer: null,
+        pay_to: PAY_TO,
+        explorer_url: mode === "testnet" ? `https://sepolia.basescan.org/tx/${tx}` : null,
+        mode,
+        paid_at: new Date(Date.UTC(2026, 10, 16, 10, i)).toISOString(),
+      },
+      result: { human_review_required: false },
+      payment_response: null,
+      created_at: new Date(Date.UTC(2026, 10, 16, 10, i)).toISOString(),
+    };
+  };
+
+  it("a TESTNET deployment never counts simulated calls in its headline", async () => {
+    const store = getStore();
+    for (let i = 0; i < 2; i++) await store.saveReceipt(rec(i, "testnet"));
+    for (let i = 2; i < 5; i++) await store.saveReceipt(rec(i, "simulated"));
+    await store.saveReceipt(rec(5, "simulated", "audit"));
+    process.env.PAYMENT_MODE = "testnet";
+    try {
+      const body = await (await operatorStatsGET()).json();
+      expect(body.mode).toBe("testnet");
+      expect(body.calls).toBe(2);
+      expect(body.usdc_earned).toBe("0.30");
+      expect(body.by_endpoint.find((e: { endpoint: string }) => e.endpoint === "/api/v1/entry")).toMatchObject({ calls: 2, usdc: "0.30" });
+      expect(body.by_endpoint.find((e: { endpoint: string }) => e.endpoint === "/api/v1/audit")).toMatchObject({ calls: 0 });
+      expect(body.recent.every((r: { mode: string }) => r.mode === "testnet")).toBe(true);
+      expect(body.recent).toHaveLength(2);
+      expect(body.hidden).toEqual({ mode: "simulated", calls: 4, usdc: "1.45" });
+      expect(body.by_mode.simulated.calls).toBe(4);
+    } finally {
+      process.env.PAYMENT_MODE = "simulated";
+    }
+    const sim = await (await operatorStatsGET()).json();
+    expect(sim).toMatchObject({ mode: "simulated", calls: 4, usdc_earned: "1.45", hidden: { mode: "testnet", calls: 2 } });
+  });
+
+  it("falls back to the recordings when the current mode has no call yet, and says what it hid", async () => {
+    await getStore().saveReceipt(rec(0, "simulated"));
+    process.env.PAYMENT_MODE = "testnet";
+    try {
+      const body = await (await operatorStatsGET()).json();
+      expect(body.source).toBe("replay");
+      expect(body.hidden).toMatchObject({ mode: "simulated", calls: 1 });
+    } finally {
+      process.env.PAYMENT_MODE = "simulated";
+    }
   });
 });

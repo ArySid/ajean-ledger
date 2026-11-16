@@ -1,6 +1,6 @@
 import type { Anomaly, ComplianceCheck } from "@/engine/types";
 import type { AgentTrace } from "@/lib/trace/types";
-import { addressUrl, asEntryResponse, invoiceTotalLabel, isSimulatedTx, money, policyRefusalSummary, shortHex, txExplorerUrl, vatSummary } from "@/lib/console/format";
+import { addressUrl, asEntryResponse, invoiceTotalLabel, money, policyRefusalSummary, shortHex, txExplorerUrl, vatSummary } from "@/lib/console/format";
 
 /**
  * The engine's `compliance.status` covers the mandatory invoice MENTIONS only (e-invoicing / L441 rules);
@@ -142,8 +142,8 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
   const totalC = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
   const balanced = res.entry?.balanced ?? Math.abs(totalD - totalC) < 0.005;
   const receipt = res.receipt;
-  const simulated = isSimulatedTx(receipt) || trace.recorded_from === "simulated" || trace.mode === "SIMULATED";
-  const explorer = simulated ? null : txExplorerUrl(receipt);
+  // Decided per receipt (mode, simulated flag, 0x5151… hash), never per page (Phase 7 review M1).
+  const explorer = txExplorerUrl(receipt);
   const anomalies = sortAnomalies(res.anomalies ?? []);
   const checks = sortChecks(res.compliance?.checks ?? []);
   const failed = checks.filter((c) => !c.passed).length;
@@ -173,7 +173,7 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
         )}
         {res.human_review_required ? <span className="pill pill-warn">HUMAN REVIEW REQUIRED</span> : <span className="pill pill-ok">NO HUMAN NEEDED</span>}
         {typeof res.confidence === "number" && <span className="pill pill-plain">confidence {Math.round(res.confidence * 100)}%</span>}
-        {res.request_id && <span className="pill pill-plain mono">{res.request_id}</span>}
+        {res.request_id && !receipt && <span className="pill pill-plain mono">{res.request_id}</span>}
       </div>
 
       {receipt && (
@@ -184,11 +184,11 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
           <span className="tx">
             tx{" "}
             {explorer ? (
-              <a href={explorer} target="_blank" rel="noreferrer">
-                {shortHex(receipt.tx_hash, 10, 8)} ↗ Base Sepolia explorer
+              <a href={explorer} target="_blank" rel="noreferrer" title="Open the transaction on the Base Sepolia explorer (Basescan)">
+                {shortHex(receipt.tx_hash, 8, 6)} ↗ Basescan
               </a>
             ) : (
-              <>{shortHex(receipt.tx_hash, 10, 8)}</>
+              <>{shortHex(receipt.tx_hash, 8, 6)}</>
             )}
           </span>
           {!explorer && <span className="sim-tag">SIMULATED tx</span>}
@@ -200,11 +200,52 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
               </a>
             ) : (
               <span className="mono">{shortHex(receipt.payer ?? trace.agent?.wallet)}</span>
-            )}{" "}
-            · {receipt.network ?? "base-sepolia"}
+            )}
+            {res.request_id && <span className="mono"> · {res.request_id}</span>}
           </span>
         </div>
       )}
+
+      {/* The mini-ledger comes right after the receipt so it is visible without scrolling at 1280×720 (Phase 7 review m1). */}
+      <section className="card" aria-label="Journal entry">
+        <h3>
+          <span>
+            Journal entry {res.entry?.journal ? `· journal ${res.entry.journal}` : ""} {res.entry?.reference ? `· ${res.entry.reference}` : ""}
+          </span>
+          <span className={balanced ? "balanced" : "unbalanced"}>{balanced ? "balanced ✓" : "NOT balanced ✕"}</span>
+        </h3>
+        <table className="ledger">
+          <thead>
+            <tr>
+              <th scope="col">Account</th>
+              <th scope="col">Label</th>
+              <th scope="col" className="amt">
+                Debit
+              </th>
+              <th scope="col" className="amt">
+                Credit
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((l, i) => (
+              <tr key={`${l.account}-${i}`}>
+                <td className="acct">{l.account}</td>
+                <td>{l.label}</td>
+                <td className="amt">{l.debit ? money(l.debit) : ""}</td>
+                <td className="amt">{l.credit ? money(l.credit) : ""}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={2}>Totals (EUR)</td>
+              <td className="amt">{money(totalD)}</td>
+              <td className="amt">{money(totalC)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
 
       {res.human_review_required ? (
         <div className="banner-review" role="alert">
@@ -248,46 +289,6 @@ export function ResultPanel({ trace }: { trace: AgentTrace }) {
           ))}
         </section>
       )}
-
-      <section className="card" aria-label="Journal entry">
-        <h3>
-          <span>
-            Journal entry {res.entry?.journal ? `· journal ${res.entry.journal}` : ""} {res.entry?.reference ? `· ${res.entry.reference}` : ""}
-          </span>
-          <span className={balanced ? "balanced" : "unbalanced"}>{balanced ? "balanced ✓" : "NOT balanced ✕"}</span>
-        </h3>
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th scope="col">Account</th>
-              <th scope="col">Label</th>
-              <th scope="col" className="amt">
-                Debit
-              </th>
-              <th scope="col" className="amt">
-                Credit
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l, i) => (
-              <tr key={`${l.account}-${i}`}>
-                <td className="acct">{l.account}</td>
-                <td>{l.label}</td>
-                <td className="amt">{l.debit ? money(l.debit) : ""}</td>
-                <td className="amt">{l.credit ? money(l.credit) : ""}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={2}>Totals (EUR)</td>
-              <td className="amt">{money(totalD)}</td>
-              <td className="amt">{money(totalC)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </section>
 
       {res.vat && vat && (
         <section className="card" aria-label="VAT treatment" data-testid="vat-panel">

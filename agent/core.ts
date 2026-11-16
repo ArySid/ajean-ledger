@@ -167,7 +167,7 @@ export class AgentRun {
   readonly fetchImpl: typeof fetch;
   readonly base: string;
   readonly ctrl = new AbortController();
-  readonly idemKey = randomUUID();
+  readonly idemKey: string;
   discovery?: Discovery;
   policy?: PolicyDecision;
   paid?: PaidOutcome;
@@ -179,6 +179,7 @@ export class AgentRun {
 
   constructor(readonly opts: RunAgentOptions) {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch.bind(globalThis);
+    this.idemKey = opts.idempotencyKey?.trim() || randomUUID();
     this.base = opts.serviceUrl.replace(/\/$/, "");
     this.modeLabel = opts.mode === "testnet" ? "TESTNET" : "SIMULATED";
     this.timer = setTimeout(() => this.ctrl.abort(new Error("run deadline exceeded")), opts.timeoutMs ?? DEFAULT_RUN_TIMEOUT_MS);
@@ -341,6 +342,16 @@ export class AgentRun {
         (history.length ? ` I attach the fingerprints of ${history.length} invoice(s) already in our ERP so the service can detect duplicates.` : ""),
       http: unpaid.requestExchange,
     });
+    // Same Idempotency-Key as an earlier attempt that did settle: the service answers 200 with the stored
+    // result and receipt (header Idempotent-Replay: true). Nothing new to sign, nothing paid twice.
+    const unpaidBody = (unpaid.body ?? {}) as Record<string, unknown>;
+    if (unpaid.res.status === 200 && unpaid.res.headers.get("Idempotent-Replay") === "true" && unpaidBody.receipt) {
+      this.step("http_response", "200 OK: stored result (this Idempotency-Key was already paid)", {
+        detail: "An earlier attempt with the same Idempotency-Key was settled. The service returns its stored result and receipt: I sign nothing and pay nothing again.",
+        http: unpaid.exchange,
+      });
+      return this.settled(d, unpaidBody, null, undefined, true);
+    }
     const prHeader = unpaid.res.headers.get("PAYMENT-REQUIRED");
     const prDecoded = decodeB64Json(prHeader) as PaymentRequired | null;
     if (unpaid.res.status !== 402 || !prDecoded) {
@@ -447,13 +458,17 @@ export class AgentRun {
       http: { ...paid.exchange, ...(settle ? { decoded: { header: "PAYMENT-RESPONSE", value: settle } } : {}) },
     });
 
-    // 4e. settlement
+    return this.settled(d, resBody, settle, req.amount, false);
+  }
+
+  // -- 4e. settlement -----------------------------------------------------------
+  private async settled(d: Discovery, resBody: Record<string, unknown>, settle: SettleResponse | null, requiredAtomic: string | undefined, replayed: boolean): Promise<PaidOutcome> {
     const receipt = (resBody.receipt ?? {}) as { tx_hash?: string; amount?: string; amount_atomic?: string; explorer_url?: string | null; mode?: string; payer?: string };
     const tx = receipt.tx_hash ?? settle?.transaction ?? "";
     const simulated = receipt.mode === "simulated" || (settle?.extra as { simulated?: boolean } | undefined)?.simulated === true;
     const explorer = simulated ? null : (receipt.explorer_url ?? (tx ? explorerTxUrl(tx) : null));
-    const amountAtomic = receipt.amount_atomic ?? req.amount;
-    this.step("settlement", `Payment settled: ${atomicToUsdc(amountAtomic)} USDC${simulated ? " (simulated transaction)" : " on Base Sepolia"}`, {
+    const amountAtomic = receipt.amount_atomic ?? requiredAtomic ?? d.price_atomic;
+    this.step("settlement", `Payment settled: ${atomicToUsdc(amountAtomic)} USDC${simulated ? " (simulated transaction)" : " on Base Sepolia"}${replayed ? " (earlier attempt)" : ""}`, {
       detail: simulated
         ? `Transaction ${tx.slice(0, 14)}… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt ${resBody.request_id ?? "?"} kept for idempotency.`
         : `Transaction ${tx} confirmed on Base Sepolia. Receipt ${resBody.request_id ?? "?"} kept for idempotency.${explorer ? ` Explorer: ${explorer}` : ""}`,
@@ -465,8 +480,11 @@ export class AgentRun {
         explorer_url: explorer,
         simulated,
         payer: receipt.payer ?? settle?.payer ?? this.opts.wallet.address,
+        ...(replayed ? { idempotent_replay: true } : {}),
       },
     });
+    // Also recorded on an idempotent replay: the attempt that paid never saw its 200, so it may not have
+    // recorded the spend. Counting twice can only make the daily budget stricter, never looser.
     await this.opts.ledger.record({
       at: new Date().toISOString(),
       amount_atomic: amountAtomic,
@@ -562,6 +580,8 @@ export class AgentRun {
         balanced: debit === credit,
         request_id: rec.request_id,
         tx_hash: rec.receipt?.tx_hash ?? null,
+        explorer_url: rec.receipt?.explorer_url ?? null,
+        simulated: rec.receipt ? rec.receipt.mode === "simulated" : null,
       },
     });
     return rec;

@@ -25,7 +25,7 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | # | Requirement | Status | Evidence | Phase |
 |---|---|---|---|---|
 | B1 | Representative agent request | ✅ | Purchasing agent of *Atelier Lumenor SAS (fictional)* processing `inbox/` (`agent/`, `docs/AGENT.md`); console scenarios 01/03/04/06/90 via `POST /api/demo/run` | 4 |
-| B2 | Service's key function | ✅ | `/engine` + `POST /api/v1/entry` / `invoice/check` / `audit`; 13 synthetic fixtures with expected outputs; `npm test` → **217 tests green (8 files)**; `npm run -s engine -- fixtures/03.json` → D 6257 160.60 / D 44566 14.60 / C 401BOUCHON 175.20 | 1–2 |
+| B2 | Service's key function | ✅ | `/engine` + `POST /api/v1/entry` / `invoice/check` / `audit`; 13 synthetic fixtures with expected outputs; `npm test` → **226 tests green (8 files)**; `npm run -s engine -- fixtures/03.json` → D 6257 160.60 / D 44566 14.60 / C 401BOUCHON 175.20 | 1–2 |
 | B3 | Result returned to the agent | ✅ | The §5.4 response contract: `request_id`, `receipt` with the tx hash, compliance checks with `rule_id`, a balanced entry, VAT, anomalies, confidence, `human_review_required`, explanation, engine info; zod/OpenAPI schemas in `lib/discovery/schemas.ts` | 1–2 |
 | B4 | Simulated data / interactions clearly defined | ✅ | Synthetic-only fixtures with unallocated `000…` SIRENs and "(fictional)" names (ADR-021, enforced by a test); TESTNET / SIMULATED / REPLAY badge with a legend on `/live` (`lib/console/modes.ts`); the REPLAY banner states "recorded from a testnet run on 16 Nov 2026, 11:55 UTC" | 1, 5, 6 |
 | B5 | Shareable link to the prototype UI | ✅ | <https://ajean-ledger.ary-sidoun.workers.dev> (Cloudflare Workers free plan, ADR-020); `/`, `/live`, `/operator` return 200 | 5–6 |
@@ -39,7 +39,7 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | C1 | Concept note ≤ 2 pages, in the brief's structure | ✅ | `deliverables/CONCEPT_NOTE.md` → `deliverables/pdf/CONCEPT_NOTE.pdf`: **2 pages A4** (counted with pdf-lib by `npm run export:deliverables`, which fails above 2 pages), ≈ 1,020 words. It covers the problem, agent use case, innovative features, target customers, alternatives, revenue model, x402 stablecoin mechanism (incl. Cloudflare / Coinbase) and pricing illustration | 7 |
 | C2 | Presentation 8–10 min, 6–8 slides | ✅ outline · 🟡 deck | `deliverables/SLIDES_OUTLINE.md` (+ PDF): 7 slides plus backups, ≈ 8:45, with speaker notes, timing, grading criterion per slide, the "why Cloudflare" line and the live tx link. **Team:** build the actual deck from the outline, choose the speakers, fill `{{ASK}}` | 7 |
 | C3 | 2–3 min live demo that cannot fail | ✅ | TESTNET live → automatic REPLAY of real testnet recordings (network error, 45 s timeout, 5xx such as Cloudflare 1102, 429, agent error: `lib/console/source.ts`, `tests/console.test.ts`) → backup laptop (replays bundled in the page) → backup video; `/operator` falls back to replay stats; store failure → memory (`tests/api.test.ts`); `npm run warmup` READY banner | 2, 5, 6 |
-| C4 | Q&A preparation | ✅ | `deliverables/QA_PREP.md` (+ PDF): 16 questions plus rapid-fire extras, including the Cloudflare free-plan limits and mitigations, x402 co-created by Coinbase and Cloudflare, mainnet, liability, GDPR / 30-day receipt TTL (`lib/store/cloudflare-kv.ts`), legal references pending sign-off, and accuracy | 7 |
+| C4 | Q&A preparation | ✅ | `deliverables/QA_PREP.md` (+ PDF): 16 questions plus rapid-fire extras, including the Cloudflare free-plan limits and mitigations, x402 created by Coinbase with Cloudflare co-founding the x402 Foundation, mainnet, liability, GDPR / 30-day receipt TTL (`lib/store/cloudflare-kv.ts`), legal references pending sign-off, and accuracy | 7 |
 
 ## D. Grading criteria
 
@@ -60,7 +60,7 @@ scenario 06 [0x3581…3132](https://sepolia.basescan.org/tx/0x3581475920377c6d82
 | 10 ms CPU per request | ✅ (mitigated) | A paid JSON call takes ≈ 6 ms warm; Factur-X PDF and 50-item audits can exceed the limit (`docs/HOSTING.md` §5). Mitigations: the live demo uses JSON fixtures, `npm run warmup` absorbs cold starts, and any 1102/5xx in the console → automatic REPLAY. In TESTNET the facilitator calls are network waits, not CPU |
 | KV 1,000 writes / day | ✅ | ≈ 4–5 writes per paid call → ≈ 200–250 paid calls a day; any KV error → memory fallback (`ResilientStore`, tested) |
 | Worker size 64 MiB / startup 1 s | ✅ | ≈ 12.6 MiB raw / 2.8 MiB gzip, startup ≈ 14 ms (ADR-020) |
-| Pitch argument | ✅ | x402 was co-created by Coinbase and Cloudflare: concept note §7, slide 5 ("Why Cloudflare"), QA Q14 |
+| Pitch argument | ✅ | x402 was created by Coinbase, and Cloudflare co-founded the x402 Foundation with Coinbase (Sept. 2025), so Cloudflare hosting fits the protocol's ecosystem: concept note §7, slide 5 ("Why Cloudflare"), QA Q14. Corrected in Phase 7 (review M4): the prompt's wording "co-created by Coinbase and Cloudflare" was inaccurate |
 
 ## F. Phase 6 hardening (master prompt §7)
 

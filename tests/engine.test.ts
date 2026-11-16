@@ -424,7 +424,7 @@ describe("bank transactions", () => {
       transaction: { date: "2026-11-05", label: "PRLV SEPA INCONNU", amount: -59.9, currency: "EUR" },
       candidate_invoices: [inv1()],
     });
-    expect(r.entry.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([["471", 59.9, 0], ["512000", 0, 59.9]]);
+    expect(r.entry.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([["471", 59.9, 0], ["512", 0, 59.9]]);
     expect(r.match?.matched_invoice_number).toBeNull();
     expect(r.review_reasons).toContain("UNMATCHED_TRANSACTION");
   });
@@ -437,7 +437,7 @@ describe("bank transactions", () => {
       candidate_invoices: [inv1(), cn],
     });
     expect(r.match?.matched_invoice_number).toBe("BE-AV-2026-0031");
-    expect(r.entry.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([["512000", 54, 0], ["401BURO", 0, 54]]);
+    expect(r.entry.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([["512", 54, 0], ["401BURO", 0, 54]]);
   });
 });
 
@@ -467,7 +467,7 @@ describe("audit", () => {
     const items: AuditEntryInput[] = [
       { entry: { journal: "OD", date: "2026-10-10", reference: "OD-1", balanced: false, lines: [
         { account: "471", label: "Attente", debit: 6000, credit: 0 },
-        { account: "512000", label: "Banque", debit: 0, credit: 5999.99 },
+        { account: "512", label: "Banque", debit: 0, credit: 5999.99 },
       ] } },
       { entry: { journal: "HA", date: "2026-10-12", reference: "HA-9", balanced: true, lines: [
         { account: "2183", label: "Matériel", debit: 1000, credit: 0 },
@@ -614,7 +614,7 @@ describe("no unreviewed legal reference reaches an agent (M1)", () => {
     const b = await createEntry(fx12.input, { profile: cashProfile });
     for (const a of b.anomalies) expect(a.rule_id, a.code).toBeTruthy();
     const audit = await auditEntries([
-      { entry: { journal: "OD", date: "2026-11-14", reference: "OD-1", balanced: false, lines: [{ account: "471", label: "x", debit: 2000, credit: 0 }, { account: "512000", label: "y", debit: 0, credit: 1000 }] } },
+      { entry: { journal: "OD", date: "2026-11-14", reference: "OD-1", balanced: false, lines: [{ account: "471", label: "x", debit: 2000, credit: 0 }, { account: "512", label: "y", debit: 0, credit: 1000 }] } },
       ...mutatedInvoices().slice(0, 20).map((m) => ({ invoice: m.invoice })),
     ]);
     for (const a of audit.anomalies) expect(a.rule_id, a.code).toBeTruthy();

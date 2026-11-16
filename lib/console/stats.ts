@@ -38,6 +38,10 @@ export interface OperatorStats {
   /** Number of calls `review_required` is counted over (all calls, or the recent window). Null when unknown. */
   review_window: number | null;
   source: string;
+  /** Payment mode the figures are for, when the API says so ("testnet" | "simulated"); null otherwise. */
+  mode: string | null;
+  /** Calls of the other payment mode the API left out of every figure (Phase 7 review M2); null when none. */
+  hidden: { mode: string; calls: number } | null;
 }
 
 export const STATS_TIMEOUT_MS = 5_000;
@@ -116,7 +120,22 @@ export function normaliseStats(json: unknown): OperatorStats | null {
     review_required: reviewRequired,
     review_window: reviewWindow,
     source: String(o.source ?? o.store ?? "api"),
+    mode: o.mode === "testnet" || o.mode === "simulated" ? o.mode : null,
+    hidden: hiddenOf(o.hidden),
   };
+}
+
+function hiddenOf(v: unknown): OperatorStats["hidden"] {
+  if (!v || typeof v !== "object") return null;
+  const h = v as { mode?: unknown; calls?: unknown };
+  const calls = num(h.calls);
+  return calls > 0 && typeof h.mode === "string" ? { mode: h.mode, calls } : null;
+}
+
+/** "showing TESTNET calls only (33 simulated calls hidden)", or null when nothing was left out. */
+export function modeFilterNote(s: Pick<OperatorStats, "mode" | "hidden">): string | null {
+  if (!s.mode || !s.hidden) return null;
+  return `showing ${s.mode.toUpperCase()} calls only (${s.hidden.calls} ${s.hidden.mode} call${s.hidden.calls === 1 ? "" : "s"} hidden)`;
 }
 
 /** Stats derived from recorded traces (fallback when the stats API is unavailable). */
@@ -156,6 +175,8 @@ export function statsFromReplays(traces: ConsoleTrace[] = allBundledReplays()): 
     review_required: recent.filter((r) => r.human_review_required).length,
     review_window: recent.length,
     source: "replay",
+    mode: null,
+    hidden: null,
   };
 }
 

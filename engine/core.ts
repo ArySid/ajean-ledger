@@ -27,7 +27,7 @@ import { matchTransaction } from "./parsers/bank";
 
 export const ENGINE_VERSION = "0.1.0";
 export const LLM_REVIEW_THRESHOLD = 0.9;
-export const BANK_ACCOUNT = { account: "512000", label: "Banque" };
+export const BANK_ACCOUNT = { account: "512", label: "Banque" };
 export const SUSPENSE_ACCOUNT = { account: "471", label: "Compte d'attente" };
 
 // ---------------------------------------------------------------------------

@@ -31,7 +31,7 @@ import { resetPaidRoutes } from "@/lib/api/paid-route";
 import { resetRateLimit } from "@/lib/api/rate-limit";
 import { resetResourceServers } from "@/lib/payments/server";
 import { resetSimulatedFacilitator } from "@/lib/payments/simulated-facilitator";
-import { MemoryStore, setStoreForTests } from "@/lib/store";
+import { MemoryStore, getStore, setStoreForTests } from "@/lib/store";
 
 const BASE = "http://agent-test.local";
 const PAY_TO = privateKeyToAccount(generatePrivateKey()).address;
@@ -245,6 +245,8 @@ describe("runAgent (scripted) against the real routes, simulated payments", () =
     const settle = trace.steps[9].data!;
     expect(settle).toMatchObject({ simulated: true, amount_usdc: "0.15", explorer_url: null });
     expect(String(settle.tx_hash)).toMatch(/^0x5151[0-9a-f]{60}$/);
+    // The ERP step carries the tx's mode too, so the console labels it per hash (Phase 7 review M1).
+    expect(trace.steps.find((s) => s.kind === "erp")?.data).toMatchObject({ tx_hash: settle.tx_hash, explorer_url: null, simulated: true });
 
     expect(trace.steps[11].data?.review_reasons).toEqual(["VAT_RATE_MISMATCH"]);
     expect(trace.steps[11].detail).toContain("20%");
@@ -449,9 +451,64 @@ describe("demo routes", () => {
       const t = await (await post({ scenario: "01" })).json();
       expect(t).toMatchObject({ outcome: "error", fallback_hint: "replay" });
       expect(t.steps.length).toBeGreaterThan(0);
+      // The failing step travels with the response (Phase 7 review M3), after one retry before payment.
+      expect(t.error).toMatchObject({ code: "AGENT_RUN_ERROR" });
+      expect(`${t.error.title} ${t.error.detail}`).toContain("ECONNREFUSED");
+      expect(t.retried_after).toBeTruthy();
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("POST /api/demo/run retries ONCE a transient failure before payment, with the same Idempotency-Key (M3)", async () => {
+    const base = makeFetch();
+    const keys: string[] = [];
+    let failures = 1;
+    vi.stubGlobal("fetch", (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      const h = new Headers(init?.headers);
+      if (h.get("Idempotency-Key")) keys.push(h.get("Idempotency-Key")!);
+      if (url.endsWith("/api/v1/entry") && !h.get("PAYMENT-SIGNATURE") && failures-- > 0) return new Response("error code: 1102", { status: 503 });
+      return base(input, init);
+    }) as typeof fetch);
+    try {
+      const t = await (await post({ scenario: "01" })).json();
+      expect(t.outcome).toBe("posted");
+      expect(t.retried_after.title).toContain("did not ask for payment");
+      expect(t.steps[1]).toMatchObject({ kind: "reasoning", title: "Second attempt: the first one stopped before any payment" });
+      expect(base.calls.filter((c) => c.endsWith("+sig"))).toHaveLength(1);
+      expect(new Set(keys).size).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("POST /api/demo/run never retries once a payment was signed (no double pay)", async () => {
+    const f = makeFetch({ failPaid: true });
+    vi.stubGlobal("fetch", f);
+    try {
+      const t = await (await post({ scenario: "01" })).json();
+      expect(t).toMatchObject({ outcome: "error", fallback_hint: "replay" });
+      expect(t.retried_after).toBeUndefined();
+      expect(t.error.title).toContain("Payment refused");
+      expect(f.calls.filter((c) => c.endsWith("+sig"))).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("a second run with the same Idempotency-Key gets the stored result and signs nothing", async () => {
+    const f = makeFetch();
+    const ledger = new MemorySpendLedger();
+    const first = await runAgent(opts(scenarioItem("01"), { fetchImpl: f, ledger, idempotencyKey: "idem-test-key-0001" }));
+    expect(first.outcome).toBe("posted");
+    const again = await runAgent(opts(scenarioItem("01"), { fetchImpl: f, ledger, idempotencyKey: "idem-test-key-0001" }));
+    expect(again.outcome).toBe("posted");
+    expect(f.calls.filter((c) => c.endsWith("+sig"))).toHaveLength(1);
+    expect(kinds(again)).not.toContain("payment");
+    const settle = again.steps.find((s) => s.kind === "settlement")!;
+    expect(settle.data).toMatchObject({ idempotent_replay: true, tx_hash: first.steps.find((s) => s.kind === "settlement")!.data!.tx_hash });
+    expect((await getStore().stats()).calls_served).toBe(1);
   });
 
   it("GET /api/demo/replays?scenario=03 returns a REPLAY trace; without scenario, the list", async () => {

@@ -173,10 +173,16 @@ describe("app/mcp/route.ts (Streamable HTTP, stateless)", () => {
     expect(names).toContain("create_entry");
   });
 
-  it("GET returns 405 with MCP info", async () => {
-    const res = await mcpGET(new Request(`${BASE}/mcp`));
+  it("GET for an SSE stream returns 405 (no SSE); a plain GET returns 200 with usage info (Phase 7 review m7)", async () => {
+    const res = await mcpGET(new Request(`${BASE}/mcp`, { headers: { accept: "text/event-stream" } }));
     expect(res.status).toBe(405);
     expect(res.headers.get("allow")).toBe("POST");
+    const page = await mcpGET(new Request(`${BASE}/mcp`, { headers: { accept: "text/html,application/xhtml+xml" } }));
+    expect(page.status).toBe(200);
+    const body = (await page.json()) as { usage: string; example: { method: string; body: { method: string } }; mcp: { tools: string[] } };
+    expect(body.usage).toContain("POST");
+    expect(body.example).toMatchObject({ method: "POST", body: { method: "tools/list" } });
+    expect(body.mcp.tools).toContain("create_entry");
   });
 });
 

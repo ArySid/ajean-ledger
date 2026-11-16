@@ -9,6 +9,7 @@ import {
   policyRefusalSummary,
   resultRevealIndex,
   stepHighlights,
+  stepTxExplorerUrl,
   txExplorerUrl,
   vatSummary,
 } from "@/lib/console/format";
@@ -20,7 +21,7 @@ const ENTRY_SCENARIOS = SCENARIOS.filter((s) => s.kind === "entry");
 const entryReplays = () => allBundledReplays().filter((t) => t.outcome !== "refused_by_policy");
 import { extractTrace, fetchServerMode, isAgentTrace, LIVE_FAILED_NOTICE, loadReplay, runScenario } from "@/lib/console/source";
 import { MODE_INFO, MODE_ORDER } from "@/lib/console/modes";
-import { loadOperatorStats, normaliseStats, statsFromReplays } from "@/lib/console/stats";
+import { loadOperatorStats, modeFilterNote, normaliseStats, statsFromReplays } from "@/lib/console/stats";
 import path from "node:path";
 import { createEntry } from "@/engine";
 import type { EntryResult } from "@/engine/types";
@@ -180,6 +181,28 @@ describe("review fixes on the console (Phase 5 review M3, m3–m9)", () => {
   });
 });
 
+describe("tx label per hash, never 'SIMULATED tx' on a real tx (Phase 7 review M1)", () => {
+  const real = "0xc1554772f5b9cef69564f6f621d1a12ae5af113d1723cceeec685b28e5b23586";
+  const fake = "0x5151" + "a".repeat(60);
+
+  it("decides per step data: explorer_url, simulated flag, 0x5151 prefix, else Basescan", () => {
+    expect(stepTxExplorerUrl({ tx_hash: real })).toBe(`https://sepolia.basescan.org/tx/${real}`);
+    expect(stepTxExplorerUrl({ tx_hash: real, explorer_url: "https://x/tx/1" })).toBe("https://x/tx/1");
+    expect(stepTxExplorerUrl({ tx_hash: fake })).toBeNull();
+    expect(stepTxExplorerUrl({ tx_hash: real, simulated: true })).toBeNull();
+    expect(stepTxExplorerUrl({ tx_hash: "0xabc" })).toBeNull();
+    expect(stepTxExplorerUrl(undefined)).toBeNull();
+  });
+
+  it("every settlement and ERP step of the testnet replays links to Basescan", () => {
+    for (const t of entryReplays()) {
+      const steps = t.steps.filter((s) => (s.kind === "erp" || s.kind === "settlement") && typeof s.data?.tx_hash === "string");
+      expect(steps.length, t.scenario).toBe(2);
+      for (const s of steps) expect(stepTxExplorerUrl(s.data), `${t.scenario} ${s.kind}`).toMatch(/^https:\/\/sepolia\.basescan\.org\/tx\/0x[0-9a-f]{64}$/);
+    }
+  });
+});
+
 describe("source fallback ladder", () => {
   it("falls back to the bundled replay with a visible notice when the live call fails", async () => {
     const out = await runScenario("03", "testnet", { fetchImpl: failingFetch });
@@ -213,6 +236,28 @@ describe("source fallback ladder", () => {
     expect(out.origin).toBe("live");
     expect(out.trace.mode).toBe("TESTNET");
     expect(out.notice).toBeUndefined();
+  });
+
+  it("puts the failing step of a live error run in the fallback reason (Phase 7 review M3)", async () => {
+    const errRun = {
+      scenario: "03",
+      outcome: "error",
+      steps: [
+        { t_ms: 0, kind: "reasoning", title: "Invoice received" },
+        { t_ms: 10, kind: "http_response", title: "Unexpected HTTP 503 (expected 402 Payment Required)", http: { method: "POST", url: "/api/v1/entry", status: 503, headers: {} } },
+        { t_ms: 11, kind: "error", title: "The service did not ask for payment as announced", detail: "Expected 402 + PAYMENT-REQUIRED." },
+      ],
+      error: { code: "AGENT_RUN_ERROR", title: "The service did not ask for payment as announced", detail: "Expected 402 + PAYMENT-REQUIRED." },
+      fallback_hint: "replay",
+    };
+    const out = await runScenario("03", "testnet", { fetchImpl: jsonFetch({ "/api/demo/run": errRun }) });
+    expect(out.notice).toBe(LIVE_FAILED_NOTICE);
+    expect(out.error).toBe("agent run ended in error: The service did not ask for payment as announced: Expected 402 + PAYMENT-REQUIRED. [last HTTP 503]");
+    const busy = (async (url: string) =>
+      new URL(url, "http://x").pathname === "/api/demo/run"
+        ? Response.json({ error: { code: "DEMO_BUSY", message: "busy" } }, { status: 429 })
+        : new Response("down", { status: 500 })) as unknown as typeof fetch;
+    expect((await runScenario("03", "testnet", { fetchImpl: busy, replayTimeoutMs: 50 })).error).toBe("HTTP 429 DEMO_BUSY from /api/demo/run");
   });
 
   it("rejects malformed live payloads", async () => {
@@ -288,6 +333,14 @@ describe("operator stats", () => {
     // Exact count over the window the API reports (m8).
     const c = normaliseStats({ calls: 12, usdc_earned: "1.80", by_endpoint: [], recent: [], review_window: { calls: 10, review_required: 3 }, source: "cloudflare-kv" })!;
     expect(c).toMatchObject({ review_required: 3, review_window: 10 });
+  });
+
+  it("reads the payment-mode filter and words the note (Phase 7 review M2)", () => {
+    const s = normaliseStats({ calls: 10, usdc_earned: "1.50", by_endpoint: [], recent: [], mode: "testnet", hidden: { mode: "simulated", calls: 33, usdc: "5.70" }, source: "cloudflare-kv" })!;
+    expect(s.mode).toBe("testnet");
+    expect(modeFilterNote(s)).toBe("showing TESTNET calls only (33 simulated calls hidden)");
+    expect(modeFilterNote(normaliseStats({ calls: 1, usdc_earned: "0.15", by_endpoint: [], recent: [], mode: "testnet", hidden: null })!)).toBeNull();
+    expect(modeFilterNote(statsFromReplays())).toBeNull();
   });
 
   it("falls back to replays when the stats API fails or has no traffic", async () => {

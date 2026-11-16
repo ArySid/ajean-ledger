@@ -193,7 +193,7 @@ Live result: <https://ajean-ledger.ary-sidoun.workers.dev> (TESTNET, Cloudflare 
 
 ## #04 — 2026-11-16 10:45 — Hosting change: no Vercel, Cloudflare Workers (OpenNext) then Netlify
 
-**Context:** the user's Vercel account was paused, so hosting had to move to another free plan. The message sets the test order, the storage options and the pitch argument (x402 co-created by Coinbase and Cloudflare).
+**Context:** the user's Vercel account was paused, so hosting had to move to another free plan. The message sets the test order, the storage options and the pitch argument (x402 co-created by Coinbase and Cloudflare; that wording is inaccurate and the deliverables use the corrected fact: Coinbase created x402, and Cloudflare co-founded the x402 Foundation with Coinbase, see `docs/DECISIONS.md` ADR-017).
 
 **Original text (French, verbatim):**
 
@@ -233,7 +233,7 @@ Live result: <https://ajean-ledger.ary-sidoun.workers.dev> (TESTNET, Cloudflare 
 - **Independent reviews.** Prompt #02 requires a review by a subagent that did not produce the work, after Phases 1, 5 and 7. The Phase 1 review (accounting engine, as an expert-comptable would check it) found 2 blocking issues: the excess-VAT deduction on fixture 03, and "fictional" SIRENs that belonged to real companies. Both were fixed (ADR-018, ADR-021). The Phase 5 review (brief compliance and the public demo) found no blocking issue; its major findings were fixed (ADR-022, ADR-023). Reports: `docs/reviews/PHASE1_REVIEW.md`, `docs/reviews/PHASE5_REVIEW.md`.
 - **Traceability.** Every decision is in `docs/DECISIONS.md` (ADR-001 to ADR-023), every change in `CHANGELOG.md`, every requirement mapped to evidence in `docs/BRIEF_COMPLIANCE.md`, and one git commit per step (`ArySid/ajean-ledger`).
 - **What the team did by hand.** Only what the assistant could not do: answering the Phase 0 questions, creating the GitHub repository and the Cloudflare account and token, and funding the testnet agent wallet with test USDC from the Circle faucet. Reviewing the legal references (`docs/LEGAL_REVIEW.md`) is still pending.
-- **Result.** A live service in TESTNET mode at <https://ajean-ledger.ary-sidoun.workers.dev>, with real x402 settlements on Base Sepolia, 217 automated tests and 13 synthetic fixtures.
+- **Result.** A live service in TESTNET mode at <https://ajean-ledger.ary-sidoun.workers.dev>, with real x402 settlements on Base Sepolia, 226 automated tests and 13 synthetic fixtures.
 
 ---
 

@@ -94,8 +94,8 @@ receipts and operator stats (memory fallback if KV fails). Free-plan limits and 
 (one demo run ≈ 5 requests: ample), **10 ms CPU per request** (JSON paths ≈ 6 ms warm; Factur-X PDF and 50-item
 audits can exceed it, so the live demo uses JSON fixtures and any failure falls back to REPLAY), 1,000 KV writes/day
 (≈ 250 paid calls). A simple per-IP rate limit (120/min on paid endpoints, 30/min on demo runs) protects the quota.
-x402 was co-created by Coinbase and Cloudflare, so hosting an agent-payment service on Cloudflare fits the protocol's
-ecosystem. Details, measurements and the testnet go-live sequence: [`docs/HOSTING.md`](docs/HOSTING.md).
+x402 was created by Coinbase, and Cloudflare co-founded the x402 Foundation with Coinbase (Sept. 2025) and supports
+x402 in its Agents SDK and MCP tooling, so hosting an agent-payment service on Cloudflare fits the protocol's ecosystem. Details, measurements and the testnet go-live sequence: [`docs/HOSTING.md`](docs/HOSTING.md).
 
 Day-J check: `npm run warmup` (targets the public URL, ends with **READY FOR DEMO** or **NOT READY**).
 

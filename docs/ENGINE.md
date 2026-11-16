@@ -72,7 +72,7 @@ Money: all amounts are integer cents internally (`engine/money.ts`). Outputs are
 | bank_fees | 627 | Services bancaires et assimilés | 20/0% | yes |
 | *(no match)* | 628 | Divers | — | flagged `CLASSIFICATION_UNCERTAIN` |
 
-Other accounts: `44566` TVA déductible sur autres biens et services, `44562` TVA déductible sur immobilisations, `4452` TVA due intracommunautaire, `401` + auxiliary code, `512000` Banque, `471` Compte d'attente. Journals: `HA` purchases, `BQ` bank.
+Other accounts: `44566` TVA déductible sur autres biens et services, `44562` TVA déductible sur immobilisations, `4452` TVA due intracommunautaire, `401` + auxiliary code, `512` Banque, `471` Compte d'attente. Journals: `HA` purchases, `BQ` bank.
 
 **Why these choices.**
 - *Training → 6228.* The PCG has no dedicated account for external training purchased from a training body. 6228 ("Divers" under rémunérations d'intermédiaires et honoraires) is the most common practice. 6333 is the employer's *contribution* to vocational training (a tax), not a purchase. 6185 is kept for attendance at conferences and seminars.
@@ -153,7 +153,7 @@ Confidence (deterministic): start 0.98; −0.04 per failed error check, −0.02 
 | `json` | zod schema (`json.ts`). Credit notes may use negative amounts: they are normalised to positive. | `structured_json` |
 | `facturx` | pdf-lib reads the `factur-x.xml` (or `zugferd-invoice.xml`, `xrechnung.xml`) attachment from the EmbeddedFiles name tree or the catalog `/AF` array; `cii.ts` maps CII (fast-xml-parser) | `facturx_cii` |
 | `ubl` | `ubl.ts` (Invoice / CreditNote). A CII document sent as `ubl` is also accepted. | `ubl` (or `facturx_cii`) |
-| `bank_transaction` | `bank.ts` match: amount = invoice TTC (+0.5), invoice number in label/reference (+0.4), counterparty ≈ supplier (+0.2); matched at ≥ 0.6. BQ entry 401xxx / 512000 (money out) or 512000 / 401xxx (refund); unmatched → 471 + review. | `bank_transaction` |
+| `bank_transaction` | `bank.ts` match: amount = invoice TTC (+0.5), invoice number in label/reference (+0.4), counterparty ≈ supplier (+0.2); matched at ≥ 0.6. BQ entry 401xxx / 512 (money out) or 512 / 401xxx (refund); unmatched → 471 + review. | `bank_transaction` |
 | `pdf` / `image` | A PDF is first tried as Factur-X. Otherwise it needs `ctx.llm` (else `LLM_UNAVAILABLE`). The LLM output is validated by the same zod schema and rules. | `llm` (+ `extraction_confidence`) |
 
 CII/UBL mapping notes: operation category from BT-23 (CII `BusinessProcessSpecifiedDocumentContextParameter/ID`, UBL `ProfileID`): `B*` goods, `S*` services, `M*` mixed (French framework codes, open point 6). Notes with subject `PMD` → late-payment penalties, `PMT` → EUR 40 indemnity, others → `legal_mentions`. CII `DueDateTypeCode` 5 → VAT-on-debits option, 72 → no option (open point 6).
@@ -196,7 +196,7 @@ Team decision: the **lawyer is the client whose books we keep** (`activity: "bnc
 | 09 | Lawyer client, colleague's fees | proposed: 6226 800.00 / 44566 160.00 / 401VASQUELI (960.00), CASH_BASIS_CLIENT review |
 | 10 | Mixed goods + services | 6064 190.00 / 6156 210.00 / 44566 80.00 / 401COPILAB (480.00), nature mixed |
 | 11 | Factur-X PDF of #1 | identical to #1, `facturx_cii` |
-| 12 | Bank payment of #1 | BQ 401BURO 168.00 / 512000 (168.00), match score 1 |
+| 12 | Bank payment of #1 | BQ 401BURO 168.00 / 512 (168.00), match score 1 |
 | 13 | UBL 2.1 of #10 (bonus) | identical to #10, `ubl` |
 
 Expected outputs: `fixtures/expected/NN.expected.json`. Tests: `tests/fixtures.test.ts` (each fixture + determinism) and `tests/engine.test.ts` (money/balance, mentions, classification, VAT deductibility, duplicates, parsers/errors, LLM mocks, bank, audit, legal bases).

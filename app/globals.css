@@ -1126,11 +1126,11 @@ pre,
 .result {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   animation: stepIn 0.4s ease-out both;
 }
 .result-title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 .result-sub {
@@ -1148,13 +1148,13 @@ pre,
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 10px 14px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
   background: var(--usdc-bg);
   border: 1px solid rgba(99, 176, 255, 0.35);
 }
 .receipt-strip .amt {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
 }
 .receipt-strip .tx {
   font-family: var(--mono);
@@ -1256,12 +1256,14 @@ pre,
 }
 .ledger th,
 .ledger td {
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--line-soft);
   text-align: left;
   font-size: 0.9rem;
 }
 .ledger th {
+  padding-top: 3px;
+  padding-bottom: 3px;
   font-size: 0.7rem;
   color: var(--faint);
   text-transform: uppercase;

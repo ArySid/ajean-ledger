@@ -71,6 +71,21 @@ export function txExplorerUrl(r: Receipt | undefined): string | null {
   return null;
 }
 
+/**
+ * Explorer link for a trace step that carries a `tx_hash` (settlement, ERP), or null when the tx is
+ * simulated. Decided per hash, never per page: `explorer_url` wins; `simulated: true`, `mode: "simulated"`
+ * or a `0x5151…` hash (simulated facilitator) mean simulated; any other 32-byte hash is a real Base
+ * Sepolia tx and gets a Basescan link (older ERP steps had no `explorer_url`, Phase 7 review M1).
+ */
+export function stepTxExplorerUrl(data: Record<string, unknown> | undefined | null): string | null {
+  if (!data) return null;
+  const tx = typeof data.tx_hash === "string" ? data.tx_hash : null;
+  if (typeof data.explorer_url === "string" && data.explorer_url) return data.explorer_url;
+  if (data.simulated === true || data.mode === "simulated") return null;
+  if (!isRealTxHash(tx) || tx.toLowerCase().startsWith(SIMULATED_TX_PREFIX)) return null;
+  return `${BASE_SEPOLIA_EXPLORER}/tx/${tx}`;
+}
+
 export function addressUrl(addr: string | undefined | null): string | null {
   if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) return null;
   return `${BASE_SEPOLIA_EXPLORER}/address/${addr}`;

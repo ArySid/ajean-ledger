@@ -40,6 +40,10 @@ export function buildStats(store: StoreKind, counters: Counters, recent: Receipt
   const byMode = { testnet: { calls: 0, atomic: 0n }, simulated: { calls: 0, atomic: 0n } };
   const byEndpoint = new Map<PaidEndpointId, { calls: number; atomic: bigint }>();
   for (const e of PAID_ENDPOINT_LIST) byEndpoint.set(e.id, { calls: 0, atomic: 0n });
+  const byModeEndpoint = {
+    testnet: new Map(PAID_ENDPOINT_LIST.map((e) => [e.id, { calls: 0, atomic: 0n }])),
+    simulated: new Map(PAID_ENDPOINT_LIST.map((e) => [e.id, { calls: 0, atomic: 0n }])),
+  } as Record<"testnet" | "simulated", Map<PaidEndpointId, { calls: number; atomic: bigint }>>;
   for (const [key, v] of counters) {
     const [mode, endpoint] = key.split(":") as ["testnet" | "simulated", PaidEndpointId];
     calls += v.calls;
@@ -47,6 +51,11 @@ export function buildStats(store: StoreKind, counters: Counters, recent: Receipt
     if (mode in byMode) {
       byMode[mode].calls += v.calls;
       byMode[mode].atomic += v.atomic;
+      const me = byModeEndpoint[mode].get(endpoint);
+      if (me) {
+        me.calls += v.calls;
+        me.atomic += v.atomic;
+      }
     }
     const ep = byEndpoint.get(endpoint);
     if (ep) {
@@ -63,6 +72,10 @@ export function buildStats(store: StoreKind, counters: Counters, recent: Receipt
     revenue_per_endpoint: Object.fromEntries(
       [...byEndpoint].map(([id, v]) => [id, rev(v.calls, v.atomic)]),
     ) as Record<PaidEndpointId, EndpointRevenue>,
+    revenue_per_endpoint_by_mode: {
+      testnet: Object.fromEntries([...byModeEndpoint.testnet].map(([id, v]) => [id, rev(v.calls, v.atomic)])) as Record<PaidEndpointId, EndpointRevenue>,
+      simulated: Object.fromEntries([...byModeEndpoint.simulated].map(([id, v]) => [id, rev(v.calls, v.atomic)])) as Record<PaidEndpointId, EndpointRevenue>,
+    },
     recent_transactions: recent.map(toTxSummary),
   };
 }

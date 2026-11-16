@@ -2,13 +2,19 @@
 // Scenario 90 (1.00 USDC audit) is refused by the agent's spending policy before any payment.
 // Runs the demo purchasing agent IN-PROCESS against this same deployment (real HTTP: catalog,
 // 402, x402 payment, 200) and returns its AgentTrace. Never fails hard: on error it answers
-// 200 with outcome "error", the steps so far and fallback_hint "replay".
+// 200 with outcome "error", the steps so far, `error` {title, detail} (the failing step) and
+// fallback_hint "replay".
+// One automatic retry (Phase 7 review M3) when the first attempt failed BEFORE any payment was signed
+// (no "payment" step: discovery, the unpaid 402 call, a 1102/5xx on a nested call…). The retry reuses
+// the same Idempotency-Key, so even a call that had settled would be answered from the stored receipt.
+import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { runAgent } from "@/agent/core";
 import { MemoryErp } from "@/agent/erp";
 import { MemorySpendLedger, policyFromEnv } from "@/agent/policy";
 import { DEMO_SCENARIO_LABELS, isDemoScenarioId, scenarioItem } from "@/agent/scenarios";
+import { isRetryableBeforePayment, lastErrorOf } from "@/agent/retry";
 import type { AgentTrace } from "@/agent/types";
 import { checkRateLimit, clientKey, demoRunRateLimitPerMinute } from "@/lib/api/rate-limit";
 import { getPaymentMode } from "@/lib/payments/config";
@@ -17,8 +23,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** The agent run must finish well before the console's 45 s timeout. */
+/** The agent run (both attempts together) must finish well before the console's 45 s timeout. */
 const RUN_TIMEOUT_MS = 40_000;
+/** A retry is attempted only if at least this much of the budget is left (a testnet paid call takes ~3–8 s). */
+const MIN_RETRY_BUDGET_MS = 15_000;
+/** Short pause before the retry (lets a cold nested isolate or a facilitator hiccup pass). */
+const RETRY_DELAY_MS = 400;
 
 type Global = typeof globalThis & { __ajeanDemoRunning?: boolean; __ajeanDemoLedger?: MemorySpendLedger };
 
@@ -96,15 +106,17 @@ export async function POST(req: NextRequest) {
         : "AGENT_PRIVATE_KEY not configured: ephemeral wallet (this request is refused by policy, nothing is signed)";
   } else {
     const t = errorTrace(scenario, label, modeLabel, serviceUrl, "Agent wallet not configured", "AGENT_PRIVATE_KEY is missing on this deployment, so the agent cannot pay in TESTNET mode.");
-    return json({ ...t, fallback_hint: "replay" });
+    return json({ ...t, error: { code: "AGENT_WALLET_MISSING", ...lastErrorOf(t)! }, fallback_hint: "replay" });
   }
 
   // Daily spend: real test USDC is tracked per instance; simulated runs start from zero.
   const ledger = serverMode === "testnet" ? (g.__ajeanDemoLedger ??= new MemorySpendLedger()) : new MemorySpendLedger();
 
   g.__ajeanDemoRunning = true;
-  try {
-    const trace = await runAgent({
+  const t0 = Date.now();
+  const idempotencyKey = randomUUID();
+  const attempt = (timeoutMs: number) =>
+    runAgent({
       serviceUrl,
       item: scenarioItem(scenario),
       mode: body.mode === "testnet" || body.mode === "simulated" ? body.mode : serverMode,
@@ -114,14 +126,37 @@ export async function POST(req: NextRequest) {
       ledger,
       erp: new MemoryErp(),
       reasoning: body.reasoning === "llm" ? "llm" : "scripted",
-      timeoutMs: RUN_TIMEOUT_MS,
+      timeoutMs,
       scenarioLabel: label,
+      idempotencyKey,
     });
+  try {
+    let trace = await attempt(RUN_TIMEOUT_MS);
+    let retried: { title: string; detail: string } | null = null;
+    const left = RUN_TIMEOUT_MS - (Date.now() - t0);
+    if (isRetryableBeforePayment(trace) && left >= MIN_RETRY_BUDGET_MS) {
+      retried = lastErrorOf(trace) ?? { title: "Unknown error", detail: "" };
+      console.warn(`[demo/run] scenario ${scenario}: attempt 1 failed before payment (${retried.title}: ${retried.detail}); retrying once with the same Idempotency-Key`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      trace = await attempt(RUN_TIMEOUT_MS - (Date.now() - t0));
+      // Say so on the timeline, right after the intake step.
+      const note = {
+        t_ms: trace.steps[0]?.t_ms ?? 0,
+        kind: "reasoning" as const,
+        title: "Second attempt: the first one stopped before any payment",
+        detail: `First attempt: ${retried.title}${retried.detail ? `: ${retried.detail}` : ""}. Nothing was signed or paid, so I retried once with the same Idempotency-Key.`,
+        data: { retry: 1, first_error: retried.title },
+      };
+      trace.steps.splice(1, 0, note);
+    }
     trace.mode = modeLabel;
-    return json(trace.outcome === "error" ? { ...trace, fallback_hint: "replay" } : trace);
+    if (trace.outcome !== "error") return json(retried ? { ...trace, retried_after: retried } : trace);
+    const err = lastErrorOf(trace) ?? { title: "Agent run ended in error", detail: "" };
+    console.warn(`[demo/run] scenario ${scenario}: run ended in error${retried ? " after one retry" : ""}: ${err.title}: ${err.detail}`);
+    return json({ ...trace, error: { code: "AGENT_RUN_ERROR", ...err }, ...(retried ? { retried_after: retried } : {}), fallback_hint: "replay" });
   } catch (e) {
     const t = errorTrace(scenario, label, modeLabel, serviceUrl, "Demo run failed", e instanceof Error ? e.message : String(e));
-    return json({ ...t, fallback_hint: "replay" });
+    return json({ ...t, error: { code: "AGENT_RUN_ERROR", ...lastErrorOf(t)! }, fallback_hint: "replay" });
   } finally {
     g.__ajeanDemoRunning = false;
   }

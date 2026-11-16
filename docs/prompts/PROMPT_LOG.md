@@ -8,7 +8,7 @@ Times are UTC.
 
 ## #01 — 2026-11-16 09:49 — Master prompt: project kick-off (Phase 0)
 **Prompt (verbatim):**
-> The full master prompt (≈ 400 lines). It is stored **verbatim and unabridged** in
+> The full master prompt (242 lines). It is stored **verbatim and unabridged** in
 > [`00_MASTER_PROMPT.md`](./00_MASTER_PROMPT.md) and is not duplicated here to keep this log readable
 > (see `docs/DECISIONS.md` ADR-001). Its closing instruction was:
 > "Start now with Phase 0: save this prompt verbatim to `docs/prompts/00_MASTER_PROMPT.md`, create the PROMPT_LOG entry #01 for this message, then ask me your blocking questions."

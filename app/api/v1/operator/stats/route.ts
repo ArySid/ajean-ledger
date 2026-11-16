@@ -1,9 +1,12 @@
 // GET /api/v1/operator/stats — free. The agent economy seen by the operator: calls served,
 // USDC earned, revenue per endpoint, recent transactions. Falls back to the recorded replays
 // (source "replay") while the store has no paid call yet, so /operator is never empty.
+// The headline counts the CURRENT payment mode only (Phase 7 review M2): a TESTNET deployment never
+// adds simulated (fake-hash) calls to its revenue; the other mode is reported in `hidden`.
 import { NextResponse } from "next/server";
 import { allReplays } from "@/agent/replays";
 import { PAID_ENDPOINTS, PAID_ENDPOINT_LIST, atomicToUsdc, usdcToAtomic, type PaidEndpointId } from "@/lib/payments/pricing";
+import { getPaymentMode, type PaymentMode } from "@/lib/payments/config";
 import { getStore, type StoreStats } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -26,6 +29,10 @@ interface OperatorStatsBody {
   usdc_earned: string;
   by_endpoint: { endpoint: string; calls: number; usdc: string }[];
   by_mode?: StoreStats["by_mode"];
+  /** Payment mode the headline figures are computed for (the deployment's current mode). */
+  mode: PaymentMode;
+  /** Calls of the other payment mode, left out of every figure above (null when none). */
+  hidden: { mode: PaymentMode; calls: number; usdc: string } | null;
   recent: RecentRow[];
   /**
    * Calls whose result required a human review, counted over `review_window.calls` calls (the recent
@@ -40,8 +47,12 @@ function reviewWindow(recent: RecentRow[]): OperatorStatsBody["review_window"] {
   return { calls: recent.length, review_required: recent.filter((r) => r.human_review_required === true).length };
 }
 
-function fromStore(s: StoreStats): OperatorStatsBody {
-  const recent: RecentRow[] = s.recent_transactions.map((t) => ({
+function fromStore(s: StoreStats, mode: PaymentMode): OperatorStatsBody {
+  const other: PaymentMode = mode === "testnet" ? "simulated" : "testnet";
+  const cur = s.by_mode[mode];
+  const perEndpoint = s.revenue_per_endpoint_by_mode?.[mode];
+  const hiddenCalls = s.by_mode[other]?.calls ?? 0;
+  const recent: RecentRow[] = s.recent_transactions.filter((t) => t.mode === mode).map((t) => ({
     request_id: t.request_id,
     at: t.paid_at,
     endpoint: PAID_ENDPOINTS[t.endpoint as PaidEndpointId]?.path ?? t.endpoint,
@@ -53,10 +64,12 @@ function fromStore(s: StoreStats): OperatorStatsBody {
     human_review_required: t.human_review_required,
   }));
   return {
-    calls: s.calls_served,
-    usdc_earned: s.usdc_earned,
-    by_endpoint: PAID_ENDPOINT_LIST.map((e) => ({ endpoint: e.path, calls: s.revenue_per_endpoint[e.id]?.calls ?? 0, usdc: s.revenue_per_endpoint[e.id]?.usdc ?? "0.00" })),
+    calls: cur?.calls ?? 0,
+    usdc_earned: cur?.usdc ?? "0.00",
+    by_endpoint: PAID_ENDPOINT_LIST.map((e) => ({ endpoint: e.path, calls: perEndpoint?.[e.id]?.calls ?? 0, usdc: perEndpoint?.[e.id]?.usdc ?? "0.00" })),
     by_mode: s.by_mode,
+    mode,
+    hidden: hiddenCalls > 0 ? { mode: other, calls: hiddenCalls, usdc: s.by_mode[other].usdc } : null,
     recent,
     review_window: reviewWindow(recent),
     source: s.store,
@@ -65,7 +78,7 @@ function fromStore(s: StoreStats): OperatorStatsBody {
 }
 
 /** Aggregates the recorded replays (each successful run = one paid call; a policy refusal has no receipt and is skipped). */
-function statsFromReplays(): OperatorStatsBody {
+function statsFromReplays(mode: PaymentMode): OperatorStatsBody {
   const recent: RecentRow[] = [];
   for (const t of allReplays()) {
     const r = (t.result ?? null) as { request_id?: string; human_review_required?: boolean; receipt?: Record<string, unknown> } | null;
@@ -94,6 +107,10 @@ function statsFromReplays(): OperatorStatsBody {
       const rows = recent.filter((x) => x.endpoint === e.path);
       return { endpoint: e.path, calls: rows.length, usdc: sum(rows) };
     }),
+    // The replays are labelled recordings (source "replay"), all made on TESTNET; `mode` still names the
+    // deployment's current mode so the client can say which calls a live store would show.
+    mode,
+    hidden: null,
     recent,
     review_window: reviewWindow(recent),
     source: "replay",
@@ -102,12 +119,19 @@ function statsFromReplays(): OperatorStatsBody {
 }
 
 export async function GET() {
+  const mode = getPaymentMode();
   let body: OperatorStatsBody;
   try {
     const s = await getStore().stats();
-    body = s.calls_served > 0 ? fromStore(s) : statsFromReplays();
+    if ((s.by_mode[mode]?.calls ?? 0) > 0) body = fromStore(s, mode);
+    else {
+      // No call in the current mode yet: show the recordings, and still say what was left out.
+      body = statsFromReplays(mode);
+      const other: PaymentMode = mode === "testnet" ? "simulated" : "testnet";
+      if ((s.by_mode[other]?.calls ?? 0) > 0) body.hidden = { mode: other, calls: s.by_mode[other].calls, usdc: s.by_mode[other].usdc };
+    }
   } catch {
-    body = statsFromReplays();
+    body = statsFromReplays(mode);
   }
   return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
 }

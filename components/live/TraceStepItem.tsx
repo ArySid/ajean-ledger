@@ -1,5 +1,5 @@
 import type { HttpExchange, TraceStep } from "@/lib/trace/types";
-import { addressUrl, decodedHeaders, isX402Header, prettyJson, relTime, shortHex, stepHighlights } from "@/lib/console/format";
+import { addressUrl, decodedHeaders, isX402Header, prettyJson, relTime, shortHex, stepHighlights, stepTxExplorerUrl } from "@/lib/console/format";
 
 const KIND_COLOR: Record<string, string> = {
   reasoning: "#7fd8f5",
@@ -152,7 +152,7 @@ function DataChips({ step }: { step: TraceStep }) {
   const keys = DATA_KEYS[step.kind] ?? Object.keys(d).slice(0, 5);
   const shown = keys.filter((k) => Array.isArray(d[k]) || (d[k] !== undefined && d[k] !== null && typeof d[k] !== "object"));
   const tx = typeof d.tx_hash === "string" ? d.tx_hash : undefined;
-  const explorer = typeof d.explorer_url === "string" ? d.explorer_url : null;
+  const explorer = stepTxExplorerUrl(d);
   if (shown.length === 0 && !tx) return null;
   return (
     <div className="datagrid">
