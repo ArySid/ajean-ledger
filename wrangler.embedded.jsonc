@@ -1,0 +1,19 @@
+{
+  // Deploy config used from the Claude cloud session: static assets are EMBEDDED in the Worker
+  // (scripts/cf-embed-assets.mjs) instead of uploaded as Workers Assets — see ADR-020.
+  // Keep in sync with wrangler.jsonc (same name, vars, KV). Free plan only. No secrets here.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ajean-ledger",
+  "main": ".open-next/entry.mjs",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "ajean-ledger" }],
+  "observability": { "enabled": true },
+  "vars": {
+    "PAYMENT_MODE": "simulated",
+    "X402_NETWORK": "eip155:84532",
+    "X402_FACILITATOR_URL": "https://x402.org/facilitator",
+    "STORE_KIND": "auto"
+  },
+  "kv_namespaces": [{ "binding": "AJEAN_KV", "id": "c951f5aa2b3f404bbd1810f582c0e428" }]
+}

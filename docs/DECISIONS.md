@@ -104,7 +104,7 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 
 ## ADR-015 — Fictional demo SME and language
 - **Status:** accepted (prompt #02)
-- **Decision:** Demo client "Atelier Lumen SAS (fictional)", fictional SIREN. Course deliverables (concept note, slides, demo script, Q&A) in English. Bonuses (credit packs, EURC) only after Phases 1–7 are complete and verified.
+- **Decision:** Demo client "Atelier Lumenor SAS (fictional)", fictional SIREN. Course deliverables (concept note, slides, demo script, Q&A) in English. Bonuses (credit packs, EURC) only after Phases 1–7 are complete and verified.
 
 ## ADR-016 — Autonomous orchestrator mode
 - **Status:** accepted (prompt #02)
@@ -117,3 +117,12 @@ Format: **Context → Decision → Why → Alternatives rejected.** Status: `acc
 - **Mitigations for the free limits:** heavy steps that could exceed 10 ms CPU (Factur-X PDF parsing, large audits) are measured; if needed they move client-side or the demo uses precomputed results, clearly labelled. Details and measurements: `docs/HOSTING.md`.
 - **Pitch argument (if Cloudflare is kept):** x402 was co-created by Coinbase and Cloudflare, so hosting the agent-payment service on Cloudflare is coherent with the protocol's ecosystem.
 - **Rejected:** Vercel (paused, forbidden by the user); paid plans of any host.
+
+## ADR-020 — Cloudflare retained; static assets embedded in the Worker for deploys from the cloud session
+- **Status:** accepted
+- **Outcome of ADR-017:** Cloudflare Workers (free plan) is **retained**: the full demo passes from the public URL `https://ajean-ledger.ary-sidoun.workers.dev` (warmup 15/15 green: pages, discovery files, 402 on the three paid endpoints, paid `/entry` 200 + receipt, receipts lookup, `/api/demo/run`, KV-backed operator stats). Netlify was not needed.
+- **Context:** `wrangler deploy` uploads Workers static assets with a short-lived JWT in the `Authorization` header. This session's egress proxy injects the stored Cloudflare API token into every request to `api.cloudflare.com`, overwriting that JWT → `401 Unauthorized` on `/workers/assets/upload`.
+- **Decision:** `scripts/cf-embed-assets.mjs` embeds `.open-next/assets` (~1.1 MiB, 22 files) into the Worker bundle and generates `.open-next/entry.mjs`, which serves them and passes an `ASSETS`-compatible shim to the OpenNext worker. Deploy with `npm run cf:deploy:embedded` (`wrangler.embedded.jsonc`, same name/vars/KV as `wrangler.jsonc`). From a normal terminal, the standard `npm run cf:deploy` (Workers Assets) also works.
+- **Free-plan impact:** bundle 12.6 MiB raw / 2.8 MiB gzip (limit 64 MiB uncompressed on Workers Free per current docs; also under the historical 3 MiB gzip limit), startup 14 ms. Static files are served by the Worker, so each page view costs a few extra requests out of the 100,000/day: negligible for a demo.
+- **Secrets:** `SERVICE_PAY_TO_ADDRESS` and `AGENT_PRIVATE_KEY` are set with `wrangler secret put` (piped from `.env.local`, never printed). Storage: free KV namespace `AJEAN_KV` bound.
+- **Rejected:** asking the user to deploy from their own machine (slower loop); Netlify (not needed); Cloudflare Workers Builds via the GitHub integration (needs a dashboard step from the user; possible later for automatic deploys on push).

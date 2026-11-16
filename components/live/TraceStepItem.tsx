@@ -121,8 +121,22 @@ const DATA_KEYS: Record<string, string[]> = {
   reasoning: ["inbox_file"],
 };
 
+/** Renders one array item: ledger lines as "6257 D 160.60", other objects as compact JSON. */
+function chipItem(v: unknown): string {
+  if (v && typeof v === "object") {
+    const o = v as { account?: string; debit?: number; credit?: number };
+    if (typeof o.account === "string") {
+      const amt = (o.debit ?? 0) > 0 ? `D ${Number(o.debit).toFixed(2)}` : `C ${Number(o.credit ?? 0).toFixed(2)}`;
+      return `${o.account} ${amt}`;
+    }
+    return JSON.stringify(v);
+  }
+  return String(v);
+}
+
 function chipValue(v: unknown): string {
-  if (Array.isArray(v)) return v.join(", ");
+  if (Array.isArray(v)) return v.map(chipItem).join(" / ");
+  if (v && typeof v === "object") return chipItem(v);
   if (typeof v === "string" && /^0x[0-9a-fA-F]{40}$/.test(v)) return shortHex(v);
   if (typeof v === "string" && v.length > 40) return shortHex(v, 12, 6);
   return String(v);
