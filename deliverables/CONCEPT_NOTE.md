@@ -14,7 +14,7 @@ The French e-invoicing reform raises the stakes. Since 1 September 2026 every co
 
 ## 2. AI-agent use case
 
-The direct user is an agent, not a person. In our demo, the purchasing agent of *Atelier Lumen SAS (fictional)* watches an inbox of supplier invoices. For each invoice it:
+The direct user is an agent. In our demo, the purchasing agent of *Atelier Lumen SAS (fictional)* watches an inbox of supplier invoices. For each invoice it:
 
 1. discovers Ajean Ledger through free machine-readable files (`/api/v1/catalog`, `llms.txt`, OpenAPI, MCP);
 2. checks the price (0.15 USDC) against its operator's spending policy (`max_per_call`, `daily_budget`);
@@ -24,7 +24,7 @@ The direct user is an agent, not a person. In our demo, the purchasing agent of 
 
 ## 3. Innovative features
 
-- **Machine-first.** JSON only, strict schema, machine-readable error codes, idempotency keys, a receipts endpoint, discovery files (`llms.txt`, `/.well-known/agent.json`) and an MCP server (`check_invoice`, `create_entry`, `audit_entries`).
+- **Machine-first.** JSON only, strict schema, machine-readable error codes, idempotency keys, receipts, discovery files (`llms.txt`, `/.well-known/agent.json`) and an MCP server (`check_invoice`, `create_entry`, `audit_entries`).
 - **Payment is the authentication.** x402 runs over plain HTTP: no account, no key, no invoice to chase.
 - **Rules first, LLM second.** A deterministic engine decides the accounts, amounts and VAT. An LLM only extracts data from unstructured documents or classifies ambiguous descriptions, and the response says when it was used. Uncertain cases return `human_review_required: true` instead of a guess.
 - **Expert viewpoints.** The audit endpoint returns structured findings from a statutory-auditor and a tax-inspector perspective, inherited from the expert agents of Ajean, our existing AI-agent platform for SMEs and accounting firms.
@@ -59,7 +59,7 @@ Pay per call, priced by value tier. Discovery is free.
 | `POST /api/v1/audit` | Batch of up to 50 entries, auditor and tax-inspector viewpoints | 1.00 USDC |
 | Catalog, OpenAPI, `llms.txt`, agent.json, receipts | Discovery and proof of payment | free |
 
-For volume customers we plan optional **prepaid credit packs** (for example, pay 10 USDC and get 12 USDC of calls).
+Volume option: **prepaid credit packs** (e.g. pay 10 USDC, get 12 USDC of calls).
 
 ## 7. Stablecoin revenue mechanism (x402)
 
