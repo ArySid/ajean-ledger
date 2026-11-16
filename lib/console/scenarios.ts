@@ -10,9 +10,9 @@ export interface Scenario {
 }
 
 export const SCENARIOS: Scenario[] = [
-  { id: "01", label: "01 · Office supplies (compliant)", takeaway: "Clean invoice → posted with no human in the loop." },
-  { id: "03", label: "03 · Restaurant: 20% vs 10% VAT", takeaway: "The VAT mistake a human would have missed → review flag." },
-  { id: "04", label: "04 · EU SaaS: reverse charge", takeaway: "German supplier, no VAT invoiced → self-assessed VAT, net cost zero." },
+  { id: "01", label: "01 · Office supplies, compliant", takeaway: "Clean invoice → posted with no human in the loop." },
+  { id: "03", label: "03 · Restaurant VAT anomaly", takeaway: "The VAT mistake a human would have missed → review flag." },
+  { id: "04", label: "04 · EU SaaS, reverse charge", takeaway: "German supplier, no VAT invoiced → self-assessed VAT, net cost zero." },
   { id: "06", label: "06 · Duplicate of invoice 01", takeaway: "Same invoice sent twice → DUPLICATE_SUSPECTED, not posted." },
 ];
 
