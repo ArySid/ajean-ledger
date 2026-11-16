@@ -1,0 +1,11 @@
+{
+  "id": "01",
+  "kind": "supplier_invoice",
+  "received_at": "2026-10-06T08:12:00Z",
+  "channel": "email",
+  "from": "factures@buro-express.example (fictional)",
+  "subject": "Facture BE-2026-0412 - fournitures de bureau",
+  "task": "entry",
+  "fixture": "01",
+  "note": "Synthetic demo item. The invoice itself lives in fixtures/01.json (source of truth)."
+}

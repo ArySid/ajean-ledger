@@ -7,4 +7,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { "/**": ["./fixtures/**/*", "./demo/replays/**/*"] },
 };
 
+// Opt-in: expose Cloudflare bindings (KV, vars) to `next dev` (CF_DEV=1 npm run dev).
+if (process.env.CF_DEV === "1") {
+  void import("@opennextjs/cloudflare").then((m) => m.initOpenNextCloudflareForDev());
+}
+
 export default nextConfig;

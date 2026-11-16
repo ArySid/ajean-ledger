@@ -1,0 +1,16 @@
+# Local secrets for `npm run cf:preview` (wrangler dev). Copy to .dev.vars (gitignored).
+# In production use `npx wrangler secret put <NAME>` instead — never commit values.
+# Non-secret config (PAYMENT_MODE, X402_NETWORK, X402_FACILITATOR_URL, STORE_KIND) lives in wrangler.jsonc "vars".
+
+# Service wallet that RECEIVES test USDC (address only, no private key). Required for PAYMENT_MODE=testnet.
+SERVICE_PAY_TO_ADDRESS=0x0000000000000000000000000000000000000000
+
+# Throwaway Base Sepolia demo-agent key used by POST /api/demo/run in TESTNET mode (test USDC only).
+# In SIMULATED mode the demo agent uses an ephemeral key when this is empty.
+AGENT_PRIVATE_KEY=
+
+# Optional: LLM extraction (pdf/image) and agent reasoning.
+ANTHROPIC_API_KEY=
+
+# Optional storage alternatives to the AJEAN_KV binding (free plans only):
+# DATABASE_URL=postgres://...neon.tech/...   (Neon free)

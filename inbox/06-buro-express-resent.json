@@ -1,0 +1,11 @@
+{
+  "id": "06",
+  "kind": "supplier_invoice",
+  "received_at": "2026-10-21T07:55:00Z",
+  "channel": "email",
+  "from": "relances@buro-express.example (fictional)",
+  "subject": "RAPPEL - Facture BE-2026-0412",
+  "task": "entry",
+  "fixture": "06",
+  "note": "Synthetic demo item: the same invoice as 01, sent again as a reminder. fixtures/06.json .context.history describes what the ERP already contains when this item is processed on its own."
+}

@@ -2,7 +2,7 @@ import type { InvoiceFingerprint } from "@/engine/types";
 import type { Receipt } from "@/lib/payments/receipt";
 import type { PaidEndpointId } from "@/lib/payments/pricing";
 
-export type StoreKind = "memory" | "file" | "neon" | "upstash";
+export type StoreKind = "memory" | "file" | "neon" | "upstash" | "cloudflare-kv";
 
 /** One paid, settled call. Only successful (200 + settled) calls are stored. */
 export interface ReceiptRecord {

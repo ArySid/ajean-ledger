@@ -1,0 +1,11 @@
+{
+  "id": "03",
+  "kind": "supplier_invoice",
+  "received_at": "2026-10-08T14:47:00Z",
+  "channel": "email",
+  "from": "contact@bouchon-lumiere.example (fictional)",
+  "subject": "Votre note du déjeuner d'affaires - LBL-2026-1187",
+  "task": "entry",
+  "fixture": "03",
+  "note": "Synthetic demo item. The invoice itself lives in fixtures/03.json (source of truth)."
+}

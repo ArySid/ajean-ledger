@@ -4,13 +4,16 @@
  * Storage is OPTIONAL: any adapter error is logged once and the store falls back
  * to memory, so the paid API keeps working (ADR-010).
  *
- * Selection (STORE_KIND = auto | memory | file | neon | upstash, default auto):
- *   auto → neon if DATABASE_URL / POSTGRES_URL is set,
+ * Selection (STORE_KIND = auto | memory | file | neon | upstash | cloudflare-kv, default auto):
+ *   auto → cloudflare-kv when running on Cloudflare Workers with the AJEAN_KV binding (docs/HOSTING.md),
+ *          else neon if DATABASE_URL / POSTGRES_URL is set,
  *          else upstash if UPSTASH_REDIS_REST_URL+TOKEN or KV_REST_API_URL+TOKEN are set,
  *          else memory.
- *   file → data/receipts.local.json (local dev, gitignored; override with STORE_FILE_PATH).
+ *   file → data/receipts.local.json (local dev, gitignored; override with STORE_FILE_PATH). Never on Workers.
  */
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { InvoiceFingerprint } from "@/engine/types";
+import { CloudflareKVStore, type KVNamespaceLike } from "./cloudflare-kv";
 import { FileStore } from "./file";
 import { MemoryStore } from "./memory";
 import { NeonStore } from "./neon";
@@ -88,8 +91,34 @@ export class ResilientStore implements Store {
   }
 }
 
+/** Cloudflare Workers request context, or null outside Workers (next dev/start, tests, CLI). Never throws. */
+function cloudflareEnv(): Record<string, unknown> | null {
+  try {
+    return getCloudflareContext().env as unknown as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function kvBinding(): KVNamespaceLike | null {
+  const kv = cloudflareEnv()?.AJEAN_KV as KVNamespaceLike | undefined;
+  return kv && typeof kv.get === "function" && typeof kv.put === "function" ? kv : null;
+}
+
 function createPrimary(): Store {
   const want = (process.env.STORE_KIND ?? "auto").trim().toLowerCase();
+  const onWorkers = cloudflareEnv() !== null;
+  if ((want === "auto" || want === "cloudflare-kv") && kvBinding()) {
+    return new CloudflareKVStore(() => {
+      const kv = kvBinding();
+      if (!kv) throw new Error("AJEAN_KV binding unavailable");
+      return kv;
+    });
+  }
+  if (onWorkers && want === "file") {
+    console.warn('[store] STORE_KIND="file" is not supported on Cloudflare Workers (no persistent disk); using memory.');
+    return new MemoryStore();
+  }
   const pg = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   const upUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const upToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;

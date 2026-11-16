@@ -1,0 +1,11 @@
+{
+  "id": "04",
+  "kind": "supplier_invoice",
+  "received_at": "2026-10-14T09:30:00Z",
+  "channel": "supplier portal",
+  "from": "billing@kranich-beratung.example (fictional)",
+  "subject": "Invoice KB-2026-077 - e-invoicing readiness assessment",
+  "task": "entry",
+  "fixture": "04",
+  "note": "Synthetic demo item. The invoice itself lives in fixtures/04.json (source of truth)."
+}

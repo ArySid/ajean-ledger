@@ -1,11 +1,10 @@
 {
-  "id": "trace_03_sample",
+  "id": "trace_03_20261116104128_6b5a77",
   "scenario": "03",
-  "scenario_label": "Restaurant invoice billed at 20% instead of 10%",
+  "scenario_label": "03 · Restaurant: 20% vs 10% VAT",
   "mode": "REPLAY",
   "recorded_from": "simulated",
-  "recorded_at": "2026-11-16T09:41:12.000Z",
-  "sample": true,
+  "recorded_at": "2026-11-16T10:41:28.184Z",
   "agent": {
     "name": "Atelier Lumen purchasing agent",
     "wallet": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
@@ -14,165 +13,592 @@
       "daily_budget_usdc": "2.00"
     }
   },
-  "service_url": "https://ajean-ledger.vercel.app",
+  "service_url": "http://localhost:3500",
   "steps": [
     {
       "t_ms": 0,
       "kind": "reasoning",
-      "title": "New invoice BC-2026-1187 from Brasserie du Canal SARL (fictional)",
-      "detail": "I am the purchasing agent of Atelier Lumen SAS (fictional). I received invoice BC-2026-1187 (144.00 EUR incl. VAT) from Brasserie du Canal SARL (fictional). I must book it in our ERP, but I do not know the French e-invoicing rules, the PCG chart of accounts or the VAT treatment. Restaurant VAT rates are a classic trap for a generic model → I need a specialised accounting service.",
+      "title": "New invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional)",
+      "detail": "I am the purchasing agent of Atelier Lumen SAS (fictional). I received invoice LBL-2026-1187 for 175.20 EUR incl. VAT (\"Déjeuner d'affaires — menu du jour\", \"Cafés\") by email. I must book it in our ERP. It is a restaurant bill. French VAT rates and deductibility rules for meals are a classic trap, and I have no reliable way to check that the rate charged is the right one. I do not know the French chart of accounts (PCG) or the e-invoicing rules in force since 1 Sept 2026, so I will buy a validated entry from a specialised service instead of guessing.",
       "data": {
-        "inbox_file": "inbox/03-brasserie-du-canal.json"
+        "inbox_file": "inbox/03-le-bouchon-lumiere-restaurant.json",
+        "task": "entry",
+        "from": "contact@bouchon-lumiere.example (fictional)",
+        "subject": "Votre note du déjeuner d'affaires - LBL-2026-1187",
+        "fixtures": [
+          "fixtures/03.json"
+        ]
       }
     },
     {
-      "t_ms": 380,
+      "t_ms": 6,
       "kind": "discovery",
       "title": "Discovered Ajean Ledger through its machine-readable catalog",
-      "detail": "Free endpoint, no sign-up. POST /api/v1/entry returns a full journal entry, VAT treatment, compliance and anomalies for 0.15 USDC, paid over HTTP 402 (x402).",
+      "detail": "Free machine-readable catalog, no sign-up, no API key. I need a full journal entry (PCG accounts + VAT treatment + compliance + anomalies): POST /api/v1/entry does exactly that for 0.15 USDC, paid per call over HTTP 402 (x402) on Base Sepolia.",
       "http": {
         "method": "GET",
-        "url": "https://ajean-ledger.vercel.app/api/v1/catalog",
+        "url": "http://localhost:3500/api/v1/catalog",
         "status": 200,
         "headers": {
           "content-type": "application/json"
         },
         "body": {
           "service": "Ajean Ledger",
-          "description": "French invoice → validated PCG accounting entry, VAT treatment, e-invoicing compliance, anomalies. Paid per call in USDC via x402.",
+          "id": "ajean-ledger",
+          "version": "0.1.0",
+          "description": "Send a French invoice or bank transaction, get back a validated machine-readable accounting entry (PCG accounts, VAT treatment, e-invoicing compliance, anomaly flags), paid per call in USDC via x402.",
+          "disclaimer": "Proof of concept on synthetic data, testnet only (Base Sepolia test USDC, no real funds). Not a substitute for a chartered accountant's review.",
+          "audience": "AI agents (machine-to-machine). JSON in, JSON out. No human UI in the product path.",
           "payment": {
             "protocol": "x402",
             "x402Version": 2,
+            "scheme": "exact",
             "network": "eip155:84532",
-            "asset": "USDC",
-            "sign_up": "none",
-            "api_key": "none"
+            "network_name": "base-sepolia",
+            "chain_id": 84532,
+            "testnet": true,
+            "asset": {
+              "symbol": "USDC",
+              "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              "decimals": 6,
+              "eip712": {
+                "name": "USDC",
+                "version": "2"
+              }
+            },
+            "payTo": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "facilitator": "local simulated facilitator (no on-chain transaction)",
+            "mode": "simulated",
+            "mode_label": "SIMULATED",
+            "max_timeout_seconds": 300,
+            "explorer_tx_base_url": "https://sepolia.basescan.org/tx/",
+            "authentication": "none — payment is the authentication (no sign-up, no API key)",
+            "charged_only_on_success": true,
+            "headers": {
+              "payment_required": "PAYMENT-REQUIRED",
+              "payment_signature": "PAYMENT-SIGNATURE",
+              "payment_response": "PAYMENT-RESPONSE"
+            },
+            "how_to_pay": [
+              "1. Call the paid endpoint with your JSON body and no payment: you get HTTP 402 with a PAYMENT-REQUIRED header (base64 JSON PaymentRequired: x402Version 2, resource, accepts[0] = {scheme: exact, network, amount (atomic USDC), asset, payTo, maxTimeoutSeconds, extra {name, version}}).",
+              "2. Sign an EIP-3009 transferWithAuthorization for accepts[0] (amount to payTo, USDC EIP-712 domain from extra) with your wallet, e.g. @x402/fetch + ExactEvmScheme.",
+              "3. Retry the exact same request with the PAYMENT-SIGNATURE header (base64 JSON PaymentPayload). Optionally add an Idempotency-Key header.",
+              "4. Read the 200 JSON result (request_id + receipt + result) and the PAYMENT-RESPONSE header (base64 JSON SettleResponse with the transaction hash). Failed calls (status >= 400) are never settled."
+            ],
+            "sdk": {
+              "client": [
+                "@x402/fetch",
+                "@x402/evm (ExactEvmScheme)",
+                "@x402/mcp (createx402MCPClient)"
+              ],
+              "version": "2.31.0"
+            },
+            "test_funds": "Base Sepolia test USDC from https://faucet.circle.com (gas is paid by the facilitator)."
           },
-          "endpoints": [
-            {
-              "method": "POST",
-              "path": "/api/v1/invoice/check",
-              "price_usdc": "0.05",
-              "summary": "E-invoice compliance check"
-            },
-            {
-              "method": "POST",
-              "path": "/api/v1/entry",
-              "price_usdc": "0.15",
-              "summary": "Journal entry + VAT + compliance + anomalies"
-            },
-            {
-              "method": "POST",
-              "path": "/api/v1/audit",
-              "price_usdc": "1.00",
-              "summary": "Batch audit (up to 50 entries)"
-            }
-          ],
-          "discovery": [
-            "/llms.txt",
-            "/openapi.json",
-            "/.well-known/agent.json",
-            "/mcp"
-          ]
+          "endpoints": {
+            "paid": [
+              {
+                "id": "invoice_check",
+                "method": "POST",
+                "path": "/api/v1/invoice/check",
+                "url": "http://localhost:3500/api/v1/invoice/check",
+                "title": "E-invoice compliance check",
+                "description": "French e-invoice compliance check: mandatory mentions (incl. 2026 reform: buyer SIREN, operation nature, delivery address, VAT-on-debits option), format and VAT consistency.",
+                "price_usdc": "0.05",
+                "price_atomic": "50000",
+                "currency": "USDC",
+                "input_summary": "{ input: EngineInput (format \"json\" | \"facturx\" | \"ubl\" | \"pdf\" | \"image\"), profile?: ClientProfile, history?: InvoiceFingerprint[] }",
+                "output_summary": "CheckResult: invoice summary, compliance {status, checks[rule_id, passed, severity, fix_hint]}, vat_consistency, anomalies, explanation, engine meta + request_id + receipt",
+                "input_formats": [
+                  "json",
+                  "facturx",
+                  "ubl",
+                  "pdf",
+                  "image"
+                ],
+                "request_schema": "http://localhost:3500/openapi.json#/components/schemas/CheckInvoiceRequest",
+                "response_schema": "http://localhost:3500/openapi.json#/components/schemas/CheckResponse",
+                "mcp_tool": "check_invoice",
+                "example_request": {
+                  "input": {
+                    "format": "json",
+                    "invoice": {
+                      "document_type": "invoice",
+                      "number": "BE-2026-0412",
+                      "issue_date": "2026-10-05",
+                      "due_date": "2026-11-04",
+                      "currency": "EUR",
+                      "supplier": {
+                        "name": "Buro Express SARL (fictional)",
+                        "siren": "903182640",
+                        "vat_id": "FR81903182640",
+                        "country": "FR",
+                        "address": "48 boulevard Voltaire, 75011 Paris"
+                      },
+                      "customer": {
+                        "name": "Atelier Lumen SAS (fictional)",
+                        "siren": "902417351",
+                        "vat_id": "FR10902417351",
+                        "country": "FR",
+                        "address": "12 rue des Ateliers, 69002 Lyon"
+                      },
+                      "operation_nature": "goods",
+                      "lines": [
+                        {
+                          "description": "Ramettes papier A4 80 g (carton de 5)",
+                          "quantity": 4,
+                          "unit_price_excl_vat": 22.5,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 90,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Stylos bille bleus (boîte de 50)",
+                          "quantity": 1,
+                          "unit_price_excl_vat": 18.4,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 18.4,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Classeurs à levier dos 80 mm",
+                          "quantity": 10,
+                          "unit_price_excl_vat": 3.16,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 31.6,
+                          "kind": "goods"
+                        }
+                      ],
+                      "totals": {
+                        "total_excl_vat": 140,
+                        "total_vat": 28,
+                        "total_incl_vat": 168
+                      },
+                      "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+                      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+                      "fixed_recovery_indemnity_mention": true,
+                      "legal_mentions": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "entry",
+                "method": "POST",
+                "path": "/api/v1/entry",
+                "url": "http://localhost:3500/api/v1/entry",
+                "title": "Journal entry proposal",
+                "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
+                "price_usdc": "0.15",
+                "price_atomic": "150000",
+                "currency": "USDC",
+                "input_summary": "{ input: EngineInput (format \"json\" | \"facturx\" | \"ubl\" | \"bank_transaction\" | \"pdf\" | \"image\"), profile?: ClientProfile, history?: InvoiceFingerprint[], use_server_history?: boolean }",
+                "output_summary": "EntryResult: invoice, compliance, entry {journal, lines[account, label, debit, credit], balanced}, vat, anomalies, confidence, human_review_required, explanation, engine meta + request_id + receipt",
+                "input_formats": [
+                  "json",
+                  "facturx",
+                  "ubl",
+                  "bank_transaction",
+                  "pdf",
+                  "image"
+                ],
+                "request_schema": "http://localhost:3500/openapi.json#/components/schemas/CreateEntryRequest",
+                "response_schema": "http://localhost:3500/openapi.json#/components/schemas/EntryResponse",
+                "mcp_tool": "create_entry",
+                "example_request": {
+                  "input": {
+                    "format": "json",
+                    "invoice": {
+                      "document_type": "invoice",
+                      "number": "BE-2026-0412",
+                      "issue_date": "2026-10-05",
+                      "due_date": "2026-11-04",
+                      "currency": "EUR",
+                      "supplier": {
+                        "name": "Buro Express SARL (fictional)",
+                        "siren": "903182640",
+                        "vat_id": "FR81903182640",
+                        "country": "FR",
+                        "address": "48 boulevard Voltaire, 75011 Paris"
+                      },
+                      "customer": {
+                        "name": "Atelier Lumen SAS (fictional)",
+                        "siren": "902417351",
+                        "vat_id": "FR10902417351",
+                        "country": "FR",
+                        "address": "12 rue des Ateliers, 69002 Lyon"
+                      },
+                      "operation_nature": "goods",
+                      "lines": [
+                        {
+                          "description": "Ramettes papier A4 80 g (carton de 5)",
+                          "quantity": 4,
+                          "unit_price_excl_vat": 22.5,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 90,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Stylos bille bleus (boîte de 50)",
+                          "quantity": 1,
+                          "unit_price_excl_vat": 18.4,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 18.4,
+                          "kind": "goods"
+                        },
+                        {
+                          "description": "Classeurs à levier dos 80 mm",
+                          "quantity": 10,
+                          "unit_price_excl_vat": 3.16,
+                          "vat_rate": 0.2,
+                          "total_excl_vat": 31.6,
+                          "kind": "goods"
+                        }
+                      ],
+                      "totals": {
+                        "total_excl_vat": 140,
+                        "total_vat": 28,
+                        "total_incl_vat": 168
+                      },
+                      "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+                      "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+                      "fixed_recovery_indemnity_mention": true,
+                      "legal_mentions": []
+                    }
+                  }
+                }
+              },
+              {
+                "id": "audit",
+                "method": "POST",
+                "path": "/api/v1/audit",
+                "url": "http://localhost:3500/api/v1/audit",
+                "title": "Batch audit",
+                "description": "Batch audit of up to 50 entries or invoices (mini FEC extract): duplicates, VAT inconsistencies, suspicious accounts, with statutory-auditor and tax-inspector viewpoints.",
+                "price_usdc": "1.00",
+                "price_atomic": "1000000",
+                "currency": "USDC",
+                "input_summary": "{ items: AuditEntryInput[] (1..50), profile?: ClientProfile }",
+                "output_summary": "AuditResult: entries_audited, totals, anomalies[entry_ref], viewpoints {statutory_auditor, tax_inspector}, human_review_required, explanation + request_id + receipt",
+                "input_formats": [],
+                "max_items": 50,
+                "request_schema": "http://localhost:3500/openapi.json#/components/schemas/AuditRequest",
+                "response_schema": "http://localhost:3500/openapi.json#/components/schemas/AuditResponse",
+                "mcp_tool": "audit_entries",
+                "example_request": {
+                  "items": [
+                    {
+                      "invoice": {
+                        "document_type": "invoice",
+                        "number": "BE-2026-0412",
+                        "issue_date": "2026-10-05",
+                        "due_date": "2026-11-04",
+                        "currency": "EUR",
+                        "supplier": {
+                          "name": "Buro Express SARL (fictional)",
+                          "siren": "903182640",
+                          "vat_id": "FR81903182640",
+                          "country": "FR",
+                          "address": "48 boulevard Voltaire, 75011 Paris"
+                        },
+                        "customer": {
+                          "name": "Atelier Lumen SAS (fictional)",
+                          "siren": "902417351",
+                          "vat_id": "FR10902417351",
+                          "country": "FR",
+                          "address": "12 rue des Ateliers, 69002 Lyon"
+                        },
+                        "operation_nature": "goods",
+                        "lines": [
+                          "[…]",
+                          "[…]",
+                          "[…]"
+                        ],
+                        "totals": {
+                          "total_excl_vat": 140,
+                          "total_vat": 28,
+                          "total_incl_vat": 168
+                        },
+                        "payment_terms": "Paiement à 30 jours date de facture par virement bancaire. Pas d'escompte pour paiement anticipé.",
+                        "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+                        "fixed_recovery_indemnity_mention": true,
+                        "legal_mentions": []
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "free": [
+              {
+                "id": "catalog",
+                "method": "GET",
+                "path": "/api/v1/catalog",
+                "url": "http://localhost:3500/api/v1/catalog",
+                "price_usdc": "0",
+                "description": "Machine-readable service and pricing manifest."
+              },
+              {
+                "id": "openapi",
+                "method": "GET",
+                "path": "/openapi.json",
+                "url": "http://localhost:3500/openapi.json",
+                "price_usdc": "0",
+                "description": "OpenAPI 3.1 specification."
+              },
+              {
+                "id": "llms_txt",
+                "method": "GET",
+                "path": "/llms.txt",
+                "url": "http://localhost:3500/llms.txt",
+                "price_usdc": "0",
+                "description": "Agent discovery file (what the service does, how to pay, examples)."
+              },
+              {
+                "id": "agent_json",
+                "method": "GET",
+                "path": "/.well-known/agent.json",
+                "url": "http://localhost:3500/.well-known/agent.json",
+                "price_usdc": "0",
+                "description": "Agent card for discovery."
+              },
+              {
+                "id": "receipts",
+                "method": "GET",
+                "path": "/api/v1/receipts/{id}",
+                "url": "http://localhost:3500/api/v1/receipts/{id}",
+                "price_usdc": "0",
+                "description": "Payment receipt + result retrieval by request_id (idempotency)."
+              },
+              {
+                "id": "health",
+                "method": "GET",
+                "path": "/api/health",
+                "url": "http://localhost:3500/api/health",
+                "price_usdc": "0",
+                "description": "Service status: payment mode, network, payTo, store kind. No secrets."
+              }
+            ]
+          },
+          "discovery": {
+            "catalog": "http://localhost:3500/api/v1/catalog",
+            "openapi": "http://localhost:3500/openapi.json",
+            "llms_txt": "http://localhost:3500/llms.txt",
+            "agent_card": "http://localhost:3500/.well-known/agent.json",
+            "mcp": "http://localhost:3500/mcp",
+            "health": "http://localhost:3500/api/health"
+          },
+          "_trace_note": "trimmed for display (provider, base_url, idempotency, mcp, errors, examples, limits, generated_at); full catalog at GET /api/v1/catalog"
         }
+      },
+      "data": {
+        "endpoint": "/api/v1/entry",
+        "price_usdc": "0.15",
+        "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC"
       }
     },
     {
-      "t_ms": 560,
+      "t_ms": 10,
+      "kind": "discovery",
+      "title": "Service status: SIMULATED payments",
+      "detail": "The server decides the payment mode. Same x402 flow and real signatures, but the facilitator is simulated: no on-chain transfer. Payments go to 0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC.",
+      "http": {
+        "method": "GET",
+        "url": "http://localhost:3500/api/health",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "status": "ok",
+          "service": "ajean-ledger",
+          "version": "0.1.0",
+          "payment": {
+            "protocol": "x402 v2",
+            "mode": "simulated",
+            "label": "SIMULATED",
+            "scheme": "exact",
+            "network": "base-sepolia",
+            "network_caip2": "eip155:84532",
+            "asset": {
+              "symbol": "USDC",
+              "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              "decimals": 6
+            },
+            "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "facilitator": "local simulated facilitator (no on-chain tx)"
+          },
+          "prices": {
+            "/api/v1/invoice/check": "0.05",
+            "/api/v1/entry": "0.15",
+            "/api/v1/audit": "1.00"
+          },
+          "store": {
+            "kind": "memory",
+            "configured": "memory",
+            "degraded": false
+          },
+          "engine_ready": true,
+          "llm_configured": false,
+          "time": "2026-11-16T10:41:28.192Z"
+        }
+      },
+      "data": {
+        "server_mode": "simulated",
+        "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC"
+      }
+    },
+    {
+      "t_ms": 10,
       "kind": "policy",
       "title": "Spending policy check: ALLOW",
       "detail": "Price 0.15 USDC ≤ max per call 0.20 USDC. Spent today 0.15 + 0.15 = 0.30 USDC ≤ daily budget 2.00 USDC → allowed.",
       "data": {
         "decision": "allow",
+        "endpoint": "/api/v1/entry",
         "price_usdc": "0.15",
         "max_per_call_usdc": "0.20",
         "spent_today_usdc": "0.15",
-        "daily_budget_usdc": "2.00"
+        "daily_budget_usdc": "2.00",
+        "ledger": "memory"
       }
     },
     {
-      "t_ms": 610,
+      "t_ms": 15,
       "kind": "http_request",
       "title": "POST /api/v1/entry (no payment attached)",
-      "detail": "First attempt without payment: the service will tell me its price in machine-readable form.",
+      "detail": "First attempt without payment: the service will answer with its price in machine-readable form. I attach the fingerprints of 1 invoice(s) already in our ERP so the service can detect duplicates.",
       "http": {
         "method": "POST",
-        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "url": "http://localhost:3500/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "idem-a8fdf101e0f22387"
+          "Idempotency-Key": "6b5a773a-1c51-4c16-8fcc-a8355ae69c4d",
+          "accept": "application/json"
         },
         "body": {
           "input": {
             "format": "json",
             "invoice": {
               "document_type": "invoice",
-              "number": "BC-2026-1187",
-              "issue_date": "2026-11-05",
-              "due_date": "2026-11-05",
+              "number": "LBL-2026-1187",
+              "issue_date": "2026-10-08",
+              "due_date": "2026-10-08",
               "currency": "EUR",
               "supplier": {
-                "name": "Brasserie du Canal SARL (fictional)",
-                "siren": "999000132",
-                "vat_id": "FR41999000132",
+                "name": "Le Bouchon Lumière SARL (fictional)",
+                "siren": "904521978",
+                "vat_id": "FR64904521978",
                 "country": "FR",
-                "address": "3 quai du Canal, 69002 Lyon, France"
+                "address": "5 rue Mercière, 69002 Lyon"
               },
               "customer": {
                 "name": "Atelier Lumen SAS (fictional)",
-                "siren": "999000116",
-                "vat_id": "FR90999000116",
+                "siren": "902417351",
+                "vat_id": "FR10902417351",
                 "country": "FR",
-                "address": "12 rue des Ateliers, 69002 Lyon, France"
+                "address": "12 rue des Ateliers, 69002 Lyon"
               },
               "operation_nature": "services",
-              "vat_on_debits_option": false,
               "lines": [
                 {
-                  "description": "Business lunch, 4 set menus (eaten on site)",
+                  "description": "Déjeuner d'affaires — menu du jour",
                   "quantity": 4,
-                  "unit_price_excl_vat": 30,
+                  "unit_price_excl_vat": 34,
                   "vat_rate": 0.2,
-                  "total_excl_vat": 120,
+                  "total_excl_vat": 136,
+                  "kind": "services"
+                },
+                {
+                  "description": "Cafés",
+                  "quantity": 4,
+                  "unit_price_excl_vat": 2.5,
+                  "vat_rate": 0.2,
+                  "total_excl_vat": 10,
                   "kind": "services"
                 }
               ],
               "totals": {
-                "total_excl_vat": 120,
-                "total_vat": 24,
-                "total_incl_vat": 144
+                "total_excl_vat": 146,
+                "total_vat": 29.2,
+                "total_incl_vat": 175.2
               },
-              "payment_terms": "Payable on receipt",
-              "late_payment_penalties": "Late-payment penalties: 3x the French legal interest rate",
-              "fixed_recovery_indemnity_mention": true
+              "payment_terms": "Payable à réception par carte bancaire.",
+              "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+              "fixed_recovery_indemnity_mention": true,
+              "legal_mentions": []
             }
-          }
+          },
+          "profile": {
+            "name": "Atelier Lumen SAS (fictional)",
+            "siren": "902417351",
+            "legal_form": "SAS",
+            "activity": "commercial",
+            "accounting_basis": "accrual",
+            "vat_regime": "standard",
+            "vat_on_debits": false
+          },
+          "history": [
+            {
+              "supplier_key": "SIREN:903182640",
+              "number": "BE-2026-0412",
+              "issue_date": "2026-10-05",
+              "total_incl_vat": 168,
+              "document_type": "invoice"
+            }
+          ]
         }
       }
     },
     {
-      "t_ms": 840,
+      "t_ms": 15,
       "kind": "http_response",
       "title": "402 Payment Required: 0.15 USDC on Base Sepolia",
-      "detail": "The PAYMENT-REQUIRED header carries the price (150000 atomic units = 0.15 USDC), the asset, the network and the payTo wallet.",
+      "detail": "The PAYMENT-REQUIRED header carries the price (150000 atomic units = 0.15 USDC), the asset, the network and the payTo wallet. Everything matches what discovery advertised (/api/v1/catalog).",
       "http": {
         "method": "POST",
-        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "url": "http://localhost:3500/api/v1/entry",
         "status": 402,
         "headers": {
           "content-type": "application/json",
-          "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIudmVyY2VsLmFwcC9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkFqZWFuIExlZGdlcjogam91cm5hbCBlbnRyeSArIFZBVCArIGNvbXBsaWFuY2UgKyBhbm9tYWxpZXMgZm9yIG9uZSBGcmVuY2ggaW52b2ljZSIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiJ9LCJhY2NlcHRzIjpbeyJzY2hlbWUiOiJleGFjdCIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJhbW91bnQiOiIxNTAwMDAiLCJhc3NldCI6IjB4MDM2Q2JENTM4NDJjNTQyNjYzNGU3OTI5NTQxZUMyMzE4ZjNkQ0Y3ZSIsInBheVRvIjoiMHhDQjRiODQwNzlCMWRkMTk4MjhjM2Q1NzMzZjllMEQyRGNCMjZkRmVDIiwibWF4VGltZW91dFNlY29uZHMiOjMwMCwiZXh0cmEiOnsibmFtZSI6IlVTREMiLCJ2ZXJzaW9uIjoiMiJ9fV19"
+          "PAYMENT-REQUIRED": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cDovL2xvY2FsaG9zdDozNTAwL2FwaS92MS9lbnRyeSIsImRlc2NyaXB0aW9uIjoiRnVsbCBGcmVuY2ggam91cm5hbCBlbnRyeSBwcm9wb3NhbCAoUENHIGFjY291bnRzKSArIFZBVCB0cmVhdG1lbnQgKyBlLWludm9pY2luZyBjb21wbGlhbmNlICsgYW5vbWFseSBmbGFncyBmb3Igb25lIGludm9pY2UsIGNyZWRpdCBub3RlIG9yIGJhbmsgdHJhbnNhY3Rpb24uIiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIiwic2VydmljZU5hbWUiOiJBamVhbiBMZWRnZXIiLCJ0YWdzIjpbImFjY291bnRpbmciLCJmcmFuY2UiLCJlLWludm9pY2luZyIsInZhdCIsImNyZWF0ZV9lbnRyeSJdfSwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMyIiwiYW1vdW50IjoiMTUwMDAwIiwiYXNzZXQiOiIweDAzNkNiRDUzODQyYzU0MjY2MzRlNzkyOTU0MWVDMjMxOGYzZENGN2UiLCJwYXlUbyI6IjB4Q0I0Yjg0MDc5QjFkZDE5ODI4YzNkNTczM2Y5ZTBEMkRjQjI2ZEZlQyIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7Im5hbWUiOiJVU0RDIiwidmVyc2lvbiI6IjIifX1dfQ==",
+          "X-Request-Id": "req_01M7HZ5545507RM8X12THTTJS0"
         },
-        "body": {},
+        "body": {
+          "error": {
+            "code": "PAYMENT_REQUIRED",
+            "message": "Payment required: 0.15 USDC on base-sepolia (x402 v2).",
+            "details": {
+              "endpoint": "/api/v1/entry",
+              "price_usdc": "0.15",
+              "amount_atomic": "150000",
+              "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              "network": "eip155:84532",
+              "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+              "mode": "simulated",
+              "how_to_pay": "Decode the base64 PAYMENT-REQUIRED header, sign the EIP-3009 authorization for accepts[0] (exact scheme), retry the same request with the PAYMENT-SIGNATURE header. You are charged only if the call succeeds."
+            },
+            "docs_url": "/llms.txt#errors"
+          },
+          "request_id": "req_01M7HZ5545507RM8X12THTTJS0"
+        },
         "decoded": {
           "header": "PAYMENT-REQUIRED",
           "value": {
             "x402Version": 2,
             "error": "Payment required",
             "resource": {
-              "url": "https://ajean-ledger.vercel.app/api/v1/entry",
-              "description": "Ajean Ledger: journal entry + VAT + compliance + anomalies for one French invoice",
-              "mimeType": "application/json"
+              "url": "http://localhost:3500/api/v1/entry",
+              "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
+              "mimeType": "application/json",
+              "serviceName": "Ajean Ledger",
+              "tags": [
+                "accounting",
+                "france",
+                "e-invoicing",
+                "vat",
+                "create_entry"
+              ]
             },
             "accepts": [
               {
@@ -190,13 +616,47 @@
             ]
           }
         }
+      },
+      "data": {
+        "requirements_check": [
+          {
+            "check": "amount",
+            "expected": "150000",
+            "got": "150000",
+            "ok": true
+          },
+          {
+            "check": "asset (USDC)",
+            "expected": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            "got": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            "ok": true
+          },
+          {
+            "check": "network",
+            "expected": "eip155:84532",
+            "got": "eip155:84532",
+            "ok": true
+          },
+          {
+            "check": "payTo",
+            "expected": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "got": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+            "ok": true
+          },
+          {
+            "check": "scheme",
+            "expected": "exact",
+            "got": "exact",
+            "ok": true
+          }
+        ]
       }
     },
     {
-      "t_ms": 990,
+      "t_ms": 17,
       "kind": "payment",
       "title": "Signed a 0.15 USDC payment authorisation (EIP-3009)",
-      "detail": "transferWithAuthorization from the agent wallet to Ajean Ledger's payTo wallet. Off-chain signature: no gas, no account, no API key. The facilitator submits the transfer.",
+      "detail": "transferWithAuthorization from my wallet to Ajean Ledger's payTo wallet, valid for a few minutes. Off-chain signature: no gas, no account, no API key. The facilitator submits the transfer only if the call succeeds.",
       "data": {
         "scheme": "exact",
         "network": "eip155:84532",
@@ -205,78 +665,124 @@
         "from": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
         "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
         "value": "150000",
-        "validAfter": "1794821472",
-        "validBefore": "1794822372",
-        "nonce": "0x26897a1f9bc0e4e52df68b5b442a7cf096e04aad3bb327b712136301954bc4c7"
+        "validAfter": "0",
+        "validBefore": "1794825988",
+        "nonce": "0x69d5307f722f7c4280c0978c6b082bf8fd17949e46a35d12caf09ad91f57a6dd"
       }
     },
     {
-      "t_ms": 1060,
+      "t_ms": 34,
       "kind": "http_request",
       "title": "POST /api/v1/entry with PAYMENT-SIGNATURE",
       "detail": "Same request, retried with the signed payment attached. Payment is the authentication.",
       "http": {
         "method": "POST",
-        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "url": "http://localhost:3500/api/v1/entry",
         "headers": {
           "content-type": "application/json",
-          "Idempotency-Key": "idem-a8fdf101e0f22387",
-          "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9hamVhbi1sZWRnZXIudmVyY2VsLmFwcC9hcGkvdjEvZW50cnkiLCJkZXNjcmlwdGlvbiI6IkFqZWFuIExlZGdlcjogam91cm5hbCBlbnRyeSArIFZBVCArIGNvbXBsaWFuY2UgKyBhbm9tYWxpZXMgZm9yIG9uZSBGcmVuY2ggaW52b2ljZSIsIm1pbWVUeXBlIjoiYXBwbGljYXRpb24vanNvbiJ9LCJhY2NlcHRlZCI6eyJzY2hlbWUiOiJleGFjdCIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJhbW91bnQiOiIxNTAwMDAiLCJhc3NldCI6IjB4MDM2Q2JENTM4NDJjNTQyNjYzNGU3OTI5NTQxZUMyMzE4ZjNkQ0Y3ZSIsInBheVRvIjoiMHhDQjRiODQwNzlCMWRkMTk4MjhjM2Q1NzMzZjllMEQyRGNCMjZkRmVDIiwibWF4VGltZW91dFNlY29uZHMiOjMwMCwiZXh0cmEiOnsibmFtZSI6IlVTREMiLCJ2ZXJzaW9uIjoiMiJ9fSwicGF5bG9hZCI6eyJzaWduYXR1cmUiOiIweDE1MGQ0MTg3MjcxNTQ3YzhjZWYyNmVjOWRjYzdkNWYyYjQwN2UyOTcwNzFmZjkyYmRiYjFiYWM0Y2U5NTNiYzMxNTBkNDE4NzI3MTU0N2M4Y2VmMjZlYzlkY2M3ZDVmMmI0MDdlMjk3MDcxZmY5MmJkYmIxYmFjNGNlOTUzYmMzMTUiLCJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5ODI4YzNkNTczM2Y5ZTBEMkRjQjI2ZEZlQyIsInZhbHVlIjoiMTUwMDAwIiwidmFsaWRBZnRlciI6IjE3OTQ4MjE0NzIiLCJ2YWxpZEJlZm9yZSI6IjE3OTQ4MjIzNzIiLCJub25jZSI6IjB4MjY4OTdhMWY5YmMwZTRlNTJkZjY4YjViNDQyYTdjZjA5NmUwNGFhZDNiYjMyN2I3MTIxMzYzMDE5NTRiYzRjNyJ9fX0="
+          "Idempotency-Key": "6b5a773a-1c51-4c16-8fcc-a8355ae69c4d",
+          "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6MiwicGF5bG9hZCI6eyJhdXRob3JpemF0aW9uIjp7ImZyb20iOiIweEQyNUViNTNFNTdiQ0YwREU4Nzg1ZDlhMEQwNzIyQ0M5OEJCMGMxQkYiLCJ0byI6IjB4Q0I0Yjg0MDc5QjFkZDE5… (1372 chars, decoded below)",
+          "accept": "application/json"
         },
         "body": {
           "input": {
             "format": "json",
             "invoice": {
               "document_type": "invoice",
-              "number": "BC-2026-1187",
-              "issue_date": "2026-11-05",
-              "due_date": "2026-11-05",
+              "number": "LBL-2026-1187",
+              "issue_date": "2026-10-08",
+              "due_date": "2026-10-08",
               "currency": "EUR",
               "supplier": {
-                "name": "Brasserie du Canal SARL (fictional)",
-                "siren": "999000132",
-                "vat_id": "FR41999000132",
+                "name": "Le Bouchon Lumière SARL (fictional)",
+                "siren": "904521978",
+                "vat_id": "FR64904521978",
                 "country": "FR",
-                "address": "3 quai du Canal, 69002 Lyon, France"
+                "address": "5 rue Mercière, 69002 Lyon"
               },
               "customer": {
                 "name": "Atelier Lumen SAS (fictional)",
-                "siren": "999000116",
-                "vat_id": "FR90999000116",
+                "siren": "902417351",
+                "vat_id": "FR10902417351",
                 "country": "FR",
-                "address": "12 rue des Ateliers, 69002 Lyon, France"
+                "address": "12 rue des Ateliers, 69002 Lyon"
               },
               "operation_nature": "services",
-              "vat_on_debits_option": false,
               "lines": [
                 {
-                  "description": "Business lunch, 4 set menus (eaten on site)",
+                  "description": "Déjeuner d'affaires — menu du jour",
                   "quantity": 4,
-                  "unit_price_excl_vat": 30,
+                  "unit_price_excl_vat": 34,
                   "vat_rate": 0.2,
-                  "total_excl_vat": 120,
+                  "total_excl_vat": 136,
+                  "kind": "services"
+                },
+                {
+                  "description": "Cafés",
+                  "quantity": 4,
+                  "unit_price_excl_vat": 2.5,
+                  "vat_rate": 0.2,
+                  "total_excl_vat": 10,
                   "kind": "services"
                 }
               ],
               "totals": {
-                "total_excl_vat": 120,
-                "total_vat": 24,
-                "total_incl_vat": 144
+                "total_excl_vat": 146,
+                "total_vat": 29.2,
+                "total_incl_vat": 175.2
               },
-              "payment_terms": "Payable on receipt",
-              "late_payment_penalties": "Late-payment penalties: 3x the French legal interest rate",
-              "fixed_recovery_indemnity_mention": true
+              "payment_terms": "Payable à réception par carte bancaire.",
+              "late_payment_penalties": "Pénalités de retard : 3 fois le taux d'intérêt légal, exigibles dès le lendemain de l'échéance",
+              "fixed_recovery_indemnity_mention": true,
+              "legal_mentions": []
             }
-          }
+          },
+          "profile": {
+            "name": "Atelier Lumen SAS (fictional)",
+            "siren": "902417351",
+            "legal_form": "SAS",
+            "activity": "commercial",
+            "accounting_basis": "accrual",
+            "vat_regime": "standard",
+            "vat_on_debits": false
+          },
+          "history": [
+            {
+              "supplier_key": "SIREN:903182640",
+              "number": "BE-2026-0412",
+              "issue_date": "2026-10-05",
+              "total_incl_vat": 168,
+              "document_type": "invoice"
+            }
+          ]
         },
         "decoded": {
           "header": "PAYMENT-SIGNATURE",
           "value": {
             "x402Version": 2,
+            "payload": {
+              "authorization": {
+                "from": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+                "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
+                "value": "150000",
+                "validAfter": "0",
+                "validBefore": "1794825988",
+                "nonce": "0x69d5307f722f7c4280c0978c6b082bf8fd17949e46a35d12caf09ad91f57a6dd"
+              },
+              "signature": "0x8990bb9cc8…27acb51b (redacted)"
+            },
             "resource": {
-              "url": "https://ajean-ledger.vercel.app/api/v1/entry",
-              "description": "Ajean Ledger: journal entry + VAT + compliance + anomalies for one French invoice",
-              "mimeType": "application/json"
+              "url": "http://localhost:3500/api/v1/entry",
+              "description": "Full French journal entry proposal (PCG accounts) + VAT treatment + e-invoicing compliance + anomaly flags for one invoice, credit note or bank transaction.",
+              "mimeType": "application/json",
+              "serviceName": "Ajean Ledger",
+              "tags": [
+                "accounting",
+                "france",
+                "e-invoicing",
+                "vat",
+                "create_entry"
+              ]
             },
             "accepted": {
               "scheme": "exact",
@@ -289,193 +795,253 @@
                 "name": "USDC",
                 "version": "2"
               }
-            },
-            "payload": {
-              "signature": "0x150d4187271547c8cef26ec9dcc7d5f2b407e297071ff92bdbb1bac4ce953bc3150d4187271547c8cef26ec9dcc7d5f2b407e297071ff92bdbb1bac4ce953bc315",
-              "authorization": {
-                "from": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
-                "to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
-                "value": "150000",
-                "validAfter": "1794821472",
-                "validBefore": "1794822372",
-                "nonce": "0x26897a1f9bc0e4e52df68b5b442a7cf096e04aad3bb327b712136301954bc4c7"
-              }
             }
           }
         }
       }
     },
     {
-      "t_ms": 3480,
+      "t_ms": 34,
       "kind": "http_response",
-      "title": "200 OK: entry received (warning, review required)",
+      "title": "200 OK: entry received (compliant, review required)",
       "detail": "The PAYMENT-RESPONSE header confirms settlement and carries the transaction hash.",
       "http": {
         "method": "POST",
-        "url": "https://ajean-ledger.vercel.app/api/v1/entry",
+        "url": "http://localhost:3500/api/v1/entry",
         "status": 200,
         "headers": {
           "content-type": "application/json",
-          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJ0cmFuc2FjdGlvbiI6IjB4NTE1MTYxMzE0OTQ0NGE3NWQyNmFkNWFjYzhjOGUzZmE0Nzg5MzNiMjBmMzkxZTQ5NWVhMTAzNmQ5ZmQyMTI1NSIsIm5ldHdvcmsiOiJlaXAxNTU6ODQ1MzIiLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ=="
+          "PAYMENT-RESPONSE": "eyJzdWNjZXNzIjp0cnVlLCJwYXllciI6IjB4RDI1RWI1M0U1N2JDRjBERTg3ODVkOWEwRDA3MjJDQzk4QkIwYzFCRiIsInRyYW5zYWN0aW9uIjoiMHg1MTUxNzlmNWZlZDVkNDY4YWQ4MGE0NGU4NTMzYzA5NjYyMGVkY2VhNmRlN2NlMDk3OTIzMDNjZTU3OTAyMGUwIiwibmV0d29yayI6ImVpcDE1NTo4NDUzMiIsImFtb3VudCI6IjE1MDAwMCIsImV4dHJhIjp7InNpbXVsYXRlZCI6dHJ1ZSwibm90ZSI6IlNJTVVMQVRFRCBzZXR0bGVtZW50OiBubyBvbi1jaGFpbiB0cmFuc2FjdGlvbiB3YXMgYnJvYWRjYXN0LiJ9fQ==",
+          "X-Request-Id": "req_01M7HZ554CDETJVD5YCP04YDM0"
         },
         "body": {
-          "request_id": "req_5ca2571251571ed60c2b",
+          "request_id": "req_01M7HZ554CDETJVD5YCP04YDM0",
           "receipt": {
             "amount": "0.15",
             "amount_atomic": "150000",
             "asset": "USDC",
             "network": "base-sepolia",
             "network_caip2": "eip155:84532",
-            "tx_hash": "0x5151613149444a75d26ad5acc8c8e3fa478933b20f391e495ea1036d9fd21255",
+            "tx_hash": "0x515179f5fed5d468ad80a44e8533c096620edcea6de7ce09792303ce579020e0",
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
             "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
             "explorer_url": null,
             "mode": "simulated",
-            "paid_at": "2026-11-16T09:41:15.480Z"
+            "paid_at": "2026-11-16T10:41:28.215Z"
           },
           "invoice": {
             "document_type": "invoice",
-            "number": "BC-2026-1187",
-            "date": "2026-11-05",
+            "number": "LBL-2026-1187",
+            "date": "2026-10-08",
             "supplier": {
-              "name": "Brasserie du Canal SARL (fictional)",
-              "siren": "999000132",
-              "vat_id": "FR41999000132",
+              "name": "Le Bouchon Lumière SARL (fictional)",
+              "siren": "904521978",
+              "vat_id": "FR64904521978",
               "country": "FR",
-              "address": "3 quai du Canal, 69002 Lyon, France"
+              "address": "5 rue Mercière, 69002 Lyon"
             },
             "customer": {
               "name": "Atelier Lumen SAS (fictional)",
-              "siren": "999000116",
-              "vat_id": "FR90999000116",
+              "siren": "902417351",
+              "vat_id": "FR10902417351",
               "country": "FR",
-              "address": "12 rue des Ateliers, 69002 Lyon, France"
+              "address": "12 rue des Ateliers, 69002 Lyon"
             },
             "operation_nature": "services",
             "totals": {
-              "total_excl_vat": 120,
-              "total_vat": 24,
-              "total_incl_vat": 144
+              "total_excl_vat": 146,
+              "total_vat": 29.2,
+              "total_incl_vat": 175.2
             }
           },
           "compliance": {
-            "status": "warning",
+            "status": "compliant",
             "checks": [
               {
-                "rule_id": "FR-EINV-NUMBER",
-                "label": "Unique, sequential invoice number",
+                "rule_id": "FR-INV-NUMBER",
+                "label": "Unique invoice number",
                 "passed": true,
-                "severity": "error"
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
               },
               {
-                "rule_id": "FR-EINV-DATE",
+                "rule_id": "FR-INV-DATE",
                 "label": "Issue date",
                 "passed": true,
-                "severity": "error"
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
               },
               {
-                "rule_id": "FR-EINV-SUPPLIER-ID",
-                "label": "Supplier name, address and SIREN",
+                "rule_id": "FR-INV-SUPPLIER-NAME",
+                "label": "Supplier name",
                 "passed": true,
-                "severity": "error"
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
               },
               {
-                "rule_id": "FR-EINV-SUPPLIER-VAT",
-                "label": "Supplier VAT number",
+                "rule_id": "FR-INV-SUPPLIER-ADDRESS",
+                "label": "Supplier address",
                 "passed": true,
-                "severity": "error"
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-CUSTOMER-NAME",
+                "label": "Customer name",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-CUSTOMER-ADDRESS",
+                "label": "Customer billing address",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-SUPPLIER-SIREN",
+                "label": "Supplier SIREN (valid 9-digit number)",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-SUPPLIER-VATID",
+                "label": "Supplier intra-EU VAT number",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-LINES-PRESENT",
+                "label": "At least one invoice line",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-LINE-DESCRIPTION",
+                "label": "Precise description of each good or service",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-LINE-QUANTITY",
+                "label": "Quantity on each line",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-LINE-UNIT-PRICE",
+                "label": "Unit price excl. VAT on each line",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-VAT-RATE",
+                "label": "Valid French VAT rate on each line (20, 10, 5.5, 2.1 or 0%)",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-LINE-TOTALS",
+                "label": "Line totals = quantity x unit price",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-TOTAL-EXCL-VAT",
+                "label": "Total excl. VAT = sum of lines",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-VAT-AMOUNT",
+                "label": "VAT amount consistent with the rates (per rate, 0.01 tolerance)",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-TOTAL-INCL-VAT",
+                "label": "Total incl. VAT = total excl. VAT + VAT",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-INV-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-PAYMENT-DUE-DATE",
+                "label": "Payment due date / payment terms",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-COM-INVOICE-MENTIONS"
+              },
+              {
+                "rule_id": "FR-INV-LATE-PENALTIES",
+                "label": "Late-payment penalty rate",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-COM-LATE-PENALTIES"
+              },
+              {
+                "rule_id": "FR-INV-RECOVERY-INDEMNITY",
+                "label": "EUR 40 fixed recovery indemnity (B2B)",
+                "passed": true,
+                "severity": "error",
+                "legal_basis_id": "LB-COM-LATE-PENALTIES"
               },
               {
                 "rule_id": "FR-EINV-SIREN-BUYER",
                 "label": "Buyer SIREN (e-invoicing reform)",
                 "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-BUYER-VAT",
-                "label": "Buyer VAT number",
-                "passed": true,
-                "severity": "error"
+                "severity": "error",
+                "legal_basis_id": "LB-EINV-REFORM-MENTIONS"
               },
               {
                 "rule_id": "FR-EINV-OPERATION-NATURE",
-                "label": "Nature of the operation: goods / services / mixed (reform)",
+                "label": "Operation category: goods / services / mixed (e-invoicing reform)",
                 "passed": true,
-                "severity": "error"
+                "severity": "error",
+                "legal_basis_id": "LB-EINV-REFORM-MENTIONS"
               },
               {
-                "rule_id": "FR-EINV-DELIVERY-ADDRESS",
-                "label": "Delivery address, if different (reform)",
+                "rule_id": "FR-EINV-VAT-ON-DEBITS",
+                "label": "VAT-on-debits option stated when the supplier opted (e-invoicing reform)",
                 "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-VAT-DEBITS-OPTION",
-                "label": "Option for VAT on debits, if any (reform)",
-                "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-LINES",
-                "label": "Description, quantity and unit price excl. VAT per line",
-                "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-VAT-BREAKDOWN",
-                "label": "VAT rate and amount per rate",
-                "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-TOTALS",
-                "label": "Totals consistent (excl. VAT + VAT = incl. VAT)",
-                "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-PAYMENT-TERMS",
-                "label": "Payment terms and late-payment penalties",
-                "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-EINV-RECOVERY-40",
-                "label": "EUR 40 fixed recovery indemnity mention (B2B)",
-                "passed": true,
-                "severity": "error"
-              },
-              {
-                "rule_id": "FR-VAT-RATE-CONSISTENCY",
-                "label": "VAT rate consistent with the goods or services",
-                "passed": false,
-                "severity": "warning",
-                "fix_hint": "On-site restaurant meals are taxed at 10% in France (alcoholic drinks at 20%). Ask the supplier for a corrected invoice."
+                "severity": "info",
+                "legal_basis_id": "LB-EINV-REFORM-MENTIONS"
               }
             ]
           },
           "entry": {
             "journal": "HA",
-            "date": "2026-11-05",
-            "reference": "BC-2026-1187",
+            "date": "2026-10-08",
+            "reference": "LBL-2026-1187",
             "lines": [
               {
                 "account": "6257",
-                "label": "Réceptions (déjeuner d'affaires)",
-                "debit": 120,
+                "label": "Réceptions",
+                "debit": 146,
                 "credit": 0
               },
               {
                 "account": "44566",
-                "label": "TVA déductible sur ABS (20% facturée)",
-                "debit": 24,
+                "label": "TVA déductible sur autres biens et services",
+                "debit": 29.2,
                 "credit": 0
               },
               {
-                "account": "401BRAS",
-                "label": "Fournisseur Brasserie du Canal",
+                "account": "401BOUCHON",
+                "label": "Fournisseur Le Bouchon Lumière SARL (fictional)",
                 "debit": 0,
-                "credit": 144
+                "credit": 175.2
               }
             ],
             "balanced": true
@@ -487,34 +1053,65 @@
             "breakdown": [
               {
                 "rate": 0.2,
-                "base": 120,
-                "vat": 24
+                "base": 146,
+                "vat": 29.2
               }
             ],
-            "note": "Invoice applies 20%; on-site catering is normally taxed at 10% (expected VAT 12.00 EUR). Booked as invoiced, flagged for review."
+            "legal_basis_id": "LB-VAT-RATE-STANDARD",
+            "note": "VAT on the services part becomes deductible when the invoice is paid (supplier has not opted for VAT on debits)."
           },
           "anomalies": [
             {
               "code": "VAT_RATE_MISMATCH",
-              "detail": "Line 1 'Business lunch, 4 set menus (eaten on site)': 20% VAT applied, 10% expected for on-site catering. VAT invoiced 24.00 EUR vs 12.00 EUR expected (12.00 EUR at risk if deducted).",
               "severity": "warning",
-              "rule_id": "FR-VAT-RATE-CONSISTENCY"
+              "rule_id": "VAT-EXPECTED-RATE",
+              "detail": "Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice."
+            },
+            {
+              "code": "VAT_RATE_MISMATCH",
+              "severity": "warning",
+              "rule_id": "VAT-EXPECTED-RATE",
+              "detail": "Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice."
             }
           ],
-          "confidence": 0.72,
+          "confidence": 0.86,
           "human_review_required": true,
           "review_reasons": [
             "VAT_RATE_MISMATCH"
           ],
-          "explanation": "Business lunch at Brasserie du Canal (fictional) booked to 6257 (Réceptions). The supplier charged 20% VAT on meals eaten on site, which are normally taxed at 10%: 24.00 EUR of VAT invoiced instead of 12.00 EUR. The entry records the invoice as issued, but deducting the full 24.00 EUR is a tax risk. Ask the supplier for a corrected invoice before deducting. Human review required.",
+          "explanation": "Purchase invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional) (175.20 EUR incl. VAT) is booked in journal HA: debit 6257 146.00, debit 44566 29.20, credit 401BOUCHON 175.20. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice. Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice. Human review required (VAT_RATE_MISMATCH); confidence 0.86.",
           "engine": {
             "version": "0.1.0",
             "rules_applied": [
-              "PCG-MAP-RECEPTIONS",
-              "VAT-RATE-CATERING-10",
-              "FR-EINV-MANDATORY-MENTIONS",
+              "PCG-MAP-6257",
+              "VAT-REGIME-STANDARD",
+              "FR-INV-NUMBER",
+              "FR-INV-DATE",
+              "FR-INV-SUPPLIER-NAME",
+              "FR-INV-SUPPLIER-ADDRESS",
+              "FR-INV-CUSTOMER-NAME",
+              "FR-INV-CUSTOMER-ADDRESS",
+              "FR-INV-SUPPLIER-SIREN",
+              "FR-INV-SUPPLIER-VATID",
+              "FR-INV-LINES-PRESENT",
+              "FR-INV-LINE-DESCRIPTION",
+              "FR-INV-LINE-QUANTITY",
+              "FR-INV-LINE-UNIT-PRICE",
+              "FR-INV-VAT-RATE",
+              "FR-INV-LINE-TOTALS",
+              "FR-INV-TOTAL-EXCL-VAT",
+              "FR-INV-VAT-AMOUNT",
+              "FR-INV-TOTAL-INCL-VAT",
+              "FR-INV-PAYMENT-DUE-DATE",
+              "FR-INV-LATE-PENALTIES",
+              "FR-INV-RECOVERY-INDEMNITY",
+              "FR-EINV-SIREN-BUYER",
+              "FR-EINV-OPERATION-NATURE",
+              "FR-EINV-VAT-ON-DEBITS",
+              "BALANCE-CHECK",
+              "VAT-EXPECTED-RATE",
               "DUPLICATE-CHECK",
-              "BALANCE-CHECK"
+              "VAT-SERVICES-EXIGIBILITY"
             ],
             "llm_used": false,
             "extraction_method": "structured_json"
@@ -525,9 +1122,10 @@
           "header": "PAYMENT-RESPONSE",
           "value": {
             "success": true,
-            "transaction": "0x5151613149444a75d26ad5acc8c8e3fa478933b20f391e495ea1036d9fd21255",
-            "network": "eip155:84532",
             "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
+            "transaction": "0x515179f5fed5d468ad80a44e8533c096620edcea6de7ce09792303ce579020e0",
+            "network": "eip155:84532",
+            "amount": "150000",
             "extra": {
               "simulated": true,
               "note": "SIMULATED settlement: no on-chain transaction was broadcast."
@@ -537,209 +1135,325 @@
       }
     },
     {
-      "t_ms": 3500,
+      "t_ms": 34,
       "kind": "settlement",
       "title": "Payment settled: 0.15 USDC (simulated transaction)",
-      "detail": "Transaction 0x515161314944… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_5ca2571251571ed60c2b stored for idempotency.",
+      "detail": "Transaction 0x515179f5fed5… (SIMULATED facilitator: same x402 flow, no on-chain transfer). Receipt req_01M7HZ554CDETJVD5YCP04YDM0 kept for idempotency.",
       "data": {
-        "tx_hash": "0x5151613149444a75d26ad5acc8c8e3fa478933b20f391e495ea1036d9fd21255",
+        "tx_hash": "0x515179f5fed5d468ad80a44e8533c096620edcea6de7ce09792303ce579020e0",
         "network": "eip155:84532",
         "amount_usdc": "0.15",
-        "request_id": "req_5ca2571251571ed60c2b",
+        "request_id": "req_01M7HZ554CDETJVD5YCP04YDM0",
         "explorer_url": null,
-        "simulated": true
+        "simulated": true,
+        "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF"
       }
     },
     {
-      "t_ms": 3590,
+      "t_ms": 34,
       "kind": "erp",
-      "title": "ERP: entry HA BC-2026-1187 posted (flagged for review)",
-      "detail": "3 lines written to the mock ERP (erp.json), debits = credits = 144.00 EUR.",
+      "title": "ERP: entry HA LBL-2026-1187 posted (flagged for review)",
+      "detail": "3 lines written to the mock ERP, debits = credits = 175.20 EUR, linked to receipt req_01M7HZ554CDETJVD5YCP04YDM0.",
       "data": {
-        "erp_file": "erp.json",
+        "erp": "mock ERP (in memory)",
+        "erp_id": "ERP-20261116-2F49A2",
         "status": "posted_review_pending",
         "journal": "HA",
-        "reference": "BC-2026-1187",
-        "lines": 3
+        "reference": "LBL-2026-1187",
+        "lines": [
+          {
+            "account": "6257",
+            "label": "Réceptions",
+            "debit": 146,
+            "credit": 0
+          },
+          {
+            "account": "44566",
+            "label": "TVA déductible sur autres biens et services",
+            "debit": 29.2,
+            "credit": 0
+          },
+          {
+            "account": "401BOUCHON",
+            "label": "Fournisseur Le Bouchon Lumière SARL (fictional)",
+            "debit": 0,
+            "credit": 175.2
+          }
+        ],
+        "balanced": true,
+        "request_id": "req_01M7HZ554CDETJVD5YCP04YDM0",
+        "tx_hash": "0x515179f5fed5d468ad80a44e8533c096620edcea6de7ce09792303ce579020e0"
       }
     },
     {
-      "t_ms": 3620,
+      "t_ms": 34,
       "kind": "review",
       "title": "Human review requested: VAT_RATE_MISMATCH",
-      "detail": "Message to the bookkeeper: 'Brasserie du Canal invoice BC-2026-1187 charges 20% VAT on meals eaten on site (10% expected). Please request a corrected invoice before deducting 24.00 EUR.'",
+      "detail": "Message to the bookkeeper: 'Le Bouchon Lumière SARL invoice LBL-2026-1187 applies 20% VAT where 10% is expected for this expense (13.60 EUR of VAT too much). Please ask the supplier for a corrected invoice: only the VAT legally due is deductible.'",
       "data": {
         "review_reasons": [
           "VAT_RATE_MISMATCH"
+        ],
+        "messages": [
+          "Le Bouchon Lumière SARL invoice LBL-2026-1187 applies 20% VAT where 10% is expected for this expense (13.60 EUR of VAT too much). Please ask the supplier for a corrected invoice: only the VAT legally due is deductible."
+        ],
+        "anomalies": [
+          {
+            "code": "VAT_RATE_MISMATCH",
+            "severity": "warning",
+            "detail": "Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice."
+          },
+          {
+            "code": "VAT_RATE_MISMATCH",
+            "severity": "warning",
+            "detail": "Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice."
+          }
         ],
         "channel": "ERP review queue"
       }
     },
     {
-      "t_ms": 3650,
+      "t_ms": 34,
       "kind": "reasoning",
       "title": "Done: entry prepared, a human must confirm",
-      "detail": "Cost of this call: 0.15 USDC. Daily spend: 0.30 / 2.00 USDC."
+      "detail": "Cost of this call: 0.15 USDC (simulated). Spent today: 0.30 / 2.00 USDC. Service explanation relayed to my operator: \"Purchase invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional) (175.20 EUR incl. VAT) is booked in journal HA: debit 6257 146.00, debit 44566 29.20, credit 401BOUCHON 175.20. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice. Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice. Human review required (VAT_RATE_MISMATCH); confidence 0.86.\"",
+      "data": {
+        "outcome": "posted_with_review",
+        "spent_today_usdc": "0.30",
+        "review_reasons": [
+          "VAT_RATE_MISMATCH"
+        ]
+      }
     }
   ],
   "result": {
-    "request_id": "req_5ca2571251571ed60c2b",
+    "request_id": "req_01M7HZ554CDETJVD5YCP04YDM0",
     "receipt": {
       "amount": "0.15",
       "amount_atomic": "150000",
       "asset": "USDC",
       "network": "base-sepolia",
       "network_caip2": "eip155:84532",
-      "tx_hash": "0x5151613149444a75d26ad5acc8c8e3fa478933b20f391e495ea1036d9fd21255",
+      "tx_hash": "0x515179f5fed5d468ad80a44e8533c096620edcea6de7ce09792303ce579020e0",
       "payer": "0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF",
       "pay_to": "0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC",
       "explorer_url": null,
       "mode": "simulated",
-      "paid_at": "2026-11-16T09:41:15.480Z"
+      "paid_at": "2026-11-16T10:41:28.215Z"
     },
     "invoice": {
       "document_type": "invoice",
-      "number": "BC-2026-1187",
-      "date": "2026-11-05",
+      "number": "LBL-2026-1187",
+      "date": "2026-10-08",
       "supplier": {
-        "name": "Brasserie du Canal SARL (fictional)",
-        "siren": "999000132",
-        "vat_id": "FR41999000132",
+        "name": "Le Bouchon Lumière SARL (fictional)",
+        "siren": "904521978",
+        "vat_id": "FR64904521978",
         "country": "FR",
-        "address": "3 quai du Canal, 69002 Lyon, France"
+        "address": "5 rue Mercière, 69002 Lyon"
       },
       "customer": {
         "name": "Atelier Lumen SAS (fictional)",
-        "siren": "999000116",
-        "vat_id": "FR90999000116",
+        "siren": "902417351",
+        "vat_id": "FR10902417351",
         "country": "FR",
-        "address": "12 rue des Ateliers, 69002 Lyon, France"
+        "address": "12 rue des Ateliers, 69002 Lyon"
       },
       "operation_nature": "services",
       "totals": {
-        "total_excl_vat": 120,
-        "total_vat": 24,
-        "total_incl_vat": 144
+        "total_excl_vat": 146,
+        "total_vat": 29.2,
+        "total_incl_vat": 175.2
       }
     },
     "compliance": {
-      "status": "warning",
+      "status": "compliant",
       "checks": [
         {
-          "rule_id": "FR-EINV-NUMBER",
-          "label": "Unique, sequential invoice number",
+          "rule_id": "FR-INV-NUMBER",
+          "label": "Unique invoice number",
           "passed": true,
-          "severity": "error"
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
         },
         {
-          "rule_id": "FR-EINV-DATE",
+          "rule_id": "FR-INV-DATE",
           "label": "Issue date",
           "passed": true,
-          "severity": "error"
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
         },
         {
-          "rule_id": "FR-EINV-SUPPLIER-ID",
-          "label": "Supplier name, address and SIREN",
+          "rule_id": "FR-INV-SUPPLIER-NAME",
+          "label": "Supplier name",
           "passed": true,
-          "severity": "error"
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
         },
         {
-          "rule_id": "FR-EINV-SUPPLIER-VAT",
-          "label": "Supplier VAT number",
+          "rule_id": "FR-INV-SUPPLIER-ADDRESS",
+          "label": "Supplier address",
           "passed": true,
-          "severity": "error"
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-CUSTOMER-NAME",
+          "label": "Customer name",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-CUSTOMER-ADDRESS",
+          "label": "Customer billing address",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-SUPPLIER-SIREN",
+          "label": "Supplier SIREN (valid 9-digit number)",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-SUPPLIER-VATID",
+          "label": "Supplier intra-EU VAT number",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-LINES-PRESENT",
+          "label": "At least one invoice line",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-LINE-DESCRIPTION",
+          "label": "Precise description of each good or service",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-LINE-QUANTITY",
+          "label": "Quantity on each line",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-LINE-UNIT-PRICE",
+          "label": "Unit price excl. VAT on each line",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-VAT-RATE",
+          "label": "Valid French VAT rate on each line (20, 10, 5.5, 2.1 or 0%)",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-LINE-TOTALS",
+          "label": "Line totals = quantity x unit price",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-TOTAL-EXCL-VAT",
+          "label": "Total excl. VAT = sum of lines",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-VAT-AMOUNT",
+          "label": "VAT amount consistent with the rates (per rate, 0.01 tolerance)",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-TOTAL-INCL-VAT",
+          "label": "Total incl. VAT = total excl. VAT + VAT",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-INV-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-PAYMENT-DUE-DATE",
+          "label": "Payment due date / payment terms",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-COM-INVOICE-MENTIONS"
+        },
+        {
+          "rule_id": "FR-INV-LATE-PENALTIES",
+          "label": "Late-payment penalty rate",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-COM-LATE-PENALTIES"
+        },
+        {
+          "rule_id": "FR-INV-RECOVERY-INDEMNITY",
+          "label": "EUR 40 fixed recovery indemnity (B2B)",
+          "passed": true,
+          "severity": "error",
+          "legal_basis_id": "LB-COM-LATE-PENALTIES"
         },
         {
           "rule_id": "FR-EINV-SIREN-BUYER",
           "label": "Buyer SIREN (e-invoicing reform)",
           "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-BUYER-VAT",
-          "label": "Buyer VAT number",
-          "passed": true,
-          "severity": "error"
+          "severity": "error",
+          "legal_basis_id": "LB-EINV-REFORM-MENTIONS"
         },
         {
           "rule_id": "FR-EINV-OPERATION-NATURE",
-          "label": "Nature of the operation: goods / services / mixed (reform)",
+          "label": "Operation category: goods / services / mixed (e-invoicing reform)",
           "passed": true,
-          "severity": "error"
+          "severity": "error",
+          "legal_basis_id": "LB-EINV-REFORM-MENTIONS"
         },
         {
-          "rule_id": "FR-EINV-DELIVERY-ADDRESS",
-          "label": "Delivery address, if different (reform)",
+          "rule_id": "FR-EINV-VAT-ON-DEBITS",
+          "label": "VAT-on-debits option stated when the supplier opted (e-invoicing reform)",
           "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-VAT-DEBITS-OPTION",
-          "label": "Option for VAT on debits, if any (reform)",
-          "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-LINES",
-          "label": "Description, quantity and unit price excl. VAT per line",
-          "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-VAT-BREAKDOWN",
-          "label": "VAT rate and amount per rate",
-          "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-TOTALS",
-          "label": "Totals consistent (excl. VAT + VAT = incl. VAT)",
-          "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-PAYMENT-TERMS",
-          "label": "Payment terms and late-payment penalties",
-          "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-EINV-RECOVERY-40",
-          "label": "EUR 40 fixed recovery indemnity mention (B2B)",
-          "passed": true,
-          "severity": "error"
-        },
-        {
-          "rule_id": "FR-VAT-RATE-CONSISTENCY",
-          "label": "VAT rate consistent with the goods or services",
-          "passed": false,
-          "severity": "warning",
-          "fix_hint": "On-site restaurant meals are taxed at 10% in France (alcoholic drinks at 20%). Ask the supplier for a corrected invoice."
+          "severity": "info",
+          "legal_basis_id": "LB-EINV-REFORM-MENTIONS"
         }
       ]
     },
     "entry": {
       "journal": "HA",
-      "date": "2026-11-05",
-      "reference": "BC-2026-1187",
+      "date": "2026-10-08",
+      "reference": "LBL-2026-1187",
       "lines": [
         {
           "account": "6257",
-          "label": "Réceptions (déjeuner d'affaires)",
-          "debit": 120,
+          "label": "Réceptions",
+          "debit": 146,
           "credit": 0
         },
         {
           "account": "44566",
-          "label": "TVA déductible sur ABS (20% facturée)",
-          "debit": 24,
+          "label": "TVA déductible sur autres biens et services",
+          "debit": 29.2,
           "credit": 0
         },
         {
-          "account": "401BRAS",
-          "label": "Fournisseur Brasserie du Canal",
+          "account": "401BOUCHON",
+          "label": "Fournisseur Le Bouchon Lumière SARL (fictional)",
           "debit": 0,
-          "credit": 144
+          "credit": 175.2
         }
       ],
       "balanced": true
@@ -751,40 +1465,71 @@
       "breakdown": [
         {
           "rate": 0.2,
-          "base": 120,
-          "vat": 24
+          "base": 146,
+          "vat": 29.2
         }
       ],
-      "note": "Invoice applies 20%; on-site catering is normally taxed at 10% (expected VAT 12.00 EUR). Booked as invoiced, flagged for review."
+      "legal_basis_id": "LB-VAT-RATE-STANDARD",
+      "note": "VAT on the services part becomes deductible when the invoice is paid (supplier has not opted for VAT on debits)."
     },
     "anomalies": [
       {
         "code": "VAT_RATE_MISMATCH",
-        "detail": "Line 1 'Business lunch, 4 set menus (eaten on site)': 20% VAT applied, 10% expected for on-site catering. VAT invoiced 24.00 EUR vs 12.00 EUR expected (12.00 EUR at risk if deducted).",
         "severity": "warning",
-        "rule_id": "FR-VAT-RATE-CONSISTENCY"
+        "rule_id": "VAT-EXPECTED-RATE",
+        "detail": "Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice."
+      },
+      {
+        "code": "VAT_RATE_MISMATCH",
+        "severity": "warning",
+        "rule_id": "VAT-EXPECTED-RATE",
+        "detail": "Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice."
       }
     ],
-    "confidence": 0.72,
+    "confidence": 0.86,
     "human_review_required": true,
     "review_reasons": [
       "VAT_RATE_MISMATCH"
     ],
-    "explanation": "Business lunch at Brasserie du Canal (fictional) booked to 6257 (Réceptions). The supplier charged 20% VAT on meals eaten on site, which are normally taxed at 10%: 24.00 EUR of VAT invoiced instead of 12.00 EUR. The entry records the invoice as issued, but deducting the full 24.00 EUR is a tax risk. Ask the supplier for a corrected invoice before deducting. Human review required.",
+    "explanation": "Purchase invoice LBL-2026-1187 from Le Bouchon Lumière SARL (fictional) (175.20 EUR incl. VAT) is booked in journal HA: debit 6257 146.00, debit 44566 29.20, credit 401BOUCHON 175.20. VAT treatment: standard 20% VAT. All mandatory invoice mentions checked are present. Attention: Line 1 (\"Déjeuner d'affaires — menu du jour\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 13.60 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice. Line 2 (\"Cafés\") is invoiced at 20%; the expected rate for this expense (business meals and receptions) is 10%. Excess VAT: 1.00 EUR. The entry books the VAT as invoiced; only the VAT legally due is deductible — request a corrected invoice. Human review required (VAT_RATE_MISMATCH); confidence 0.86.",
     "engine": {
       "version": "0.1.0",
       "rules_applied": [
-        "PCG-MAP-RECEPTIONS",
-        "VAT-RATE-CATERING-10",
-        "FR-EINV-MANDATORY-MENTIONS",
+        "PCG-MAP-6257",
+        "VAT-REGIME-STANDARD",
+        "FR-INV-NUMBER",
+        "FR-INV-DATE",
+        "FR-INV-SUPPLIER-NAME",
+        "FR-INV-SUPPLIER-ADDRESS",
+        "FR-INV-CUSTOMER-NAME",
+        "FR-INV-CUSTOMER-ADDRESS",
+        "FR-INV-SUPPLIER-SIREN",
+        "FR-INV-SUPPLIER-VATID",
+        "FR-INV-LINES-PRESENT",
+        "FR-INV-LINE-DESCRIPTION",
+        "FR-INV-LINE-QUANTITY",
+        "FR-INV-LINE-UNIT-PRICE",
+        "FR-INV-VAT-RATE",
+        "FR-INV-LINE-TOTALS",
+        "FR-INV-TOTAL-EXCL-VAT",
+        "FR-INV-VAT-AMOUNT",
+        "FR-INV-TOTAL-INCL-VAT",
+        "FR-INV-PAYMENT-DUE-DATE",
+        "FR-INV-LATE-PENALTIES",
+        "FR-INV-RECOVERY-INDEMNITY",
+        "FR-EINV-SIREN-BUYER",
+        "FR-EINV-OPERATION-NATURE",
+        "FR-EINV-VAT-ON-DEBITS",
+        "BALANCE-CHECK",
+        "VAT-EXPECTED-RATE",
         "DUPLICATE-CHECK",
-        "BALANCE-CHECK"
+        "VAT-SERVICES-EXIGIBILITY"
       ],
       "llm_used": false,
       "extraction_method": "structured_json"
     },
     "disclaimer": "Proof of concept on synthetic data. Not a substitute for a chartered accountant's review."
   },
-  "duration_ms": 3670,
+  "duration_ms": 35,
   "outcome": "posted_with_review"
 }

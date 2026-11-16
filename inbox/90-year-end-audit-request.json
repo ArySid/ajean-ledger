@@ -1,0 +1,11 @@
+{
+  "id": "90",
+  "kind": "audit_request",
+  "received_at": "2026-10-31T17:00:00Z",
+  "channel": "internal ticket",
+  "from": "cfo@atelier-lumen.example (fictional)",
+  "subject": "Can the agent run a batch audit of October purchases before closing?",
+  "task": "audit",
+  "audit_fixtures": ["01", "03", "04"],
+  "note": "Policy-refusal demo: POST /api/v1/audit costs 1.00 USDC, above the agent's max_per_call (0.20 USDC), so the agent refuses and escalates to a human. Run with --max-per-call 1.00 to let it through."
+}
