@@ -22,8 +22,7 @@
     "X402_NETWORK": "eip155:84532",
     "X402_FACILITATOR_URL": "https://x402.org/facilitator",
     "STORE_KIND": "auto"
-  }
-  // Optional storage (free): uncomment after `npx wrangler kv namespace create AJEAN_KV`
-  // and paste the id. Without it the app uses the in-memory store (+ replay fallback).
-  // "kv_namespaces": [{ "binding": "AJEAN_KV", "id": "<KV_NAMESPACE_ID>" }]
+  },
+  // Optional storage (free KV). Without it the app uses the in-memory store (+ replay fallback).
+  "kv_namespaces": [{ "binding": "AJEAN_KV", "id": "c951f5aa2b3f404bbd1810f582c0e428" }]
 }
