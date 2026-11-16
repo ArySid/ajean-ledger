@@ -90,7 +90,7 @@ describe("bundled replays", () => {
       const r = (t.result as { receipt: Parameters<typeof isSimulatedTx>[0] }).receipt;
       if (t.recorded_from === "testnet") {
         expect(isSimulatedTx(r), t.scenario).toBe(false);
-        expect(txExplorerUrl(r), t.scenario).toBe(`https://sepolia.basescan.org/tx/${r.tx_hash}`);
+        expect(txExplorerUrl(r), t.scenario).toBe(`https://sepolia.basescan.org/tx/${r?.tx_hash}`);
       } else {
         expect(isSimulatedTx(r), t.scenario).toBe(true);
         expect(txExplorerUrl(r), t.scenario).toBeNull();

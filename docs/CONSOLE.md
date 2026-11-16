@@ -24,8 +24,8 @@ works from 1280×720 down to mobile.
 - **Replay recorded run**: plays a stored trace directly.
 - **Speed** (0.5× to 4×) and **Skip animation**.
 - **Mode badge**, always visible: TESTNET (green, real test USDC), SIMULATED (violet, mock facilitator), REPLAY (grey, recorded run).
-  Hovering it shows what the mode means; the **ⓘ Modes** legend next to it explains all three (texts in
-  `lib/console/modes.ts`, shared by the badge tooltip and the legend).
+  Hovering it shows what the mode means; **clicking it (ⓘ)** opens a legend of all three modes and says which mode
+  this deployment runs (texts in `lib/console/modes.ts`, shared by the badge tooltip and the legend).
 - While a live call is pending: an elapsed counter (timeout 45 s) and a **Use recorded run now** button.
 - Presenter URL shortcuts: `/live?scenario=03&autoplay=replay&speed=2`, `&autoplay=run&mode=simulated`, `&skip=1`.
 

@@ -195,11 +195,9 @@ export function LiveConsole() {
           <input type="checkbox" checked={skipAnim} onChange={(e) => setSkipAnim(e.target.checked)} />
           Skip animation
         </label>
-        <span className="spacer" />
-        <ModeBadge mode={badgeMode} sub={badgeSub} />
         <details className="mode-legend" data-testid="mode-legend">
-          <summary aria-label="What do the modes mean?" title="What do TESTNET, SIMULATED and REPLAY mean?">
-            ⓘ
+          <summary aria-label={`Payment mode ${badgeMode}. Click for what TESTNET, SIMULATED and REPLAY mean.`}>
+            <ModeBadge mode={badgeMode} sub={badgeSub} hint />
           </summary>
           <div className="mode-legend-pop" role="note">
             <dl>

@@ -1,7 +1,8 @@
 import { MODE_INFO } from "@/lib/console/modes";
 import type { PaymentModeLabel } from "@/lib/trace/types";
 
-export function ModeBadge({ mode, sub }: { mode: PaymentModeLabel; sub?: string }) {
+/** `hint` adds a small ⓘ: the badge then opens the modes legend (see LiveConsole). */
+export function ModeBadge({ mode, sub, hint }: { mode: PaymentModeLabel; sub?: string; hint?: boolean }) {
   const info = MODE_INFO[mode];
   return (
     <span
@@ -14,6 +15,11 @@ export function ModeBadge({ mode, sub }: { mode: PaymentModeLabel; sub?: string 
       <span className="dot" aria-hidden="true" />
       {mode}
       <span className="mode-sub">{sub ?? info.short}</span>
+      {hint && (
+        <span className="mode-hint" aria-hidden="true">
+          ⓘ
+        </span>
+      )}
     </span>
   );
 }

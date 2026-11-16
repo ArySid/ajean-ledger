@@ -19,7 +19,7 @@ No detours: one invoice, one payment, one result. Fixture: **03, restaurant invo
 
 ## Tabs open before you start (in this order)
 
-1. `https://ajean-ledger.ary-sidoun.workers.dev/live?scenario=03`: scenario **03 · Restaurant VAT anomaly** selected, mode **TESTNET** (the console selects the deployment's mode by itself; hover the badge or open **ⓘ Modes** for the legend)
+1. `https://ajean-ledger.ary-sidoun.workers.dev/live?scenario=03`: scenario **03 · Restaurant VAT anomaly** selected, mode **TESTNET** (the console selects the deployment's mode by itself; click the mode badge (ⓘ) for the legend of the three modes)
 2. `https://ajean-ledger.ary-sidoun.workers.dev/operator`
 3. Base Sepolia explorer (`https://sepolia.basescan.org`) for the service wallet `0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC`
 4. `https://ajean-ledger.ary-sidoun.workers.dev/` (landing, only if a jury member asks for the overview)
@@ -38,6 +38,8 @@ No detours: one invoice, one payment, one result. Fixture: **03, restaurant invo
 
 Total: about **2:35**, which leaves 25 seconds of slack within 3 minutes.
 
+> At the end of a run the timeline scrolls to the last step: to point at the 402 step at 0:35, the driver scrolls the left column back up (or ticks **Skip animation** before running and scrolls once).
+
 > Amounts above are the fixture 03 engine output after the Phase 1 review fix (ADR-018): 6257 160.60 / 44566 14.60 / 401BOUCHON 175.20. Do not say a number on stage that is not on screen.
 
 ## Fallback ladder (each step is one click; never debug on stage)
@@ -47,7 +49,7 @@ The public deployment runs **one** payment mode (`PAYMENT_MODE`, chosen by us, n
 | Level | Trigger | Driver action | Narrator line |
 |---|---|---|---|
 | **1. TESTNET** (default) | — | — | — |
-| **2. REPLAY (automatic or manual)** | The yellow notice appears, or the 402 → 200 step takes more than **10 s** | Nothing if automatic; otherwise click **Use recorded run now** (while waiting) or **⟲ Replay recorded run** | "The conference Wi-Fi is the one thing we don't control, so here is the same exchange recorded from a real testnet run: same requests, same 402, same payment, with its real transaction hash you can check on the explorer afterwards." |
+| **2. REPLAY (automatic or manual)** | The yellow notice appears, or the 402 → 200 step takes more than **10 s** | Nothing if automatic; otherwise click **Use recorded run now** (while waiting) or **⟲ Replay recorded run** | "The conference Wi-Fi is the one thing we don't control, so here is the same exchange recorded earlier from the same agent: same requests, same 402, same payment." Add "with its real transaction hash, which you can check on the explorer afterwards" **only if** the notice line says *recorded from a testnet run*; if it says *simulated*, say "simulated payment, labelled on screen". |
 | **3. Backup laptop** | The public URL does not load at all | Backup laptop takes over, already on `/live` with a replay loaded (works offline once the page is open: replays are bundled in the page) | Same line as level 2. |
 | **4. Last resort** | No network and no browser | Play the backup screen recording `{{BACKUP_VIDEO_PATH}}` | "Same run, recorded." Then move on to the slides. |
 
