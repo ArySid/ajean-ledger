@@ -78,7 +78,7 @@ npm run warmup -- --pay --expect-mode testnet
 It targets the public URL by default. It checks the 17 things the demo needs: the pages, the discovery files, the 402 on the three paid endpoints, one paid `/api/v1/entry` call and its receipt, one full demo run of scenario 03, and the recorded replay of 03. It also warms the Cloudflare Worker isolates, so the jury's first click is not a cold start. It ends with a banner:
 
 - **`✔ READY FOR DEMO`**: nothing to do.
-- **`✖ NOT READY`**: the red lines say why. Fix it, or decide on the spot to start the demo on REPLAY and tell the narrator.
+- **`✖ NOT READY`**: the red lines say why. First run it once more: the very first request after a deploy or a long idle period can hit a cold Worker (observed once on 2026-11-16, green on the immediate re-run). If it is still red, fix it, or decide on the spot to start the demo on REPLAY and tell the narrator.
 
 `--pay` spends test USDC only: **0.15** for the direct paid call plus **0.15** for the demo run paid by the Worker's agent (same agent wallet), so **0.30 test USDC** per warmup. Without `--pay`, the two paid checks are skipped (shown as `skip`), but the 402s, pages and replay are still checked.
 
