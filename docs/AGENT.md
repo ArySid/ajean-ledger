@@ -81,12 +81,14 @@ tests (no network in tests) and was not exercised in this session (no key config
 
 | Route | Behaviour |
 |---|---|
-| `POST /api/demo/run` `{scenario: "01"\|"03"\|"04"\|"06", mode?, reasoning?}` | Runs `runAgent` in-process against **the same deployment** (base URL from the request host, override `AJEAN_LEDGER_INTERNAL_URL`), real HTTP + x402. Returns the `AgentTrace`, `mode` = server payment mode (`TESTNET`/`SIMULATED`). On failure: HTTP 200, `outcome: "error"`, the steps so far, `fallback_hint: "replay"`. Guards: 1 concurrent run per instance (`429 DEMO_BUSY`), the API rate limiter, 40 s run deadline (`maxDuration` 60). Wallet: `AGENT_PRIVATE_KEY`; if missing, an ephemeral key in SIMULATED only (labelled in step 1), error trace in TESTNET. Spend: per-instance memory ledger in TESTNET; each SIMULATED run starts at 0 (fake money, keeps rehearsals from hitting the budget). ERP: memory. |
+| `POST /api/demo/run` `{scenario: "01"\|"03"\|"04"\|"06", mode?, reasoning?}` | Runs `runAgent` in-process against **the same deployment** (base URL from the request host, override `AJEAN_LEDGER_INTERNAL_URL`), real HTTP + x402. Returns the `AgentTrace`, `mode` = server payment mode (`TESTNET`/`SIMULATED`). On failure: HTTP 200, `outcome: "error"`, the steps so far, `fallback_hint: "replay"`. Guards: 1 concurrent run per instance (`429 DEMO_BUSY`), its own per-IP rate limit (30/min, `429 RATE_LIMITED`), 40 s run deadline (`maxDuration` 60). Wallet: `AGENT_PRIVATE_KEY`; if missing, an ephemeral key in SIMULATED only (labelled in step 1), error trace in TESTNET. Spend: per-instance memory ledger in TESTNET; each SIMULATED run starts at 0 (fake money, keeps rehearsals from hitting the budget). ERP: memory. |
 | `GET /api/demo/replays?scenario=03` | The recorded trace `demo/replays/03.json`, `mode` forced to `REPLAY`. Without `scenario`: the list. Unknown scenario: 404. Bundled at build time (no fs at runtime). |
 | `GET /api/v1/operator/stats` (free) | `{calls, usdc_earned, by_endpoint:[{endpoint, calls, usdc}], by_mode, recent:[{request_id, at, endpoint, payer, amount, tx_hash, explorer_url, mode}], source, generated_at}` from `getStore().stats()`; `source` = store kind (`memory`/`file`/`neon`/`upstash`). With 0 calls served: aggregated from the replays, `source: "replay"`. USDC amounts are decimal strings. |
 
-Deployment note: `/api/demo/run` calls its own public URL; if Vercel Deployment Protection is on,
-set `AJEAN_LEDGER_INTERNAL_URL` (or a bypass) so the self-call is not blocked.
+Deployment note: `/api/demo/run` calls its own public URL (on Cloudflare Workers the self-call goes back
+through the front door, `global_fetch_strictly_public`); if the deployment sits behind an access gate,
+set `AJEAN_LEDGER_INTERNAL_URL` so the self-call is not blocked. Rate limit: 30 demo runs per client IP and
+minute (`DEMO_RUN_RATE_LIMIT_PER_MINUTE`, 429 + `fallback_hint: "replay"`).
 
 ## Recorded replays
 

@@ -16,11 +16,16 @@ works from 1280×720 down to mobile.
 
 ### `/live` controls
 - **Scenario**: 01 compliant office supplies, 03 restaurant VAT 20% instead of 10%, 04 intra-EU consulting services (reverse charge), 06 duplicate of 01 (`lib/console/scenarios.ts`).
-- **TESTNET / SIMULATED**: payment mode requested from the live agent.
+- **TESTNET / SIMULATED**: payment mode of live runs. The **server** decides how agents pay (`PAYMENT_MODE`), so on
+  load the console reads `GET /api/health` (`fetchServerMode`) and selects the deployment's mode; the other button
+  is disabled with a tooltip ("this deployment runs in … mode; REPLAY always works"). If health is unreachable both
+  stay enabled and the badge after a run shows the real mode.
 - **Run scenario**: live run through the demo agent (with automatic fallback, see below).
 - **Replay recorded run**: plays a stored trace directly.
 - **Speed** (0.5× to 4×) and **Skip animation**.
 - **Mode badge**, always visible: TESTNET (green, real test USDC), SIMULATED (violet, mock facilitator), REPLAY (grey, recorded run).
+  Hovering it shows what the mode means; the **ⓘ Modes** legend next to it explains all three (texts in
+  `lib/console/modes.ts`, shared by the badge tooltip and the legend).
 - While a live call is pending: an elapsed counter (timeout 45 s) and a **Use recorded run now** button.
 - Presenter URL shortcuts: `/live?scenario=03&autoplay=replay&speed=2`, `&autoplay=run&mode=simulated`, `&skip=1`.
 
@@ -53,8 +58,9 @@ The API returns the whole trace at once; the console animates it client side (it
 are bundled into the page, so `/live` (Replay) and `/operator` work with no backend at all, including on
 a static host.
 
-The current files are **sample traces** (`"sample": true`, `recorded_from: "simulated"`, simulated
-`0x5151…` tx hashes, no explorer link). They follow the x402 v2 wire format (`PAYMENT-REQUIRED`,
+The current files are **recorded from real runs of the demo agent against a SIMULATED server**
+(`recorded_from: "simulated"`, simulated `0x5151…` tx hashes, no explorer link; `npm run record:replays`).
+Once the agent wallet is funded they are re-recorded against the TESTNET deployment (`docs/HOSTING.md` §7). They follow the x402 v2 wire format (`PAYMENT-REQUIRED`,
 `PAYMENT-SIGNATURE`, `PAYMENT-RESPONSE` as base64 JSON, `eip155:84532`, 150000 atomic units, test
 USDC `0x036C…CF7e`, payTo `0xCB4b…dFeC`, agent `0xD25E…c1BF`) and the receipt shape of
 `lib/payments/receipt.ts`. Overwrite them with real recorded runs (same file names, `AgentTrace` JSON);
@@ -80,7 +86,11 @@ Timeline rendering relies on `TraceStep.kind`, `title`, `detail`, `t_ms`, `http`
 ## Verification
 
 - `npx vitest run tests/console.test.ts`: replays are valid and balanced, x402 headers decode, and every
-  rung of the fallback ladder (failure, timeout, replay API, live, malformed payload) plus the stats
-  normaliser.
+  rung of the fallback ladder (network failure, timeout, HTTP 5xx such as a Cloudflare 1102, 429, a trace with
+  `outcome: "error"`, replay API, live, malformed payload), the stats normaliser, the mode legend and
+  `fetchServerMode`.
+- Fallbacks checked in Phase 6: live run fails → REPLAY automatically (`tests/console.test.ts`); `/operator` with an
+  empty store → replay-derived stats (`tests/agent.test.ts`, and `npm run warmup` shows `store=replay` on a fresh
+  server); API with a failing store → memory, the paid call still returns 200 + receipt (`tests/api.test.ts`).
 - Screenshots at 1280×720 in `docs/screenshots/` (`landing.png`, `live-replay-03.png`,
   `live-402-expanded.png`, `live-run-fallback-04.png`, `operator.png`, `office.png`, `mobile-live.png`).

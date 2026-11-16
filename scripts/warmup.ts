@@ -1,9 +1,11 @@
 /**
- * npm run warmup [-- --url https://ajean-ledger.<subdomain>.workers.dev] [--pay] [--timeout 45000]
+ * npm run warmup [-- --url <base>] [--pay] [--expect-mode testnet|simulated] [--timeout 45000]
  *
- * Day-J check of the PUBLIC deployment (default URL: env PUBLIC_URL, else http://localhost:8787 =
- * `npm run cf:preview`). Hits every page/endpoint the demo needs, warms the Worker isolates, and prints a
- * green/red table with latencies. Exits non-zero if any check fails.
+ * Day-J check of the PUBLIC deployment. Default URL: --url, else env PUBLIC_URL, else the public
+ * Cloudflare Workers demo https://ajean-ledger.ary-sidoun.workers.dev. Run it the evening before and
+ * ~1 h before presenting (deliverables/DEMO_SCRIPT.md). Hits every page/endpoint the demo needs, warms
+ * the Worker isolates, prints a green/red table with latencies and a final "READY FOR DEMO" or
+ * "NOT READY" banner. Exits non-zero if any check fails.
  *
  * Paid endpoint (POST /api/v1/entry):
  *  - always: unpaid call → expect 402 + PAYMENT-REQUIRED (x402 v2).
@@ -11,7 +13,11 @@
  *    no funds needed) via @x402/fetch + ExactEvmScheme → expect 200 + receipt; then the free receipt lookup.
  *  - deployment in TESTNET mode: stops at the 402 unless `--pay` is given AND AGENT_PRIVATE_KEY is set
  *    (env or .env.local) — that spends 0.15 test USDC on Base Sepolia.
- * Never prints private keys.
+ * Demo run (POST /api/demo/run, scenario 03 = the live demo): always in SIMULATED; in TESTNET only with
+ * `--pay`, because the server-side agent then pays 0.15 test USDC from the Worker's AGENT_PRIVATE_KEY.
+ * The recorded REPLAY of 03 (the console's fallback) is always checked.
+ * --expect-mode fails the run if the deployment is not in that payment mode (e.g. testnet on Day J).
+ * Never prints private keys. Stays far below the rate limits (see lib/api/rate-limit.ts).
  */
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -34,8 +40,10 @@ const arg = (name: string): string | undefined => {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 ? argv[i + 1] : undefined;
 };
-const BASE = (arg("url") ?? process.env.PUBLIC_URL ?? "http://localhost:8787").replace(/\/$/, "");
+export const DEFAULT_PUBLIC_URL = "https://ajean-ledger.ary-sidoun.workers.dev";
+const BASE = (arg("url") ?? (process.env.PUBLIC_URL?.trim() || DEFAULT_PUBLIC_URL)).replace(/\/$/, "");
 const PAY = argv.includes("--pay");
+const EXPECT_MODE = arg("expect-mode");
 const TIMEOUT = Number(arg("timeout") ?? 45_000);
 const tty = process.stdout.isTTY;
 const green = (s: string) => (tty ? `\x1b[32m${s}\x1b[0m` : s);
@@ -121,6 +129,15 @@ async function main() {
   const payment = (h?.payment ?? {}) as { mode?: string; pay_to?: string };
   const mode = payment.mode ?? "unknown";
   if (h) rows[rows.length - 1].note = `mode=${mode} store=${(h.store as { kind?: string })?.kind ?? "?"} engine_ready=${h.engine_ready}`;
+  if (EXPECT_MODE) {
+    rows.push({
+      name: `payment mode = ${EXPECT_MODE}`,
+      ok: mode === EXPECT_MODE,
+      status: "-",
+      ms: 0,
+      note: mode === EXPECT_MODE ? "" : `deployment runs ${mode} (vars.PAYMENT_MODE in wrangler.embedded.jsonc, then redeploy)`,
+    });
+  }
 
   await check("GET /", "/", { validate: (_r, t) => (t.includes("Ajean") ? true : "page does not mention Ajean") });
   await check("GET /live", "/live");
@@ -205,17 +222,36 @@ async function main() {
     if (requestId) await check("GET /api/v1/receipts/{id}", `/api/v1/receipts/${requestId}`, { validate: isJson });
   }
 
-  // Demo agent run (scenario 03)
-  await check("POST /api/demo/run (03)", "/api/demo/run", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ scenario: "03", mode: mode === "testnet" && PAY ? "testnet" : "simulated" }),
+  // Demo agent run (scenario 03 = the live demo). In TESTNET the server-side agent spends real test USDC.
+  if (mode === "simulated" || (mode === "testnet" && PAY)) {
+    let summary = "";
+    await check("POST /api/demo/run (03)", "/api/demo/run", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scenario: "03", mode }),
+      validate: (_r, t) => {
+        const j = json(t);
+        const trace = (j?.trace ?? j) as { outcome?: string; mode?: string; steps?: { kind?: string; title?: string; detail?: string }[]; result?: { receipt?: { tx_hash?: string } } } | null;
+        if (!trace || !Array.isArray(trace.steps)) return "not an AgentTrace";
+        if (trace.outcome === "error") {
+          const e = trace.steps.find((s) => s.kind === "error");
+          return `trace outcome=error${e ? `: ${e.title}${e.detail ? ` (${e.detail.slice(0, 100)})` : ""}` : ""} → the console would fall back to REPLAY`;
+        }
+        if (trace.outcome !== "posted_with_review") return `unexpected outcome ${trace.outcome} (expected posted_with_review)`;
+        summary = `outcome=${trace.outcome} mode=${trace.mode}${trace.result?.receipt?.tx_hash ? ` tx ${trace.result.receipt.tx_hash.slice(0, 12)}…` : ""}`;
+        return true;
+      },
+    });
+    if (summary) rows[rows.length - 1].note = summary;
+  } else {
+    rows.push({ name: "POST /api/demo/run (03)", ok: null, status: "skip", ms: 0, note: `mode=${mode}: add --pay (the agent pays 0.15 test USDC from the Worker's wallet)` });
+  }
+  // The console's fallback: the recorded run of scenario 03.
+  await check("GET /api/demo/replays?scenario=03", "/api/demo/replays?scenario=03", {
     validate: (_r, t) => {
       const j = json(t);
-      const trace = (j?.trace ?? j) as { outcome?: string; steps?: unknown[] } | null;
-      if (!trace || !Array.isArray(trace.steps)) return "not an AgentTrace";
-      if (trace.outcome === "error") return "trace outcome=error";
-      return true;
+      const trace = (j?.trace ?? j) as { steps?: unknown[]; recorded_from?: string } | null;
+      return trace && Array.isArray(trace.steps) && trace.steps.length > 0 ? true : "no recorded trace";
     },
   });
 
@@ -228,7 +264,21 @@ async function main() {
     console.log(`${r.name.padEnd(w)}  ${res}  ${r.status.padEnd(5)}  ${String(r.ms).padStart(5)}  ${r.note}`);
   }
   const failed = rows.filter((r) => r.ok === false).length;
-  console.log(`\n${failed ? red(`${failed} check(s) failed`) : green("all checks passed")}  (mode=${mode}, ${BASE})`);
+  const passed = rows.filter((r) => r.ok === true).length;
+  const skipped = rows.filter((r) => r.ok === null).length;
+  const bar = "═".repeat(72);
+  console.log("");
+  if (failed) {
+    console.log(red(bar));
+    console.log(red(`  ✖ NOT READY — ${failed} check(s) failed  (${passed} passed${skipped ? `, ${skipped} skipped` : ""}; mode=${mode}; ${BASE})`));
+    console.log(red("  Fix it now, or start the demo on REPLAY (/live → \"Replay recorded run\") and tell the narrator."));
+    console.log(red(bar));
+  } else {
+    console.log(green(bar));
+    console.log(green(`  ✔ READY FOR DEMO — ${passed} checks passed${skipped ? `, ${skipped} skipped` : ""}  (mode=${mode.toUpperCase()}; ${BASE})`));
+    if (skipped) console.log(grey("  Skipped checks need --pay (spends test USDC in TESTNET mode)."));
+    console.log(green(bar));
+  }
   process.exit(failed ? 1 : 0);
 }
 

@@ -5,7 +5,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { privateKeyToAccount } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { x402Client, wrapFetchWithPayment, decodePaymentResponseHeader } from "@x402/fetch";
 import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
@@ -42,12 +42,30 @@ export function die(msg: string, code = 1): never {
   process.exit(code);
 }
 
-export function agentAccount() {
-  const key = process.env.AGENT_PRIVATE_KEY?.trim();
-  if (!key || !/^0x[0-9a-fA-F]{64}$/.test(key)) {
-    die("AGENT_PRIVATE_KEY is missing in .env.local. Generate throwaway wallets with: npx tsx scripts/gen-wallets.ts");
+/** True when AGENT_PRIVATE_KEY holds a 32-byte hex private key. */
+export function hasAgentKey(): boolean {
+  return /^0x[0-9a-fA-F]{64}$/.test(process.env.AGENT_PRIVATE_KEY?.trim() ?? "");
+}
+
+/**
+ * The agent wallet. With `ephemeralIfMissing` (SIMULATED only: no real funds involved), a missing or
+ * placeholder AGENT_PRIVATE_KEY is replaced by a fresh in-memory key, with a visible note. Never printed.
+ */
+export function agentAccount(opts: { ephemeralIfMissing?: boolean } = {}) {
+  if (!hasAgentKey()) {
+    if (opts.ephemeralIfMissing) {
+      console.log(
+        "note: AGENT_PRIVATE_KEY not set (or placeholder) → using an EPHEMERAL in-memory wallet for this run (SIMULATED only, no funds involved).\n" +
+          "      For TESTNET payments create throwaway wallets with: npx tsx scripts/gen-wallets.ts",
+      );
+      return privateKeyToAccount(generatePrivateKey());
+    }
+    die(
+      "AGENT_PRIVATE_KEY is missing or invalid (env or .env.local). Generate throwaway testnet wallets with: npx tsx scripts/gen-wallets.ts, " +
+        "then fund the agent with test USDC at https://faucet.circle.com (Base Sepolia).",
+    );
   }
-  return privateKeyToAccount(key as `0x${string}`);
+  return privateKeyToAccount(process.env.AGENT_PRIVATE_KEY!.trim() as `0x${string}`);
 }
 
 /** Minimal synthetic invoice (fictional companies) used when fixtures/01.json is absent. */
@@ -127,7 +145,6 @@ export async function runPaymentDemo(expectedMode: "simulated" | "testnet"): Pro
   const endpoint = PAID_ENDPOINTS[endpointId];
   const target = `${url}${endpoint.path}`;
   const { body, source } = requestBody(endpointId);
-  const account = agentAccount();
 
   h("0. Service health");
   const hs = await health(url);
@@ -140,6 +157,7 @@ export async function runPaymentDemo(expectedMode: "simulated" | "testnet"): Pro
       2,
     );
   }
+  const account = agentAccount({ ephemeralIfMissing: expectedMode === "simulated" });
   console.log(`agent wallet ${account.address}  →  ${endpoint.method} ${endpoint.path}  (${endpoint.price_usdc} USDC)  body: ${source}`);
 
   h("1. Unpaid request");

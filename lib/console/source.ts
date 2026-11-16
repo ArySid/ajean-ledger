@@ -165,3 +165,22 @@ export async function runScenario(scenario: ScenarioId, mode: RunMode, opts: Sou
     return { ...replay, notice: LIVE_FAILED_NOTICE, error: errMsg(e) };
   }
 }
+
+/**
+ * The payment mode this deployment actually runs (GET /api/health → payment.mode), or null if unknown.
+ * The console aligns its mode selector on it: the server, not the browser, decides how agents pay.
+ * Never throws.
+ */
+export async function fetchServerMode(opts: { fetchImpl?: typeof fetch; baseUrl?: string; timeoutMs?: number } = {}): Promise<RunMode | null> {
+  const fetchImpl = opts.fetchImpl ?? globalThis.fetch?.bind(globalThis);
+  if (!fetchImpl) return null;
+  try {
+    const json = (await fetchJson(`${opts.baseUrl ?? ""}/api/health`, { method: "GET", headers: { accept: "application/json" } }, opts.timeoutMs ?? REPLAY_API_TIMEOUT_MS, fetchImpl)) as {
+      payment?: { mode?: unknown };
+    };
+    const m = json?.payment?.mode;
+    return m === "testnet" || m === "simulated" ? m : null;
+  } catch {
+    return null;
+  }
+}

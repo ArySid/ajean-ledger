@@ -356,6 +356,29 @@ describe("demo routes", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/demo/run is rate limited per client IP (429 + Retry-After + fallback_hint replay)", async () => {
+    process.env.DEMO_RUN_RATE_LIMIT_PER_MINUTE = "2";
+    try {
+      const run = (ip: string) =>
+        demoRunPOST(
+          new NextRequest(`${BASE}/api/demo/run`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "cf-connecting-ip": ip },
+            body: JSON.stringify({ scenario: "99" }),
+          }),
+        );
+      expect((await run("203.0.113.5")).status).toBe(400);
+      expect((await run("203.0.113.5")).status).toBe(400);
+      const limited = await run("203.0.113.5");
+      expect(limited.status).toBe(429);
+      expect(limited.headers.get("Retry-After")).toBeTruthy();
+      expect(await limited.json()).toMatchObject({ error: { code: "RATE_LIMITED" }, fallback_hint: "replay" });
+      expect((await run("203.0.113.6")).status).toBe(400); // other client unaffected
+    } finally {
+      delete process.env.DEMO_RUN_RATE_LIMIT_PER_MINUTE;
+    }
+  });
+
   it("POST /api/demo/run runs the agent against the same deployment (ephemeral wallet in SIMULATED)", async () => {
     vi.stubGlobal("fetch", makeFetch());
     try {

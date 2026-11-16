@@ -6,7 +6,7 @@ type Row = Record<string, unknown>;
 type Sql = (strings: TemplateStringsArray, ...params: unknown[]) => Promise<Row[]>;
 
 /**
- * Neon Postgres store (Vercel marketplace integration). Tables are created
+ * Neon Postgres store (optional, Neon free plan via DATABASE_URL). Tables are created
  * IF NOT EXISTS on first use: `ajean_receipts` and `ajean_fingerprints`.
  */
 export class NeonStore implements Store {

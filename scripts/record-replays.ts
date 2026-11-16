@@ -8,7 +8,11 @@
  *
  *   PAYMENT_MODE=simulated npx next start -p 3500   (or npm run dev)
  *   AJEAN_LEDGER_URL=http://localhost:3500 npm run record:replays
- *   flags: --url <base>  --dry-run (print a summary, write nothing)
+ *   npm run record:replays -- --public          record directly against the PUBLIC deployment
+ *                                               (env PUBLIC_URL, else DEFAULT_PUBLIC_URL); with a TESTNET
+ *                                               deployment this pays 4 × 0.15 test USDC from AGENT_PRIVATE_KEY
+ *                                               and yields replays with real Base Sepolia tx hashes.
+ *   flags: --url <base>  --public  --dry-run (print a summary, write nothing)
  *          --public-url [base]  rewrite the recorded base URL (e.g. http://localhost:3600) to the public
  *                               service URL in every string of the traces, including base64 x402 headers.
  *                               Value: the flag argument, else env PUBLIC_URL, else DEFAULT_PUBLIC_URL.
@@ -81,7 +85,8 @@ const EXPECTED: Record<DemoScenarioId, AgentTrace["outcome"]> = {
 };
 
 async function main() {
-  const url = (argVal("url") ?? process.env.AJEAN_LEDGER_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const publicBase = (process.env.PUBLIC_URL?.trim() || DEFAULT_PUBLIC_URL).replace(/\/$/, "");
+  const url = (argVal("url") ?? (argv.includes("--public") ? publicBase : undefined) ?? process.env.AJEAN_LEDGER_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const health = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(5000) })
     .then((r) => r.json() as Promise<{ payment?: { mode?: string } }>)
     .catch(() => null);
@@ -121,7 +126,9 @@ async function main() {
       scenarioLabel: DEMO_SCENARIO_LABELS[id],
     });
     const ok = trace.outcome === EXPECTED[id];
-    console.log(`  ${id}  ${trace.outcome.padEnd(20)} ${trace.steps.length} steps  ${trace.duration_ms} ms  ${ok ? "OK" : `EXPECTED ${EXPECTED[id]}`}`);
+    const rc = (trace.result as { receipt?: { tx_hash?: string; explorer_url?: string | null } } | undefined)?.receipt;
+    const tx = rc?.tx_hash ? `  ${rc.explorer_url ?? `tx ${rc.tx_hash.slice(0, 14)}… (simulated)`}` : "";
+    console.log(`  ${id}  ${trace.outcome.padEnd(20)} ${trace.steps.length} steps  ${trace.duration_ms} ms  ${ok ? "OK" : `EXPECTED ${EXPECTED[id]}`}${tx}`);
     if (!ok) {
       failures.push(id);
       const err = trace.steps.filter((s) => s.kind === "error").map((s) => `${s.title}: ${s.detail ?? ""}`);

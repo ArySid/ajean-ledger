@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Keep Vercel usage minimal: no image optimisation needed.
+  // No image optimisation needed (also keeps the Cloudflare Worker bundle small).
   images: { unoptimized: true },
   // Fixtures and replays are read from disk at runtime by API routes.
   outputFileTracingIncludes: { "/**": ["./fixtures/**/*", "./demo/replays/**/*"] },

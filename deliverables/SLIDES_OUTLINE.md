@@ -70,7 +70,7 @@
 - Discover → check budget → 402 → pay 0.15 USDC → entry + warning.
 - Modes: TESTNET · SIMULATED · REPLAY.
 
-**Visual:** switch to `{{PUBLIC_URL}}/live`. The slide is only a title card to fall back on.
+**Visual:** switch to `https://ajean-ledger.ary-sidoun.workers.dev/live`. The slide is only a title card to fall back on.
 
 **Speaker notes (2:45, including the switch to the browser):** Follow `DEMO_SCRIPT.md` exactly. Key moments to land: the **402** (payment is the authentication), the **tx hash** on the Base Sepolia explorer (it is real), the **VAT_RATE_MISMATCH** warning with `human_review_required: true` (the value), the **operator view** +0.15 USDC (the business). If anything stalls for more than 10 s, the driver switches mode without discussion.
 
@@ -114,12 +114,12 @@
 ## Slide 7 — Ask & next steps
 
 **Bullets**
-- Today: working PoC, real API, real MCP server, real testnet payments, 12 synthetic fixtures with tests. Link: `{{PUBLIC_URL}}`.
+- Today: working PoC, real API, real MCP server, real testnet payments, 12 synthetic fixtures with tests. Link: `https://ajean-ledger.ary-sidoun.workers.dev`.
 - Next: review of the accounting rules by a chartered accountant, pilot with 1–2 accounting firms on their own agents, listing in agent and x402 discovery directories.
 - Then: mainnet (Base + USDC/EURC), production facilitator, terms of use and liability framework, GDPR set-up.
 - Our ask: {{ASK — e.g. feedback from the jury, introductions to accounting firms or SaaS publishers for a pilot}}.
 
-**Visual:** three-step roadmap (PoC → Pilot → Production), with a QR code to `{{PUBLIC_URL}}`.
+**Visual:** three-step roadmap (PoC → Pilot → Production), with a QR code to `https://ajean-ledger.ary-sidoun.workers.dev`.
 
 **Speaker notes (0:45):** Close on the one-liner: "An accounting service whose customers are agents, paid by the call in stablecoins." Leave the QR code on screen during Q&A. Thank the jury; hand over to Q&A (see `QA_PREP.md`).
 
@@ -130,7 +130,7 @@
 ## Backup slides (not presented; for Q&A)
 
 - **B1 — Response contract:** full JSON of `POST /api/v1/entry` for fixture 03.
-- **B2 — Architecture:** Next.js API on Vercel, framework-free engine, x402 v2 (`@x402/*` 2.31.0), facilitator, Base Sepolia, MCP server, store for receipts.
+- **B2 — Architecture:** Next.js 16 on Cloudflare Workers (free plan, OpenNext), framework-free engine, x402 v2 (`@x402/*` 2.31.0), facilitator, Base Sepolia, MCP server, store for receipts.
 - **B3 — What is real vs simulated:** real API, payments (testnet), MCP; synthetic data; SIMULATED and REPLAY modes clearly labelled.
 - **B4 — Accounting rules covered:** the 12 fixtures (standard 20%, missing buyer SIREN, restaurant VAT, intra-EU reverse charge, exempt training, duplicate, credit note, fixed asset 2183 + 44562, lawyer fees, mixed goods/services, Factur-X, bank matching).
 - **B5 — Security & GDPR:** see `QA_PREP.md` Q6 and Q9.

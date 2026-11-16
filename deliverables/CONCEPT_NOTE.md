@@ -1,7 +1,7 @@
 # Ajean Ledger — Concept Note
 
 **An accounting API for AI agents, paid per call in stablecoins.**
-Team: Ary SIDOUN, Victor BONNAPETIT, Yoann POMMEROLLE, Leo COUTURIER · PoC: {{PUBLIC_URL}}
+Team: Ary SIDOUN, Victor BONNAPETIT, Yoann POMMEROLLE, Leo COUTURIER · PoC: https://ajean-ledger.ary-sidoun.workers.dev
 *Proof of concept on Base Sepolia testnet, synthetic data only. Not a substitute for a chartered accountant's review.*
 
 Ajean Ledger lets any AI agent send a French invoice or bank transaction and immediately get back a validated, machine-readable accounting entry (PCG accounts, VAT treatment, e-invoicing compliance status, anomaly flags). The agent pays per call in USDC through the x402 protocol. No sign-up, no API key: **payment is the authentication.**

@@ -9,7 +9,7 @@ import { MemoryErp } from "@/agent/erp";
 import { MemorySpendLedger, policyFromEnv } from "@/agent/policy";
 import { DEMO_SCENARIO_LABELS, isDemoScenarioId, scenarioItem } from "@/agent/scenarios";
 import type { AgentTrace } from "@/agent/types";
-import { checkRateLimit, clientKey } from "@/lib/api/rate-limit";
+import { checkRateLimit, clientKey, demoRunRateLimitPerMinute } from "@/lib/api/rate-limit";
 import { getPaymentMode } from "@/lib/payments/config";
 
 export const runtime = "nodejs";
@@ -52,9 +52,12 @@ function errorTrace(scenario: string, label: string, mode: AgentTrace["mode"], s
 
 export async function POST(req: NextRequest) {
   const g = globalThis as Global;
-  const wait = checkRateLimit(`demo-run:${clientKey(req.headers)}`);
+  const wait = checkRateLimit(`demo-run:${clientKey(req.headers)}`, Date.now(), demoRunRateLimitPerMinute());
   if (wait !== null) {
-    return json({ error: { code: "RATE_LIMITED", message: `Too many demo runs, retry in ${wait} s.` }, fallback_hint: "replay" }, 429);
+    return NextResponse.json(
+      { error: { code: "RATE_LIMITED", message: `Too many demo runs, retry in ${wait} s.` }, fallback_hint: "replay" },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(wait) } },
+    );
   }
 
   let body: { scenario?: unknown; mode?: unknown; reasoning?: unknown };

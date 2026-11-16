@@ -157,6 +157,7 @@ bundle shares it.
 PAYMENT_MODE=simulated npm run dev
 curl -i -X POST localhost:3000/api/v1/entry -d '{}' -H 'content-type: application/json'   # → 402 + PAYMENT-REQUIRED
 npm run pay:simulated                       # 402 → pay → 200 + 0x5151… tx, replay, receipt
+                                            # (no AGENT_PRIVATE_KEY? an ephemeral in-memory key is used, with a note)
 npm run pay:simulated -- --endpoint check   # or audit; --url http://host:port
 npm run smoke                               # no payment: health + 402 requirements of the 3 endpoints + receipts 404
 
@@ -196,7 +197,11 @@ keys, and use `fixtures/01.json` `.input` as the body when it exists (else an in
 
 ## 12. Known limitations
 
-- Rate limit and idempotency in-flight guard are per serverless instance (Phase 6 hardening).
+- Rate limit (Phase 6): fixed 60 s window per client IP (`CF-Connecting-IP` on Cloudflare, else `X-Real-IP` /
+  first `X-Forwarded-For` hop), **per server instance** (each Cloudflare isolate counts on its own — a PoC
+  trade-off, no shared counter). Paid endpoints + `/mcp`: `RATE_LIMIT_PER_MINUTE` (default 120); console
+  `/api/demo/run`: `DEMO_RUN_RATE_LIMIT_PER_MINUTE` (default 30). 0 disables. Published in the catalog
+  (`limits.rate_limit_per_minute`) and `llms.txt` (## Limits). The idempotency in-flight guard is per instance too.
 - Vitest loads `@x402/next` via its CJS build in `tests/api.test.ts` (its ESM build imports `next/server` without
   extension, which Node's ESM resolver rejects). Adding `server: { deps: { inline: ["@x402/next"] } }` to
   `vitest.config.ts` would remove that workaround. Next.js dev/build are unaffected.

@@ -1,6 +1,6 @@
 /**
  * The 4 demo scenarios of the /live console, statically bundled (no fs at runtime, so the
- * serverless route /api/demo/run works on Vercel). Same inbox envelopes and fixtures as the CLI.
+ * route /api/demo/run works on Cloudflare Workers). Same inbox envelopes and fixtures as the CLI.
  */
 import fx01 from "../fixtures/01.json";
 import fx03 from "../fixtures/03.json";

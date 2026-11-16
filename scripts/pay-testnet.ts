@@ -1,5 +1,7 @@
 /**
  * npm run pay:testnet [-- --endpoint entry|check|audit] [--url http://localhost:3000]
+ * npm run pay:testnet -- --check-balance     only print the agent's test-USDC balance (no server needed);
+ *                                            exit 0 if it covers the price, 3 otherwise.
  *
  * REAL x402 payment on Base Sepolia (test USDC, testnet only) against a server started with
  * PAYMENT_MODE=testnet. First checks the agent's USDC balance; the agent needs test USDC only
@@ -29,6 +31,10 @@ async function main() {
       `Not enough test USDC. Fund the agent at https://faucet.circle.com (network: Base Sepolia, address ${account.address}), then re-run npm run pay:testnet.`,
       3,
     );
+  }
+  if (process.argv.includes("--check-balance")) {
+    console.log(`OK: enough for ${(balance / BigInt(endpoint.price_atomic)).toString()} call(s) at ${endpoint.price_usdc} USDC.`);
+    return;
   }
   await runPaymentDemo("testnet");
 }

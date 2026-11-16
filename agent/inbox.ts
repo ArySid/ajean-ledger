@@ -76,15 +76,17 @@ export function fsFixture(root = "."): (id: string) => FixtureJson {
 }
 
 /** All inbox/*.json files, sorted by name. */
+// CLI only (never called by a route): the turbopackIgnore hints keep `next build` from tracing the whole project.
 export function loadInbox(dir = "inbox", root = "."): InboxItem[] {
-  if (!existsSync(dir)) return [];
-  const files = readdirSync(dir)
+  if (!existsSync(/*turbopackIgnore: true*/ dir)) return [];
+  const files = readdirSync(/*turbopackIgnore: true*/ dir)
     .filter((f) => f.endsWith(".json"))
     .sort();
   const getFx = fsFixture(root);
   return files.map((f) => {
-    const rel = path.join(dir, f).split(path.sep).join("/");
-    const meta = JSON.parse(readFileSync(path.join(dir, f), "utf8")) as InboxMeta;
+    const file = path.join(/*turbopackIgnore: true*/ dir, f);
+    const rel = file.split(path.sep).join("/");
+    const meta = JSON.parse(readFileSync(/*turbopackIgnore: true*/ file, "utf8")) as InboxMeta;
     return buildInboxItem({ ...meta, id: meta.id ?? f.replace(/\.json$/, "") }, rel, getFx);
   });
 }

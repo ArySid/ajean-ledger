@@ -149,7 +149,8 @@ export function buildCatalog(baseUrl: string) {
       audit_max_items: AUDIT_MAX_ITEMS,
       currency: "EUR invoices only",
       rate_limit_per_minute: rateLimitPerMinute(),
-      rate_limit: "per client IP, fixed 60 s window (429 RATE_LIMITED + Retry-After); 0 = disabled",
+      rate_limit:
+        "per client IP (CF-Connecting-IP behind Cloudflare), fixed 60 s window, per server instance; applies to the paid endpoints and /mcp (429 RATE_LIMITED + Retry-After, never charged); 0 = disabled",
       unstructured_documents: "pdf/image need the optional LLM layer (else 503 LLM_UNAVAILABLE, not charged)",
     },
     generated_at: new Date().toISOString(),

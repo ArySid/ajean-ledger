@@ -4,16 +4,16 @@
 the full demo from a public URL: **(1) Cloudflare Workers** via the OpenNext adapter, **(2) Netlify** as fallback.
 No paid plan, testnet only, storage optional, no Supabase.
 
-**Status (2026-11-16):** the repo builds for Workers and the **full demo runs in the local Workers runtime**
-(workerd via `wrangler dev`, no account needed): every page, discovery file, MCP, 402 + paid x402 flow
-(JSON, Factur-X PDF, UBL, audit ×50), receipts, `/api/demo/run` scenarios 01/03/04/06, KV store.
-Deployment is pending a Cloudflare account (steps in §3).
+**Status (2026-11-16): deployed.** Public demo: **<https://ajean-ledger.ary-sidoun.workers.dev>** (Workers Free,
+KV-backed, `PAYMENT_MODE=simulated` until the testnet go-live of §7). Deployed from the Claude cloud session with
+`npm run cf:deploy:embedded` (static assets embedded in the Worker, ADR-020); `npm run cf:deploy` (Workers Assets)
+works from a normal terminal. `npm run warmup` → **READY FOR DEMO** against the public URL.
 
 | Item | Value |
 |---|---|
 | Adapter | `@opennextjs/cloudflare` **1.20.17** (pinned), `wrangler` ^4.162 — devDependencies |
-| Config | [`wrangler.jsonc`](../wrangler.jsonc), [`open-next.config.ts`](../open-next.config.ts), [`scripts/cf-build.mjs`](../scripts/cf-build.mjs) |
-| Public URL (after deploy) | `https://ajean-ledger.<your-subdomain>.workers.dev` |
+| Config | [`wrangler.embedded.jsonc`](../wrangler.embedded.jsonc) (used for deploys, ADR-020) and [`wrangler.jsonc`](../wrangler.jsonc) (Workers Assets variant) — keep their `vars` in sync; [`open-next.config.ts`](../open-next.config.ts), [`scripts/cf-build.mjs`](../scripts/cf-build.mjs), [`scripts/cf-embed-assets.mjs`](../scripts/cf-embed-assets.mjs) |
+| Public URL | <https://ajean-ledger.ary-sidoun.workers.dev> |
 | Runtime config | `vars` in `wrangler.jsonc` (`PAYMENT_MODE`, `X402_NETWORK`, `X402_FACILITATOR_URL`, `STORE_KIND`) + secrets via `wrangler secret put` |
 | Storage | KV binding `AJEAN_KV` (optional, free) → else Neon (`DATABASE_URL`) → else memory + replay fallback |
 
@@ -25,7 +25,8 @@ Deployment is pending a Cloudflare account (steps in §3).
 | `npm run cf:preview` | Runs the built Worker locally in workerd on `http://localhost:8787` (no account). Run `cf:build` first. Local secrets: copy `.dev.vars.example` to `.dev.vars`. |
 | `npm run cf:deploy` | `cf:build` then `opennextjs-cloudflare deploy` (needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`, or `wrangler login`). |
 | `npm run cf:typegen` | Generates binding types into `.wrangler/types/cloudflare-env.d.ts` (gitignored, not part of `tsc`). |
-| `npm run warmup [-- --url URL] [--pay]` | Day-J check + isolate warm-up of the public URL (default `PUBLIC_URL`, else `http://localhost:8787`). Green/red table with latencies, exit ≠ 0 on failure. Simulated deployment: pays with an **ephemeral** key. Testnet deployment: stops at the 402 unless `--pay` and `AGENT_PRIVATE_KEY` are set (spends 0.15 test USDC). |
+| `npm run cf:deploy:embedded` | `cf:build` → embeds the static assets into the Worker → `wrangler deploy -c wrangler.embedded.jsonc`. **The deploy command used for the public demo** (ADR-020). |
+| `npm run warmup [-- --url URL] [--pay] [--expect-mode testnet\|simulated]` | Day-J check + isolate warm-up. Default URL: `--url`, else `PUBLIC_URL`, else **the public Workers URL**. 17 checks (pages, discovery, 402 ×3, paid `/entry`, receipt, `/api/demo/run` 03, replay 03), green/red table with latencies, final **READY FOR DEMO** / **NOT READY** banner, exit ≠ 0 on failure. Simulated deployment: pays with an **ephemeral** key. Testnet deployment: the paid call and the demo run need `--pay` (spends 0.15 test USDC from `AGENT_PRIVATE_KEY` + 0.15 from the Worker's agent wallet). |
 
 `next dev` is unchanged. `CF_DEV=1 npm run dev` additionally exposes the Wrangler bindings (KV, vars) to `next dev`
 through `initOpenNextCloudflareForDev()` (opt-in, so the other workstreams' dev servers are not affected).
@@ -104,10 +105,9 @@ chunks (viem, zod, pdf-lib, MCP SDK, engine) — no further split needed.
    # optional
    node -e 'process.loadEnvFile(".env.local");process.stdout.write(process.env.ANTHROPIC_API_KEY)'      | npx wrangler secret put ANTHROPIC_API_KEY
    ```
-8. **Testnet mode**: set `"PAYMENT_MODE": "testnet"` in `wrangler.jsonc` `vars`, then `npm run cf:deploy`
-   (switch back to `"simulated"` the same way). Testnet is the x402.org facilitator on Base Sepolia (test USDC only).
-9. **Check**: `PUBLIC_URL=https://ajean-ledger.<subdomain>.workers.dev npm run warmup` (add `--pay` in testnet mode to
-   spend 0.15 test USDC). Run it again ~5 minutes before presenting: it also warms the isolates.
+8. **Testnet mode**: see §7 (exact go-live sequence).
+9. **Check**: `npm run warmup` (defaults to the public URL; add `--pay` in testnet mode). Run it the evening before
+   and ~1 h before presenting: it also warms the isolates.
 
 ## 4. Free-plan limits and their impact on the demo
 
@@ -120,6 +120,7 @@ chunks (viem, zod, pdf-lib, MCP SDK, engine) — no further split needed.
 | Memory | 128 MB / isolate | OK. |
 | Subrequests | 50 / invocation | Max ~5 (demo run), 2–3 (testnet facilitator verify/settle). |
 | KV | 100k reads, **1,000 writes** / day, 1 GB | ~4 writes per paid call (receipt, idempotency key, recent list, counters) → ~250 paid calls/day. Eventually consistent (≤ 60 s across locations); counters are read-modify-write (a concurrent call can lose an increment — fine for a PoC dashboard). Any KV error (quota/429) → memory fallback (ResilientStore). |
+| Rate limits (ours) | per client IP (`CF-Connecting-IP`) and isolate: 120/min on paid endpoints + `/mcp`, 30/min on `/api/demo/run` | Protects the 100k/day quota from a single client. Two warmups + two full demos in one minute use about a third of each limit (checked on a local server). A 429 in the console → REPLAY. |
 | In-memory state | per isolate | Without KV, receipts/idempotency/rate-limit/simulated nonces live in one isolate and can vanish when it is recycled. Use KV for the public demo. |
 
 ## 5. CPU per request (10 ms budget)
@@ -172,3 +173,54 @@ than in simulated mode (~2 ECDSA recoveries fewer).
 - **Verdict:** viable fallback if Workers fails (simpler runtime, Node functions); the risks are the credit cap
   (a pause right before the jury) and per-deploy credit cost. Steps if needed: `netlify.toml` with
   `[build] command = "npm run build"`, publish `.next`, env vars in the Netlify UI, `npx netlify deploy --prod`.
+
+## 7. Testnet go-live (once the agent wallet holds test USDC)
+
+The agent wallet `0xD25Eb53E57bCF0DE8785d9a0D0722CC98BB0c1BF` (`AGENT_ADDRESS` in `.env.local`, same key as the
+Worker secret `AGENT_PRIVATE_KEY`) pays; the service wallet `0xCB4b84079B1dd19828c3d5733f9e0D2DcB26dFeC`
+(`SERVICE_PAY_TO_ADDRESS`, Worker secret) receives. Test USDC only (ADR-007: no ETH needed, the facilitator pays
+gas). Faucet: <https://faucet.circle.com> → USDC, **Base Sepolia**.
+
+**Budget** (test USDC): local `pay:testnet` 0.15 · `warmup --pay` 0.30 · `record:replays --public` 0.60 · each live
+console run 0.15 (two full rehearsals of 01/03/04/06 = 1.20). ≈ 2.25 → keep **≥ 3 USDC** on the agent wallet.
+
+Run from the repo root (it holds `.env.local`); steps 1–2 need no deploy:
+
+```bash
+# 1. Balance (no server needed; exit 3 + faucet hint if too low)
+npm run pay:testnet -- --check-balance
+
+# 2. Real payment against a LOCAL testnet server (x402.org facilitator, Base Sepolia)
+PAYMENT_MODE=testnet npm run dev -- -p 3600 &          # note its PID; .env.local provides SERVICE_PAY_TO_ADDRESS
+npm run pay:testnet -- --url http://localhost:3600     # 402 → pay 0.15 → 200 + Basescan link (check it opens)
+kill <PID>                                             # stop the dev server you started
+
+# 3. Switch the public Worker to testnet: set "PAYMENT_MODE": "testnet" in the vars of BOTH
+#    wrangler.embedded.jsonc and wrangler.jsonc, then redeploy (secrets are already set; verify with
+#    `npx wrangler secret list -c wrangler.embedded.jsonc` → SERVICE_PAY_TO_ADDRESS, AGENT_PRIVATE_KEY)
+npm run cf:deploy:embedded
+curl -s https://ajean-ledger.ary-sidoun.workers.dev/api/health   # payment.mode "testnet", pay_to 0xCB4b…dFeC
+
+# 4. Day-J check with real payments (paid /entry from .env.local's key + one demo run from the Worker's key)
+npm run warmup -- --pay --expect-mode testnet          # → READY FOR DEMO, tx links on sepolia.basescan.org
+
+# 5. Re-record the 4 replays from REAL testnet runs against the public URL (writes demo/replays/*.json only if
+#    01 posted, 03 posted_with_review, 04 posted, 06 posted_with_review; prints the Basescan link of each run)
+npm run record:replays -- --public
+npx vitest run                                         # replays must still match the engine output
+npm run cf:deploy:embedded                             # ship the new replays (bundled into the Worker)
+npm run warmup -- --pay --expect-mode testnet          # final check
+```
+
+Then commit `demo/replays/*.json` and the two wrangler files. **Rollback** to simulated: set
+`"PAYMENT_MODE": "simulated"` in both wrangler files and `npm run cf:deploy:embedded` (≈ 1 min).
+
+**Notes**
+- On a testnet deployment the console's SIMULATED button is disabled (the server decides how agents pay; a
+  per-request "simulated" switch would hand out free results). The fallback is REPLAY (automatic on any failure).
+  If a live SIMULATED fallback is wanted on stage, deploy a second Worker under another name with
+  `PAYMENT_MODE=simulated` (free plan allows it) and keep its URL in a tab — optional.
+- The Worker's demo agent tracks its testnet spend **in memory per isolate** against `AGENT_DAILY_BUDGET_USDC`
+  (2.00 → 13 runs per isolate and UTC day). After a heavy rehearsal day a run may answer "refused by policy"; a
+  redeploy resets the counter (new isolates).
+- Facilitator settle adds ~2–5 s per paid call; the console waits up to 45 s before falling back to REPLAY.

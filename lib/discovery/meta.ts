@@ -35,7 +35,7 @@ export function discoveryLinks(baseUrl: string) {
 }
 
 /**
- * Public origin of the service, from the request (proxy headers first: Vercel sets
+ * Public origin of the service, from the request (proxy headers first: reverse proxies set
  * x-forwarded-host / x-forwarded-proto). Falls back to the request URL origin.
  */
 export function baseUrlFromRequest(req: Request): string {

@@ -66,10 +66,10 @@ import { POST as auditPOST } from "@/app/api/v1/audit/route";
 import { GET as receiptGET } from "@/app/api/v1/receipts/[id]/route";
 import { GET as healthGET } from "@/app/api/health/route";
 import { resetPaidRoutes } from "@/lib/api/paid-route";
-import { resetRateLimit } from "@/lib/api/rate-limit";
+import { checkRateLimit, clientKey, demoRunRateLimitPerMinute, resetRateLimit } from "@/lib/api/rate-limit";
 import { resetResourceServers } from "@/lib/payments/server";
 import { resetSimulatedFacilitator } from "@/lib/payments/simulated-facilitator";
-import { getStore, setStoreForTests, MemoryStore } from "@/lib/store";
+import { getStore, setStoreForTests, MemoryStore, type Store } from "@/lib/store";
 
 const BASE = "http://localhost:3000";
 const PAY_TO = privateKeyToAccount(generatePrivateKey()).address;
@@ -319,6 +319,62 @@ describe("errors are machine-readable and never charged", () => {
       expect((await res.json()).error.code).toBe("RATE_LIMITED");
     } finally {
       delete process.env.RATE_LIMIT_PER_MINUTE;
+    }
+  });
+});
+
+describe("rate limit (Phase 6 hardening)", () => {
+  it("keys on CF-Connecting-IP first (Cloudflare), then X-Real-IP, then the first X-Forwarded-For hop", () => {
+    const h = (o: Record<string, string>) => new Headers(o);
+    expect(clientKey(h({ "cf-connecting-ip": "203.0.113.7", "x-forwarded-for": "198.51.100.1, 10.0.0.1" }))).toBe("203.0.113.7");
+    expect(clientKey(h({ "x-real-ip": "198.51.100.9", "x-forwarded-for": "198.51.100.1" }))).toBe("198.51.100.9");
+    expect(clientKey(h({ "x-forwarded-for": "198.51.100.1, 10.0.0.1" }))).toBe("198.51.100.1");
+    expect(clientKey(h({}))).toBe("local");
+  });
+
+  it("limits each client IP separately on the paid endpoints", async () => {
+    process.env.RATE_LIMIT_PER_MINUTE = "1";
+    try {
+      expect((await post(entryPOST, "/api/v1/entry", {}, { "cf-connecting-ip": "203.0.113.1" })).status).toBe(402);
+      expect((await post(checkPOST, "/api/v1/invoice/check", {}, { "cf-connecting-ip": "203.0.113.1" })).status).toBe(429);
+      expect((await post(entryPOST, "/api/v1/entry", {}, { "cf-connecting-ip": "203.0.113.2" })).status).toBe(402);
+    } finally {
+      delete process.env.RATE_LIMIT_PER_MINUTE;
+    }
+  });
+
+  it("default limits leave room for two warmups plus two full demos in one minute (no 429)", () => {
+    // paid routes: 2 warmups × (3 unpaid + 2 paid hits + 2 demo-run hits) + 8 demo runs × 2 hits = 30.
+    for (let i = 0; i < 30; i++) expect(checkRateLimit("presenter", 1_000 + i)).toBeNull();
+    // demo runs: 2 warmups + 8 = 10.
+    for (let i = 0; i < 10; i++) expect(checkRateLimit("demo-run:presenter", 1_000 + i, demoRunRateLimitPerMinute())).toBeNull();
+    resetRateLimit();
+  });
+});
+
+describe("store failure → memory fallback (the paid API keeps working)", () => {
+  it("serves a paid call and its receipt when the primary store throws", async () => {
+    const boom = () => Promise.reject(new Error("KV quota exceeded"));
+    const broken: Store = { kind: "cloudflare-kv", saveReceipt: boom, getReceipt: boom, getByIdempotencyKey: boom, listRecent: boom, stats: boom, saveFingerprint: boom, history: boom };
+    const store = setStoreForTests(broken)!;
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const res = await payingFetch(`${BASE}/api/v1/entry`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "Idempotency-Key": "kv-down-1" },
+        body: JSON.stringify(invoiceBody),
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.receipt.tx_hash).toMatch(/^0x5151/);
+      expect(store.kind).toBe("memory");
+      const r = await receiptGET(new NextRequest(`${BASE}/api/v1/receipts/${body.request_id}`), { params: Promise.resolve({ id: body.request_id }) });
+      expect(r.status).toBe(200);
+      expect((await getStore().stats()).calls_served).toBe(1);
+    } finally {
+      err.mockRestore();
+      warn.mockRestore();
     }
   });
 });

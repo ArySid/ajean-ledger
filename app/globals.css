@@ -685,6 +685,79 @@ pre,
 .controls .spacer {
   flex: 1;
 }
+/* "ⓘ Modes" legend next to the mode badge (TESTNET / SIMULATED / REPLAY explained) */
+.mode-legend {
+  position: relative;
+}
+.mode-legend summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
+  user-select: none;
+}
+.mode-legend summary::-webkit-details-marker {
+  display: none;
+}
+.mode-legend[open] summary {
+  color: var(--text);
+  background: var(--panel-3);
+}
+.mode-legend-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: min(460px, 88vw);
+  padding: 14px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+.mode-legend-pop dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.mode-legend-pop dl > div {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.mode-legend-pop dd {
+  margin: 0;
+  color: var(--muted);
+}
+.mode-legend-pop p {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+}
+.mode-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
 
 .notice {
   display: flex;

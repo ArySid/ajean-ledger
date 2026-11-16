@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { decodeBase64Json, decodedHeaders, isSimulatedTx, resultRevealIndex, stepHighlights, txExplorerUrl } from "@/lib/console/format";
 import { allBundledReplays, BUNDLED_REPLAYS } from "@/lib/console/replays";
 import { SCENARIOS } from "@/lib/console/scenarios";
-import { extractTrace, isAgentTrace, LIVE_FAILED_NOTICE, loadReplay, runScenario } from "@/lib/console/source";
+import { extractTrace, fetchServerMode, isAgentTrace, LIVE_FAILED_NOTICE, loadReplay, runScenario } from "@/lib/console/source";
+import { MODE_INFO, MODE_ORDER } from "@/lib/console/modes";
 import { loadOperatorStats, normaliseStats, statsFromReplays } from "@/lib/console/stats";
 import path from "node:path";
 import { createEntry } from "@/engine";
@@ -83,10 +84,18 @@ describe("bundled replays", () => {
     expect(t.steps[idx].http?.status).toBe(200);
   });
 
-  it("sample receipts are flagged as simulated (no explorer link)", () => {
-    const r = (BUNDLED_REPLAYS["01"].result as { receipt: Parameters<typeof isSimulatedTx>[0] }).receipt;
-    expect(isSimulatedTx(r)).toBe(true);
-    expect(txExplorerUrl(r)).toBeNull();
+  it("receipts match the mode they were recorded in (simulated: no explorer link; testnet: Basescan link)", () => {
+    // Holds before and after `npm run record:replays -- --public` against the TESTNET deployment.
+    for (const t of allBundledReplays()) {
+      const r = (t.result as { receipt: Parameters<typeof isSimulatedTx>[0] }).receipt;
+      if (t.recorded_from === "testnet") {
+        expect(isSimulatedTx(r), t.scenario).toBe(false);
+        expect(txExplorerUrl(r), t.scenario).toBe(`https://sepolia.basescan.org/tx/${r.tx_hash}`);
+      } else {
+        expect(isSimulatedTx(r), t.scenario).toBe(true);
+        expect(txExplorerUrl(r), t.scenario).toBeNull();
+      }
+    }
     const real = { tx_hash: "0x" + "ab".repeat(32), mode: "testnet" as const, explorer_url: null };
     expect(txExplorerUrl(real)).toBe(`https://sepolia.basescan.org/tx/${real.tx_hash}`);
   });
@@ -131,6 +140,28 @@ describe("source fallback ladder", () => {
     const out = await runScenario("06", "testnet", { fetchImpl: jsonFetch({ "/api/demo/run": { hello: "world" } }) });
     expect(out.origin).toBe("replay-bundled");
     expect(out.error).toContain("malformed");
+  });
+
+  it("falls back to REPLAY when the live run answers 5xx (e.g. Cloudflare 1102 CPU limit → 503)", async () => {
+    const f = (async (url: string) => {
+      const p = new URL(url, "http://x").pathname;
+      if (p === "/api/demo/run") return new Response("error code: 1102", { status: 503 });
+      return new Response("down", { status: 500 });
+    }) as unknown as typeof fetch;
+    const out = await runScenario("03", "testnet", { fetchImpl: f });
+    expect(out.origin).toBe("replay-bundled");
+    expect(out.trace.mode).toBe("REPLAY");
+    expect(out.notice).toBe(LIVE_FAILED_NOTICE);
+    expect(out.error).toContain("HTTP 503");
+  });
+
+  it("falls back to REPLAY when the agent run itself ends in error (e.g. unfunded wallet, 429 DEMO_BUSY)", async () => {
+    const errored = { ...BUNDLED_REPLAYS["03"], outcome: "error", fallback_hint: "replay" };
+    const out = await runScenario("03", "testnet", { fetchImpl: jsonFetch({ "/api/demo/run": errored }) });
+    expect(out.origin).toBe("replay-bundled");
+    expect(out.error).toContain("ended in error");
+    const busy = (async () => new Response(JSON.stringify({ error: { code: "DEMO_BUSY" } }), { status: 429 })) as unknown as typeof fetch;
+    expect((await runScenario("01", "simulated", { fetchImpl: busy })).trace.mode).toBe("REPLAY");
   });
 
   it("loadReplay never throws and accepts {trace} wrappers", async () => {
@@ -178,5 +209,24 @@ describe("operator stats", () => {
     const empty = await loadOperatorStats({ fetchImpl: jsonFetch({ "/api/v1/operator/stats": { calls: 0, usdc_earned: "0", by_endpoint: [], recent: [], source: "memory" } }) });
     expect(empty.fallback).toBe(true);
     expect(empty.stats.calls).toBe(4);
+  });
+});
+
+describe("mode legend and server mode", () => {
+  it("explains every console mode (TESTNET / SIMULATED / REPLAY)", () => {
+    expect(MODE_ORDER).toEqual(["TESTNET", "SIMULATED", "REPLAY"]);
+    for (const m of MODE_ORDER) {
+      expect(MODE_INFO[m].mode).toBe(m);
+      expect(MODE_INFO[m].long.length).toBeGreaterThan(60);
+    }
+    expect(MODE_INFO.SIMULATED.long).toMatch(/fake/);
+    expect(MODE_INFO.REPLAY.long).toMatch(/recorded/);
+  });
+
+  it("reads the deployment's payment mode from /api/health, null when unreachable", async () => {
+    expect(await fetchServerMode({ fetchImpl: jsonFetch({ "/api/health": { payment: { mode: "testnet" } } }) })).toBe("testnet");
+    expect(await fetchServerMode({ fetchImpl: jsonFetch({ "/api/health": { payment: { mode: "simulated" } } }) })).toBe("simulated");
+    expect(await fetchServerMode({ fetchImpl: jsonFetch({ "/api/health": { payment: { mode: "weird" } } }) })).toBeNull();
+    expect(await fetchServerMode({ fetchImpl: failingFetch })).toBeNull();
   });
 });

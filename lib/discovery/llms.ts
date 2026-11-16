@@ -3,6 +3,7 @@
  * H1, blockquote summary, details, H2 sections with link lists). Prices from pricing.ts.
  * The "## Errors" section is the target of every error's docs_url ("/llms.txt#errors").
  */
+import { rateLimitPerMinute } from "@/lib/api/rate-limit";
 import { getPaymentMode, getPayTo } from "@/lib/payments/config";
 import {
   AUDIT_MAX_ITEMS,
@@ -163,7 +164,12 @@ export function buildLlmsTxt(baseUrl: string): string {
   L.push("## Limits");
   L.push("");
   L.push(`- Body ≤ ${MAX_BODY_BYTES / 1_000_000} MB; audit batches 1..${AUDIT_MAX_ITEMS} items; EUR invoices only; French accounting and VAT rules (PCG, French VAT) only.`);
-  L.push("- Rate limit per client IP and minute (429 + `Retry-After`).");
+  const rpm = rateLimitPerMinute();
+  L.push(
+    rpm
+      ? `- Rate limit: ${rpm} requests per client IP and minute on the paid endpoints and \`/mcp\` (fixed 60 s window, per server instance) → 429 \`RATE_LIMITED\` + \`Retry-After\`, never charged. Discovery files are not limited.`
+      : "- Rate limit: disabled on this deployment.",
+  );
   L.push("- pdf/image inputs need the optional LLM layer (else 503 `LLM_UNAVAILABLE`, not charged); LLM output is always validated by the rules engine (`extraction_method: \"llm\"` + confidence).");
   L.push("- Receipts may be kept in memory on some deployments (lookups can 404 after a restart).");
   L.push("");

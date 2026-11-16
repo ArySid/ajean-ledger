@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ModeBadge } from "@/components/ModeBadge";
 import { resultRevealIndex, utcStamp } from "@/lib/console/format";
 import { DEFAULT_SCENARIO, isScenarioId, SCENARIOS, type ScenarioId } from "@/lib/console/scenarios";
-import { loadReplay, runScenario, LIVE_TIMEOUT_MS, type RunMode, type RunOutcome } from "@/lib/console/source";
+import { MODE_DECIDED_BY_SERVER, MODE_INFO, MODE_ORDER } from "@/lib/console/modes";
+import { fetchServerMode, loadReplay, runScenario, LIVE_TIMEOUT_MS, type RunMode, type RunOutcome } from "@/lib/console/source";
 import type { PaymentModeLabel, TraceStep } from "@/lib/trace/types";
 import { ResultPanel } from "./ResultPanel";
 import { TraceStepItem } from "./TraceStepItem";
@@ -32,6 +33,8 @@ const ORIGIN_LABEL: Record<RunOutcome["origin"], string> = {
 export function LiveConsole() {
   const [scenario, setScenario] = useState<ScenarioId>(DEFAULT_SCENARIO);
   const [runMode, setRunMode] = useState<RunMode>("testnet");
+  /** Mode of this deployment (GET /api/health); null until known or if unreachable. */
+  const [serverMode, setServerMode] = useState<RunMode | null>(null);
   const [speed, setSpeed] = useState<number>(1);
   const [skipAnim, setSkipAnim] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -84,6 +87,19 @@ export function LiveConsole() {
     return () => abortRef.current?.abort();
   }, [start]);
 
+  // The server decides how agents pay: align the selector on the deployment's mode once known.
+  useEffect(() => {
+    let alive = true;
+    void fetchServerMode().then((m) => {
+      if (!alive || !m) return;
+      setServerMode(m);
+      setRunMode(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Step-by-step reveal.
   useEffect(() => {
     if (phase !== "playing" || !outcome) return;
@@ -135,11 +151,26 @@ export function LiveConsole() {
             Payment mode for live runs
           </span>
           <div className="seg" role="group" aria-labelledby="mode-l">
-            {(["testnet", "simulated"] as RunMode[]).map((m) => (
-              <button key={m} type="button" aria-pressed={runMode === m} onClick={() => setRunMode(m)} disabled={phase === "calling"}>
-                {m.toUpperCase()}
-              </button>
-            ))}
+            {(["testnet", "simulated"] as RunMode[]).map((m) => {
+              const unavailable = serverMode !== null && serverMode !== m;
+              const label = m === "testnet" ? "TESTNET" : "SIMULATED";
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={runMode === m}
+                  onClick={() => setRunMode(m)}
+                  disabled={phase === "calling" || unavailable}
+                  title={
+                    unavailable
+                      ? `This deployment runs in ${serverMode!.toUpperCase()} mode (PAYMENT_MODE). ${label} live runs need a ${m} deployment; REPLAY always works.`
+                      : `${label}: ${MODE_INFO[label].long}`
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => void start("run", scenario, runMode, skipAnim)} disabled={phase === "calling"} data-testid="run-btn">
@@ -166,6 +197,27 @@ export function LiveConsole() {
         </label>
         <span className="spacer" />
         <ModeBadge mode={badgeMode} sub={badgeSub} />
+        <details className="mode-legend" data-testid="mode-legend">
+          <summary aria-label="What do the modes mean?" title="What do TESTNET, SIMULATED and REPLAY mean?">
+            ⓘ
+          </summary>
+          <div className="mode-legend-pop" role="note">
+            <dl>
+              {MODE_ORDER.map((m) => (
+                <div key={m}>
+                  <dt>
+                    <span className={`mode-chip mode-${m}`}>{m}</span>
+                  </dt>
+                  <dd>{MODE_INFO[m].long}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="faint">
+              {MODE_DECIDED_BY_SERVER}
+              {serverMode ? ` This deployment: ${serverMode.toUpperCase()}.` : ""}
+            </p>
+          </div>
+        </details>
       </div>
 
       {outcome?.notice && (
