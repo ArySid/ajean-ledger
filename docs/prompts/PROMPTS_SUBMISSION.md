@@ -227,6 +227,24 @@ Live result: <https://ajean-ledger.ary-sidoun.workers.dev> (TESTNET, Cloudflare 
 
 ---
 
+## #05 — 2026-11-20 — Short recap of the product (question)
+
+**Context:** after Phase 7, the user asks for a short summary of the product they can reuse orally (principle, value, how it gets paid).
+
+**Original text (French, verbatim):**
+
+> Tu peux me faire un mini recap du principe du logiciel, et en 2-3 phrases son intérêt, comment marche la rémunération et quel est le principe de base
+> Fais ce que je t'ai dit.
+
+**English translation:**
+
+> Can you give me a short recap of how the software works, and in 2–3 sentences its value, how the payment works and what the basic principle is.
+> Do what I told you.
+
+**Outcome:** answered in chat (French bullet points); no code change.
+
+---
+
 ## How the prototype was built
 
 - **One build session, one orchestrator.** The four prompts above were sent to a single Claude Code session (Anthropic; the commits are co-authored by the Claude Opus 5.5 model). After prompt #02, that session acted as the **orchestrator**. It split the work into workstreams with explicit file ownership: accounting engine; x402 paid API and payments; discovery files and MCP server; demo purchasing agent; demo console; hosting; deliverables. Independent workstreams ran in parallel as **subagents**, and the orchestrator integrated and verified the results. The briefs given to the subagents were written by the orchestrator from these prompts; they are not team prompts and are not listed here.

@@ -134,3 +134,16 @@ Times are UTC.
 - Account creation + API token requested in "Action requise".
 **Files touched:** `docs/prompts/PROMPT_LOG.md`, `docs/DECISIONS.md`, hosting config files (see CHANGELOG)
 **Phase:** 5 (hosting)
+
+---
+
+## #05 — 2026-11-20 — Short recap of the product (question)
+**Prompt (verbatim, original in French):**
+> Tu peux me faire un mini recap du principe du logiciel, et en 2-3 phrases son intérêt, comment marche la rémunération et quel est le principe de base
+> Fais ce que je t'ai dit.
+
+**What was done:**
+- Answered in chat (French, bullet points): base principle, value in 2–3 sentences, how the service gets paid (x402 per call in USDC/EURC, credit packs).
+- No code change.
+**Files touched:** `docs/prompts/PROMPT_LOG.md`, `docs/prompts/PROMPTS_SUBMISSION.md`
+**Phase:** post-7 (Q&A)
