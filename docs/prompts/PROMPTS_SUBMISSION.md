@@ -245,6 +245,22 @@ Live result: <https://ajean-ledger.ary-sidoun.workers.dev> (TESTNET, Cloudflare 
 
 ---
 
+## #06 — 2026-11-20 — Shorter English pitch (question)
+
+**Context:** follow-up to #05: the user wants a 2–3 sentence presentation in English.
+
+**Original text (French, verbatim):**
+
+> Plus cours juste 2-3 phrases de prenstation en anglais mtn
+
+**English translation:**
+
+> Shorter: just 2–3 sentences of presentation, in English now.
+
+**Outcome:** answered in chat; no code change.
+
+---
+
 ## How the prototype was built
 
 - **One build session, one orchestrator.** The four prompts above were sent to a single Claude Code session (Anthropic; the commits are co-authored by the Claude Opus 5.5 model). After prompt #02, that session acted as the **orchestrator**. It split the work into workstreams with explicit file ownership: accounting engine; x402 paid API and payments; discovery files and MCP server; demo purchasing agent; demo console; hosting; deliverables. Independent workstreams ran in parallel as **subagents**, and the orchestrator integrated and verified the results. The briefs given to the subagents were written by the orchestrator from these prompts; they are not team prompts and are not listed here.

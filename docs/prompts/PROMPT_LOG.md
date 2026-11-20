@@ -147,3 +147,14 @@ Times are UTC.
 - No code change.
 **Files touched:** `docs/prompts/PROMPT_LOG.md`, `docs/prompts/PROMPTS_SUBMISSION.md`
 **Phase:** post-7 (Q&A)
+
+---
+
+## #06 — 2026-11-20 — Shorter English pitch (question)
+**Prompt (verbatim, original in French):**
+> Plus cours juste 2-3 phrases de prenstation en anglais mtn
+
+**What was done:**
+- Answered in chat with a 2–3 sentence English pitch. No code change.
+**Files touched:** `docs/prompts/PROMPT_LOG.md`, `docs/prompts/PROMPTS_SUBMISSION.md`
+**Phase:** post-7 (Q&A)
